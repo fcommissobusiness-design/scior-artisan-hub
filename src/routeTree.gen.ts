@@ -9,8 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProdottiRouteImport } from './routes/prodotti'
+import { Route as OrdiniRouteImport } from './routes/ordini'
+import { Route as OfferteRouteImport } from './routes/offerte'
+import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ProdottiRoute = ProdottiRouteImport.update({
+  id: '/prodotti',
+  path: '/prodotti',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdiniRoute = OrdiniRouteImport.update({
+  id: '/ordini',
+  path: '/ordini',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferteRoute = OfferteRouteImport.update({
+  id: '/offerte',
+  path: '/offerte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientiRoute = ClientiRouteImport.update({
+  id: '/clienti',
+  path: '/clienti',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +43,72 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clienti': typeof ClientiRoute
+  '/offerte': typeof OfferteRoute
+  '/ordini': typeof OrdiniRoute
+  '/prodotti': typeof ProdottiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clienti': typeof ClientiRoute
+  '/offerte': typeof OfferteRoute
+  '/ordini': typeof OrdiniRoute
+  '/prodotti': typeof ProdottiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clienti': typeof ClientiRoute
+  '/offerte': typeof OfferteRoute
+  '/ordini': typeof OrdiniRoute
+  '/prodotti': typeof ProdottiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/clienti' | '/offerte' | '/ordini' | '/prodotti'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/clienti' | '/offerte' | '/ordini' | '/prodotti'
+  id: '__root__' | '/' | '/clienti' | '/offerte' | '/ordini' | '/prodotti'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClientiRoute: typeof ClientiRoute
+  OfferteRoute: typeof OfferteRoute
+  OrdiniRoute: typeof OrdiniRoute
+  ProdottiRoute: typeof ProdottiRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/prodotti': {
+      id: '/prodotti'
+      path: '/prodotti'
+      fullPath: '/prodotti'
+      preLoaderRoute: typeof ProdottiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ordini': {
+      id: '/ordini'
+      path: '/ordini'
+      fullPath: '/ordini'
+      preLoaderRoute: typeof OrdiniRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offerte': {
+      id: '/offerte'
+      path: '/offerte'
+      fullPath: '/offerte'
+      preLoaderRoute: typeof OfferteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clienti': {
+      id: '/clienti'
+      path: '/clienti'
+      fullPath: '/clienti'
+      preLoaderRoute: typeof ClientiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +121,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClientiRoute: ClientiRoute,
+  OfferteRoute: OfferteRoute,
+  OrdiniRoute: OrdiniRoute,
+  ProdottiRoute: ProdottiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
