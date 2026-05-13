@@ -15,11 +15,12 @@ export interface Product {
   id: string;
   name: string;
   category: ProductCategory;
-  cost: number | null; // per unit
+  cost: number | null;
   price: number;
   unit: "kg" | "pz";
   active: boolean;
-  badge?: "DOP" | "IGP" | "DOC" | "DOCG";
+  badge?: "DOP" | "IGP" | "DOC" | "DOCG" | "BIO";
+  notes?: string;
 }
 
 export interface Client {
@@ -28,6 +29,7 @@ export interface Client {
   phone: string;
   segment: Segment;
   lastOrder?: string;
+  firstOrder?: string;
   stamps: number;
   notes?: string;
 }
@@ -42,6 +44,7 @@ export type OrderStatus = "in_attesa" | "ritirato" | "annullato";
 export interface Order {
   id: string;
   clientId: string;
+  label?: string;
   items: OrderItem[];
   pickupDate: string; // ISO datetime
   status: OrderStatus;
@@ -56,17 +59,27 @@ export interface Bundle {
   ingredients: string[];
   fullPrice: number;
   offerPrice: number | null;
-  marginPct: number | null;
+  estimatedCost?: number; // costo stimato bundle (opzionale, per margine)
   availability: string;
   active: boolean;
 }
 
-export const SEGMENT_META: Record<Segment, { label: string; mode: string; count: number; color: string }> = {
-  top: { label: "Top Fidelizzati", mode: "messaggio manuale con nome", count: 3, color: "bg-brand-gold text-white" },
-  abituali: { label: "Abituali", mode: "messaggio manuale con nome", count: 37, color: "bg-success text-white" },
-  occasionali: { label: "Occasionali", mode: "broadcast", count: 23, color: "bg-blue-600 text-white" },
-  nuovi: { label: "Nuovi", mode: "broadcast + ricotta omaggio", count: 56, color: "bg-teal-600 text-white" },
-  inattivi: { label: "Inattivi", mode: "broadcast con offerta forte", count: 232, color: "bg-neutral-700 text-white" },
+export interface CasualSale {
+  id: string;
+  date: string; // ISO datetime
+  items: OrderItem[];
+  total: number;
+  clientId?: string; // se collegato
+  clientNameInput?: string; // ciò che ha digitato l'utente
+  notes?: string;
+}
+
+export const SEGMENT_META: Record<Segment, { label: string; mode: string; color: string }> = {
+  top:         { label: "Top Fidelizzati", mode: "messaggio manuale con nome", color: "bg-brand-gold text-white" },
+  abituali:    { label: "Abituali",        mode: "messaggio manuale con nome", color: "bg-success text-white" },
+  occasionali: { label: "Occasionali",     mode: "broadcast",                  color: "bg-blue-600 text-white" },
+  nuovi:       { label: "Nuovi",           mode: "broadcast + ricotta omaggio", color: "bg-teal-600 text-white" },
+  inattivi:    { label: "Inattivi",        mode: "broadcast con offerta forte", color: "bg-neutral-700 text-white" },
 };
 
 const p = (
@@ -83,18 +96,15 @@ const p = (
 });
 
 export const SEED_PRODUCTS: Product[] = [
-  // Freschi di Bufala
   p("Mozzarella di Bufala Campana DOP", "Freschi di Bufala", 10.5, 15.0, "kg", true, "DOP"),
   p("Mozzarella Senza Lattosio DOP", "Freschi di Bufala", 11.5, 17.0, "kg", true, "DOP"),
   p("Ricotta di Bufala", "Freschi di Bufala", 1.0, 1.6, "pz", true),
   p("Burro di Bufala Gentile", "Freschi di Bufala", 3.0, 4.2, "pz", false),
   p("Yogurt di Bufala Gentile", "Freschi di Bufala", 1.3, 2.3, "pz", false),
-  // Freschi di Pecora
   p("Ricotta di Pecora", "Freschi di Pecora", 0.8, 1.3, "pz", true),
   p("Marzolina di Pecora Bianca", "Freschi di Pecora", 1.2, 1.9, "pz", true),
   p("Marzolina di Pecora Condita", "Freschi di Pecora", 1.2, 2.0, "pz", true),
   p("Marzolina Sottovuoto", "Freschi di Pecora", 2.6, 4.2, "pz", true),
-  // Formaggi Stagionati
   p("Caciocavallo Dolce", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
   p("Caciocavallo Affumicato", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
   p("Caciotta Bianca", "Formaggi Stagionati", 16.0, 23.0, "kg", false),
@@ -105,7 +115,6 @@ export const SEED_PRODUCTS: Product[] = [
   p("Auricchio Semipiccante", "Formaggi Stagionati", 15.2, 22.0, "kg", true),
   p("Pecorino Sardo Dolce DOP", "Formaggi Stagionati", 14.7, 22.0, "kg", false, "DOP"),
   p("Pecorino Romano DOP", "Formaggi Stagionati", 14.9, 22.0, "kg", true, "DOP"),
-  // Salumi
   p("Cotto Gran Tenerone", "Salumi", 9.6, 25.99, "kg", true),
   p("Mortadella", "Salumi", 8.45, 14.5, "kg", true),
   p("Prosciutto Crudo di Parma DOP - Cavazzuti", "Salumi", 17.1, 25.5, "kg", true, "DOP"),
@@ -120,7 +129,6 @@ export const SEED_PRODUCTS: Product[] = [
   p("Speck", "Salumi", 9.4, 15.99, "kg", true),
   p("Salsiccia Paesana Sottovuoto Tucciarone", "Salumi", 16.0, 19.99, "kg", true),
   p("Salame Strolghino Cavazzuti", "Salumi", 2.5, 4.5, "pz", false),
-  // Dispensa
   p("Zucchine Grigliate Casa Marrazzo", "Dispensa", 7.35, 10.5, "pz", true),
   p("Carciofi Grigliati Casa Marrazzo", "Dispensa", 10.75, 15.0, "pz", true),
   p("Melanzane a Filetti Casa Marrazzo", "Dispensa", 7.35, 6.9, "pz", true),
@@ -128,20 +136,16 @@ export const SEED_PRODUCTS: Product[] = [
   p("Tarallini Classici all'Olio Di Costanzo", "Dispensa", 0.88, 3.2, "pz", true),
   p("Tarallini al Peperoncino Di Costanzo", "Dispensa", 0.88, 3.2, "pz", true),
   p("Tarallini Premium pistacchio strega limone", "Dispensa", 1.82, 3.9, "pz", true),
-  // Pane
   p("Pane Casareccio D'Alise", "Pane", 2.0, 3.0, "kg", true),
   p("Panini D'Alise", "Pane", 2.5, 3.6, "kg", true),
-  // Latte
   p("Latte Intero Latte Sano", "Latte", 1.91, 2.6, "pz", true),
   p("Latte Alta Digeribilità Latte Sano", "Latte", 1.91, 2.6, "pz", true),
-  // Bevande
   p("Acqua piccola Lete", "Bevande", 0.17, 1.0, "pz", true),
   p("Acqua piccola Sorgesana", "Bevande", 0.13, 1.0, "pz", true),
   p("Coca-Cola Lattina", "Bevande", 0.5, 2.0, "pz", true),
   p("Birra Nastro Azzurro 33cl", "Bevande", 0.61, 2.0, "pz", true),
   p("Birra Peroni 33cl", "Bevande", 0.54, 2.0, "pz", true),
   p("Prosecco Maschio", "Bevande", 1.57, 3.0, "pz", true),
-  // Vini
   p("Aglianico Campania DOC", "Vini", null, 8.9, "pz", true, "DOC"),
   p("Chianti DOCG", "Vini", null, 6.5, "pz", true, "DOCG"),
   p("Fiano di Avellino DOCG", "Vini", null, 10.95, "pz", true, "DOCG"),
@@ -150,62 +154,59 @@ export const SEED_PRODUCTS: Product[] = [
 ];
 
 export const SEED_CLIENTS: Client[] = [
-  { id: "c1", name: "Maria Rossi", phone: "+39 333 1112233", segment: "top", stamps: 4, lastOrder: "2026-05-12", notes: "Preferisce mozzarella mattina presto" },
-  { id: "c2", name: "Giuseppe Bianchi", phone: "+39 333 2223344", segment: "top", stamps: 3, lastOrder: "2026-05-13" },
-  { id: "c3", name: "Anna Esposito", phone: "+39 333 3334455", segment: "top", stamps: 5, lastOrder: "2026-05-11", notes: "Cliente storica dal 2010" },
-  { id: "c4", name: "Luca Ferrara", phone: "+39 333 4445566", segment: "abituali", stamps: 2, lastOrder: "2026-05-10" },
-  { id: "c5", name: "Chiara Gallo", phone: "+39 333 5556677", segment: "abituali", stamps: 1, lastOrder: "2026-05-09" },
-  { id: "c6", name: "Marco De Luca", phone: "+39 333 6667788", segment: "occasionali", stamps: 0, lastOrder: "2026-04-28" },
-  { id: "c7", name: "Sofia Romano", phone: "+39 333 7778899", segment: "nuovi", stamps: 0, lastOrder: "2026-05-13" },
-  { id: "c8", name: "Antonio Greco", phone: "+39 333 8889900", segment: "inattivi", stamps: 0, lastOrder: "2026-03-05" },
+  { id: "c1", name: "Maria Rossi", phone: "+39 333 1112233", segment: "top", stamps: 4, lastOrder: "2026-05-12", firstOrder: "2018-04-10", notes: "Preferisce mozzarella mattina presto" },
+  { id: "c2", name: "Giuseppe Bianchi", phone: "+39 333 2223344", segment: "top", stamps: 3, lastOrder: "2026-05-13", firstOrder: "2019-09-21" },
+  { id: "c3", name: "Anna Esposito", phone: "+39 333 3334455", segment: "top", stamps: 5, lastOrder: "2026-05-11", firstOrder: "2010-01-15", notes: "Cliente storica dal 2010" },
+  { id: "c4", name: "Luca Ferrara", phone: "+39 333 4445566", segment: "abituali", stamps: 2, lastOrder: "2026-05-10", firstOrder: "2022-03-08" },
+  { id: "c5", name: "Chiara Gallo", phone: "+39 333 5556677", segment: "abituali", stamps: 1, lastOrder: "2026-05-09", firstOrder: "2023-11-02" },
+  { id: "c6", name: "Marco De Luca", phone: "+39 333 6667788", segment: "occasionali", stamps: 0, lastOrder: "2026-04-28", firstOrder: "2025-06-14" },
+  { id: "c7", name: "Sofia Romano", phone: "+39 333 7778899", segment: "nuovi", stamps: 0, lastOrder: "2026-05-13", firstOrder: "2026-05-13" },
+  { id: "c8", name: "Antonio Greco", phone: "+39 333 8889900", segment: "inattivi", stamps: 0, lastOrder: "2026-03-05", firstOrder: "2021-07-19" },
 ];
 
 export const SEED_BUNDLES: Bundle[] = [
-  { id: "b1", name: "I Monti Bianchi", ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, marginPct: 22, availability: "Sempre attivo", active: true },
-  { id: "b2", name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, marginPct: 23, availability: "Sempre attivo", active: true },
-  { id: "b3", name: "La Tavola da Pranzo", ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 250g"], fullPrice: 13.50, offerPrice: 10.90, marginPct: 25, availability: "Venerdì e Sabato", active: true },
-  { id: "b4", name: "Freschi Senza Lattosio", ingredients: ["Mozzarella s/lattosio 500g", "Ricotta pecora 2pz", "Marzolina pecora bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, marginPct: 22, availability: "Sempre attivo", active: true },
-  { id: "b5", name: "Il Panino dello Chef", ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, marginPct: 36, availability: "Martedì e Giovedì", active: true },
-  { id: "b6", name: "Il Banco dello Chef", ingredients: ["Ricotta bufala 250g", "Pasta di Gragnano 2 formati", "Marzolina condita 1pz"], fullPrice: 12.60, offerPrice: 9.90, marginPct: 19, availability: "Venerdì e Sabato", active: true },
-  { id: "b7", name: "La Bufala Pontina", ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 250g", "Taralli 1pz"], fullPrice: 16.50, offerPrice: 11.90, marginPct: 16, availability: "Weekend", active: true },
-  { id: "b8", name: "La Merenda di Sciorio", ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli 1pz", "Chianti 1 bottiglia"], fullPrice: 16.30, offerPrice: null, marginPct: null, availability: "Martedì e Giovedì", active: true },
-  { id: "b9", name: "Box Famiglia", ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane 500g", "Ricotta 250g", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, marginPct: 21, availability: "Sabato", active: true },
-  { id: "b10", name: "Il Sacco di Sciorio", ingredients: ["4 Panini", "Salame Napoli 200g", "Marzolina Sottovuoto 3pz"], fullPrice: 13.60, offerPrice: 10.90, marginPct: 20, availability: "Martedì-Venerdì", active: true },
-  { id: "b11", name: "La Grigliata di Sciorio", ingredients: ["Salsiccia Paesana 400g", "Caciotta Mediterranea 200g", "Peperoni grigliati 300g"], fullPrice: 23.10, offerPrice: 16.90, marginPct: 22, availability: "Campagna stagionale", active: true },
+  { id: "b1",  name: "I Monti Bianchi",        ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 7.40, availability: "Sempre attivo", active: true },
+  { id: "b2",  name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.00, availability: "Sempre attivo", active: true },
+  { id: "b3",  name: "La Tavola da Pranzo",    ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 250g"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.20, availability: "Venerdì e Sabato", active: true },
+  { id: "b4",  name: "Freschi Senza Lattosio", ingredients: ["Mozzarella s/lattosio 500g", "Ricotta pecora 2pz", "Marzolina pecora bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.50, availability: "Sempre attivo", active: true },
+  { id: "b5",  name: "Il Panino dello Chef",   ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.10, availability: "Martedì e Giovedì", active: true },
+  { id: "b6",  name: "Il Banco dello Chef",    ingredients: ["Ricotta bufala 250g", "Pasta di Gragnano 2 formati", "Marzolina condita 1pz"], fullPrice: 12.60, offerPrice: 9.90, estimatedCost: 8.00, availability: "Venerdì e Sabato", active: true },
+  { id: "b7",  name: "La Bufala Pontina",      ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 250g", "Taralli 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 10.00, availability: "Weekend", active: true },
+  { id: "b8",  name: "La Merenda di Sciorio",  ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli 1pz", "Chianti 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: 11.00, availability: "Martedì e Giovedì", active: true },
+  { id: "b9",  name: "Box Famiglia",           ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane 500g", "Ricotta 250g", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, estimatedCost: 9.40, availability: "Sabato", active: true },
+  { id: "b10", name: "Il Sacco di Sciorio",    ingredients: ["4 Panini", "Salame Napoli 200g", "Marzolina Sottovuoto 3pz"], fullPrice: 13.60, offerPrice: 10.90, estimatedCost: 8.70, availability: "Martedì-Venerdì", active: true },
+  { id: "b11", name: "La Grigliata di Sciorio",ingredients: ["Salsiccia Paesana 400g", "Caciotta Mediterranea 200g", "Peperoni grigliati 300g"], fullPrice: 23.10, offerPrice: 16.90, estimatedCost: 13.20, availability: "Campagna stagionale", active: true },
 ];
 
 const today = new Date();
-const isoToday = (h: number, m: number) => {
+const isoToday = (h: number, m: number, dayOffset = 0) => {
   const d = new Date(today);
+  d.setDate(d.getDate() + dayOffset);
   d.setHours(h, m, 0, 0);
   return d.toISOString();
 };
 
 export const SEED_ORDERS: Order[] = [
-  {
-    id: "o1", clientId: "c1",
-    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1 }, { productId: "ricotta-di-bufala", qty: 2 }],
-    pickupDate: isoToday(10, 30), status: "in_attesa", total: 18.20, createdAt: new Date().toISOString(),
-    notes: "Confezione regalo",
-  },
-  {
-    id: "o2", clientId: "c3",
-    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.5 }, { productId: "pane-casareccio-d-alise", qty: 0.5 }],
-    pickupDate: isoToday(11, 0), status: "in_attesa", total: 9.0, createdAt: new Date().toISOString(),
-  },
-  {
-    id: "o3", clientId: "c4",
-    items: [{ productId: "provolone-del-monaco-dop", qty: 0.3 }, { productId: "salame-napoli", qty: 0.2 }],
-    pickupDate: isoToday(17, 30), status: "in_attesa", total: 13.6, createdAt: new Date().toISOString(),
-  },
-  {
-    id: "o4", clientId: "c2",
-    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1.5 }],
-    pickupDate: isoToday(9, 0), status: "ritirato", total: 22.5, createdAt: new Date().toISOString(),
-  },
+  { id: "o1", clientId: "c1", label: "Ordine settimanale", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1 }, { productId: "ricotta-di-bufala", qty: 2 }], pickupDate: isoToday(10, 30), status: "in_attesa", total: 18.20, createdAt: new Date().toISOString(), notes: "Confezione regalo" },
+  { id: "o2", clientId: "c3", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.5 }, { productId: "pane-casareccio-d-alise", qty: 0.5 }], pickupDate: isoToday(11, 0), status: "in_attesa", total: 9.0, createdAt: new Date().toISOString() },
+  { id: "o3", clientId: "c4", items: [{ productId: "provolone-del-monaco-dop", qty: 0.3 }, { productId: "salame-napoli", qty: 0.2 }], pickupDate: isoToday(17, 30), status: "in_attesa", total: 13.6, createdAt: new Date().toISOString() },
+  { id: "o4", clientId: "c2", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1.5 }], pickupDate: isoToday(9, 0), status: "ritirato", total: 22.5, createdAt: new Date().toISOString() },
+  { id: "o5", clientId: "c5", items: [{ productId: "ricotta-di-bufala", qty: 3 }, { productId: "mortadella", qty: 0.3 }], pickupDate: isoToday(12, 0, -2), status: "ritirato", total: 9.15, createdAt: new Date().toISOString() },
+];
+
+export const SEED_CASUAL_SALES: CasualSale[] = [
+  { id: "s1", date: isoToday(9, 30, -1), items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.4 }, { productId: "pane-casareccio-d-alise", qty: 0.3 }], total: 6.9 },
+  { id: "s2", date: isoToday(11, 15), items: [{ productId: "ricotta-di-bufala", qty: 1 }, { productId: "tarallini-classici-all-olio-di-costanzo", qty: 1 }], total: 4.8 },
 ];
 
 export function calcMargin(p: Product): number | null {
   if (p.cost == null || p.price === 0) return null;
   return ((p.price - p.cost) / p.price) * 100;
+}
+
+export function bundleMargin(b: Bundle): { pct: number | null; eur: number | null } {
+  const price = b.offerPrice ?? b.fullPrice;
+  if (b.estimatedCost == null || !price) return { pct: null, eur: null };
+  const eur = price - b.estimatedCost;
+  return { pct: (eur / price) * 100, eur };
 }
