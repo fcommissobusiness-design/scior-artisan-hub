@@ -78,7 +78,7 @@ function ClientiPage() {
       <Fab onClick={() => setOpenNew(true)} />
 
       {openNew && (
-        <ClientSheet mode="new" onClose={() => setOpenNew(false)} onSave={(c) => { addClient(c); setOpenNew(false); }} />
+        <ClientSheet mode="new" onClose={() => setOpenNew(false)} onSave={(c) => { addClient(c as Omit<Client, "id">); setOpenNew(false); }} />
       )}
 
       {openId && (() => {
