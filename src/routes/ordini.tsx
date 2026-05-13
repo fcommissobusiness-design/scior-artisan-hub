@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatDate, formatTime } from "@/components/AppShell";
+import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Order, OrderItem, OrderStatus } from "@/lib/data";
 
 export const Route = createFileRoute("/ordini")({ component: OrdiniPage });
@@ -24,9 +24,10 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 function OrdiniPage() {
-  const { orders, clients, products, addOrder, updateOrder } = useStore();
+  const { orders, clients, products, addOrder } = useStore();
   const [tab, setTab] = useState<typeof TABS[number]["id"]>("all");
-  const [open, setOpen] = useState(false);
+  const [openNew, setOpenNew] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const filtered = orders.filter((o) => tab === "all" ? true : o.status === tab)
     .sort((a, b) => +new Date(b.pickupDate) - +new Date(a.pickupDate));
@@ -37,63 +38,82 @@ function OrdiniPage() {
   return (
     <div>
       <TopBar title="Ordini" subtitle={`${orders.length} totali`} />
-      <div className="px-4 pt-3 pb-2 flex gap-2 overflow-x-auto sticky top-[88px] bg-brand-cream z-30">
+      <div className="px-4 md:px-6 pt-3 pb-2 flex gap-2 overflow-x-auto sticky top-[88px] md:top-0 bg-brand-cream z-30">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === t.id ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
-            {t.label}
+            {t.label} ({orders.filter(o => t.id === "all" ? true : o.status === t.id).length})
           </button>
         ))}
       </div>
 
-      <div className="p-4 space-y-3">
-        {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12">Nessun ordine.</p>}
+      <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine.</p>}
         {filtered.map((o) => {
           const c = clientById(o.clientId);
           return (
-            <div key={o.id} className="bg-card rounded-xl p-4 shadow-sm">
-              <div className="flex justify-between items-start mb-1">
-                <p className="font-display text-lg text-brand-green">{c?.name ?? "—"}</p>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
+            <button key={o.id} onClick={() => setEditId(o.id)} className="text-left bg-card rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-1 gap-2">
+                <div>
+                  <p className="font-display text-lg text-brand-green leading-tight">{c?.name ?? "—"}</p>
+                  {o.label && <p className="text-xs text-brand-gold font-semibold">{o.label}</p>}
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
               </div>
               <p className="text-xs text-muted-foreground mb-2">Ritiro {formatDate(o.pickupDate)} · {formatTime(o.pickupDate)} · <span className="font-semibold text-brand-green">{formatEuro(o.total)}</span></p>
-              <ul className="text-sm space-y-0.5 mb-3">
+              <ul className="text-sm space-y-0.5">
                 {o.items.map((i, idx) => {
                   const p = productById(i.productId);
                   return <li key={idx} className="text-foreground/80">· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
                 })}
               </ul>
-              {o.notes && <p className="text-xs italic text-muted-foreground mb-3">Note: {o.notes}</p>}
-              {o.status === "in_attesa" && (
-                <div className="flex gap-2">
-                  <button onClick={() => updateOrder(o.id, { status: "ritirato" })} className="flex-1 bg-success text-white rounded-lg py-2 text-sm font-semibold">Ritirato</button>
-                  <button onClick={() => updateOrder(o.id, { status: "annullato" })} className="px-3 bg-card border border-danger/40 text-danger rounded-lg py-2 text-sm font-semibold">Annulla</button>
-                </div>
-              )}
-            </div>
+              {o.notes && <p className="text-xs italic text-muted-foreground mt-2">Note: {o.notes}</p>}
+            </button>
           );
         })}
       </div>
 
-      <button onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light">
-        +
-      </button>
+      <Fab onClick={() => setOpenNew(true)} />
 
-      {open && <NewOrderModal onClose={() => setOpen(false)} onSave={(o) => { addOrder(o); setOpen(false); }} />}
+      {openNew && (
+        <OrderSheet
+          mode="new"
+          onClose={() => setOpenNew(false)}
+          onSave={(payload) => { addOrder(payload); setOpenNew(false); }}
+        />
+      )}
+
+      {editId && (
+        <OrderSheet
+          mode="edit"
+          orderId={editId}
+          onClose={() => setEditId(null)}
+        />
+      )}
     </div>
   );
 }
 
-function NewOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o: Order) => void }) {
-  const { clients, products } = useStore();
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
-  const [items, setItems] = useState<OrderItem[]>([]);
+function OrderSheet({ mode, orderId, onClose, onSave }: {
+  mode: "new" | "edit";
+  orderId?: string;
+  onClose: () => void;
+  onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
+}) {
+  const { clients, products, orders, updateOrder, deleteOrder } = useStore();
+  const existing = orderId ? orders.find((o) => o.id === orderId) : null;
+
+  const [clientId, setClientId] = useState(existing?.clientId ?? clients[0]?.id ?? "");
+  const [label, setLabel] = useState(existing?.label ?? "");
+  const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
   const [date, setDate] = useState(() => {
-    const d = new Date(); d.setMinutes(0); d.setHours(d.getHours() + 1);
-    return d.toISOString().slice(0, 16);
+    const d = existing ? new Date(existing.pickupDate) : new Date();
+    if (!existing) { d.setMinutes(0); d.setHours(d.getHours() + 1); }
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(+d - tz).toISOString().slice(0, 16);
   });
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [status, setStatus] = useState<OrderStatus>(existing?.status ?? "in_attesa");
   const [search, setSearch] = useState("");
 
   const total = items.reduce((s, i) => {
@@ -103,90 +123,110 @@ function NewOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o: O
 
   const updateItem = (id: string, qty: number) => {
     setItems((prev) => {
-      const exists = prev.find((p) => p.productId === id);
+      const ex = prev.find((p) => p.productId === id);
       if (qty <= 0) return prev.filter((p) => p.productId !== id);
-      if (exists) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
+      if (ex) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
       return [...prev, { productId: id, qty }];
     });
   };
 
-  const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
 
-  const save = () => {
+  const handleSave = () => {
     if (!clientId || items.length === 0) return;
-    onSave({
-      id: "o" + Date.now(), clientId, items,
+    const payload: Omit<Order, "id" | "createdAt"> = {
+      clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
-      status: "in_attesa", total, notes, createdAt: new Date().toISOString(),
-    });
+      status, total, notes: notes.trim() || undefined,
+    };
+    if (mode === "new") onSave?.(payload);
+    else if (existing) { updateOrder(existing.id, payload); onClose(); }
+  };
+
+  const handleDelete = () => {
+    if (!existing) return;
+    if (confirm(`Eliminare definitivamente l'ordine di ${clients.find(c => c.id === existing.clientId)?.name ?? "—"}?`)) {
+      deleteOrder(existing.id);
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-      <div className="bg-brand-cream w-full max-w-[480px] rounded-t-2xl max-h-[92vh] overflow-y-auto">
-        <div className="sticky top-0 bg-brand-green text-brand-cream px-5 py-4 flex justify-between items-center">
-          <h2 className="font-display text-xl text-brand-gold">Nuovo Ordine</h2>
-          <button onClick={onClose} className="text-brand-cream text-2xl leading-none">×</button>
-        </div>
-        <div className="p-4 space-y-4">
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Cliente</label>
-            <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3 mt-1">
-              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+    <Sheet
+      open={true} onClose={onClose}
+      title={mode === "new" ? "Nuovo Ordine" : "Modifica Ordine"}
+      footer={
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
+            <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Data e ora ritiro</label>
-            <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-3 mt-1" />
-          </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Prodotti</label>
-            <input placeholder="Cerca prodotto..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 mt-1 text-sm" />
-            <div className="max-h-72 overflow-y-auto mt-2 space-y-1">
-              {filteredProducts.map((p) => {
-                const item = items.find((i) => i.productId === p.id);
-                const qty = item?.qty ?? 0;
-                const step = p.unit === "kg" ? 0.1 : 1;
-                return (
-                  <div key={p.id} className="bg-card rounded-lg p-2.5 flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateItem(p.id, Math.max(0, +(qty - step).toFixed(2)))}
-                        className="w-7 h-7 rounded-full bg-brand-cream text-brand-green font-bold">−</button>
-                      <span className="w-10 text-center text-sm font-semibold">{qty || ""}</span>
-                      <button onClick={() => updateItem(p.id, +(qty + step).toFixed(2))}
-                        className="w-7 h-7 rounded-full bg-brand-green text-brand-cream font-bold">+</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground">Note</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="w-full bg-card border border-border rounded-lg p-3 mt-1 text-sm" />
-          </div>
-
-          <div className="bg-brand-green text-brand-cream rounded-xl p-4 flex justify-between items-center">
-            <span className="text-sm">Totale</span>
-            <span className="font-display text-2xl text-brand-gold">{formatEuro(total)}</span>
-          </div>
-
-          <button onClick={save} disabled={!clientId || items.length === 0}
-            className="w-full bg-brand-gold text-white rounded-xl py-3.5 font-semibold disabled:opacity-40">
-            Salva ordine
+          {mode === "edit" && (
+            <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
+          <button onClick={handleSave} disabled={!clientId || items.length === 0}
+            className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
+            Conferma
           </button>
         </div>
+      }
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Cliente">
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Nome ordine (opz.)">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="es. Festa compleanno"
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Data e ora ritiro">
+          <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Status">
+          <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="in_attesa">In Attesa</option>
+            <option value="ritirato">Ritirato</option>
+            <option value="annullato">Annullato</option>
+          </select>
+        </Field>
       </div>
-    </div>
+
+      <Field label="Prodotti">
+        <input placeholder="Cerca prodotto..." value={search} onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
+        <div className="max-h-80 overflow-y-auto mt-2 space-y-1">
+          {filteredProducts.map((p) => {
+            const item = items.find((i) => i.productId === p.id);
+            const qty = item?.qty ?? 0;
+            const step = p.unit === "kg" ? 0.1 : 1;
+            return (
+              <div key={p.id} className="bg-card rounded-lg p-2.5 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => updateItem(p.id, Math.max(0, +(qty - step).toFixed(2)))}
+                    className="w-7 h-7 rounded-full bg-brand-cream text-brand-green font-bold border border-border">−</button>
+                  <span className="w-10 text-center text-sm font-semibold">{qty || ""}</span>
+                  <button onClick={() => updateItem(p.id, +(qty + step).toFixed(2))}
+                    className="w-7 h-7 rounded-full bg-brand-green text-brand-cream font-bold">+</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Field>
+
+      <Field label="Note">
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
+      </Field>
+    </Sheet>
   );
 }
