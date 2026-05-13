@@ -8,6 +8,7 @@ const NAV = [
   { to: "/clienti", label: "Clienti" },
   { to: "/prodotti", label: "Prodotti" },
   { to: "/offerte", label: "Offerte" },
+  { to: "/admin", label: "Amministrazione" },
 ] as const;
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
@@ -50,15 +51,40 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!authed) return <PinScreen onOk={login} />;
 
   return (
-    <div className="min-h-screen bg-brand-cream pb-20 max-w-[480px] mx-auto relative">
-      {children}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-brand-green border-t border-brand-green-dark grid grid-cols-5 z-50">
+    <div className="min-h-screen bg-brand-cream md:flex">
+      {/* Sidebar desktop */}
+      <aside className="hidden md:flex md:flex-col w-60 bg-brand-green text-brand-cream sticky top-0 h-screen p-4 z-40">
+        <div className="px-2 py-3 mb-4 border-b border-brand-cream/10">
+          <h1 className="font-display text-2xl text-brand-gold leading-none">Sciorio HQ</h1>
+          <p className="text-[11px] opacity-70 mt-1">Caseificio dal 1947</p>
+        </div>
+        <nav className="flex flex-col gap-1">
+          {NAV.map((n) => {
+            const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
+            return (
+              <Link key={n.to} to={n.to}
+                className={`px-3 py-2.5 rounded-lg text-sm font-medium ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"}`}>
+                {n.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Contenuto */}
+      <main className="flex-1 pb-20 md:pb-8 md:max-w-6xl md:mx-auto w-full">
+        {children}
+      </main>
+
+      {/* Bottom nav mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50">
         {NAV.map((n) => {
           const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
+          const short = n.label === "Amministrazione" ? "Admin" : n.label;
           return (
-            <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-3 text-[11px] font-medium tracking-wide ${active ? "text-brand-gold" : "text-brand-cream/70"}`}>
+            <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${active ? "text-brand-gold" : "text-brand-cream/70"}`}>
               <span className={`w-1.5 h-1.5 rounded-full mb-1 ${active ? "bg-brand-gold" : "bg-transparent"}`} />
-              {n.label}
+              {short}
             </Link>
           );
         })}
@@ -67,11 +93,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function TopBar({ title, subtitle }: { title: string; subtitle?: string }) {
+export function TopBar({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
-    <header className="bg-brand-green text-brand-cream px-5 pt-6 pb-5 sticky top-0 z-40">
-      <h1 className="font-display text-2xl text-brand-gold">{title}</h1>
-      {subtitle && <p className="text-xs opacity-75 mt-0.5">{subtitle}</p>}
+    <header className="bg-brand-green text-brand-cream px-5 md:px-8 pt-6 pb-5 md:rounded-b-2xl md:mt-4 md:mx-4 sticky md:static top-0 z-40 flex items-start justify-between gap-3">
+      <div>
+        <h1 className="font-display text-2xl md:text-3xl text-brand-gold">{title}</h1>
+        {subtitle && <p className="text-xs md:text-sm opacity-75 mt-0.5">{subtitle}</p>}
+      </div>
+      {right && <div className="shrink-0">{right}</div>}
     </header>
   );
 }
@@ -86,4 +115,54 @@ export function formatTime(iso: string) {
 
 export function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });
+}
+
+export function formatDateLong(iso: string) {
+  return new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+/* Sheet/modal responsive: bottom-sheet su mobile, dialog centrato su desktop, footer sticky. */
+export function Sheet({ open, onClose, title, children, footer }: {
+  open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end md:items-center justify-center p-0 md:p-6" onClick={onClose}>
+      <div
+        className="bg-brand-cream w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl max-h-[92vh] md:max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-brand-green text-brand-cream px-5 py-4 flex justify-between items-center shrink-0">
+          <h2 className="font-display text-xl text-brand-gold">{title}</h2>
+          <button onClick={onClose} className="text-brand-cream text-2xl leading-none px-2">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+          {children}
+        </div>
+        {footer && (
+          <div className="shrink-0 border-t border-border bg-brand-cream px-4 md:px-6 py-3 md:py-4">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{label}</label>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+export function Fab({ onClick, label = "+" }: { onClick: () => void; label?: string }) {
+  return (
+    <button onClick={onClick}
+      className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light hover:scale-105 transition-transform">
+      {label}
+    </button>
+  );
 }
