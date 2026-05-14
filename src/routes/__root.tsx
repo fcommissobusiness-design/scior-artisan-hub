@@ -72,13 +72,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sciorio HQ" },
-      { name: "description", content: "Gestionale Caseificio Sciorio dal 1947" },
+      { title: "SciorHQ" },
+      { name: "description", content: "Gestionale" },
       { name: "author", content: "Caseificio Sciorio" },
-      { property: "og:title", content: "Sciorio HQ" },
-      { property: "og:description", content: "Gestionale Caseificio Sciorio dal 1947" },
+      { property: "og:title", content: "SciorHQ" },
+      { property: "og:description", content: "Gestionale" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "SciorHQ" },
+      { name: "twitter:description", content: "Gestionale" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3455e882-dbd3-4cea-bc2a-3e6dd9a6fdc4/id-preview-0ab460cd--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778684457455.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3455e882-dbd3-4cea-bc2a-3e6dd9a6fdc4/id-preview-0ab460cd--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778684457455.png" },
     ],
     links: [
       {
