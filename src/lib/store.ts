@@ -129,7 +129,7 @@ export function useAuth() {
   return {
     authed,
     login: (pin: string) => {
-      if (pin === "1947") {
+      if (pin === "0000") {
         localStorage.setItem(PIN_KEY, "1");
         setAuthed(true);
         return true;
