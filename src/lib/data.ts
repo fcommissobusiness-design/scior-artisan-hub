@@ -349,6 +349,47 @@ export const SEED_DELIVERIES: Delivery[] = [
   { id: "d1", clientId: "c1", address: "Via Roma 12, Santi Cosma e Damiano", timeSlot: "10:00-12:00", date: isoToday(10, 0), status: "da_preparare", payment: "da_pagare", orderId: "o1", createdAt: new Date().toISOString() },
 ];
 
+const isoDay = (dayOffset = 0) => {
+  const d = new Date(today); d.setDate(d.getDate() + dayOffset); d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+export const SEED_PRODUCTIONS: Production[] = [
+  { id: "pr1", date: isoToday(7, 0), productId: "mozzarella-di-bufala-campana-dop", qtyPlanned: 12, qtyActual: 11.5, status: "completato", orderIds: ["o1", "o2", "o4"] },
+  { id: "pr2", date: isoToday(7, 0), productId: "ricotta-di-bufala", qtyPlanned: 8, status: "da_preparare", notes: "Per ordine famiglia Rossi" },
+  { id: "pr3", date: isoToday(7, 0, 1), productId: "mozzarella-di-bufala-campana-dop", qtyPlanned: 15, status: "da_preparare" },
+];
+
+export const SEED_SUPPLIERS: Supplier[] = [
+  { id: "sup1", name: "Tucciarone Salumi", category: "Salumi", phone: "+39 0771 555111", contactName: "Antonio", productIds: ["salsiccia-paesana-sottovuoto-tucciarone"], lastOrderDate: isoDay(-7) },
+  { id: "sup2", name: "Casa Marrazzo", category: "Conserve", phone: "+39 081 555222", productIds: ["zucchine-grigliate-casa-marrazzo", "carciofi-grigliati-casa-marrazzo", "melanzane-a-filetti-casa-marrazzo"], lastOrderDate: isoDay(-14) },
+  { id: "sup3", name: "Forno D'Alise", category: "Pane", phone: "+39 0771 555333", contactName: "Mario", productIds: ["pane-casareccio-d-alise", "panini-d-alise"], lastOrderDate: isoDay(-1), notes: "Consegna giornaliera 06:30" },
+  { id: "sup4", name: "Latte Sano", category: "Latte", phone: "+39 06 555444", productIds: ["latte-intero-latte-sano", "latte-alta-digeribilita-latte-sano"], lastOrderDate: isoDay(-3) },
+  { id: "sup5", name: "Renzini Norcineria", category: "Salumi", phone: "+39 075 555888", productIds: ["guanciale-del-norcino-renzini", "crudo-lui-renzini", "lonza-di-norcia-renzini"], lastOrderDate: isoDay(-10) },
+];
+
+export const SEED_CASH_ENTRIES: CashEntry[] = [
+  { id: "ce1", date: isoToday(11, 0), type: "entrata", category: "Vendita banco", amount: 6.9, method: "contanti", refType: "casual", refId: "s1" },
+  { id: "ce2", date: isoToday(11, 15), type: "entrata", category: "Vendita banco", amount: 4.8, method: "contanti", refType: "casual", refId: "s2" },
+  { id: "ce3", date: isoToday(9, 0, -1), type: "uscita", category: "Merce", amount: 145.0, method: "bonifico", notes: "Carico salumi Tucciarone" },
+  { id: "ce4", date: isoToday(15, 0, -3), type: "uscita", category: "Utenze", amount: 78.0, method: "bonifico", notes: "Bolletta luce" },
+];
+
+export const SEED_B2B_CLIENTS: B2BClient[] = [
+  { id: "b2b1", name: "Lido Azzurro", contactName: "Roberto", phone: "+39 333 9990001", zone: "Sperlonga", deliveryDays: ["mar", "ven"], status: "attivo", history: [{ date: isoDay(-7), total: 320 }, { date: isoDay(-14), total: 280 }], notes: "Ordine standard mozzarella + ricotta" },
+  { id: "b2b2", name: "Ristorante La Pergola", contactName: "Luigi", phone: "+39 333 9990002", zone: "Formia", deliveryDays: ["lun", "gio"], status: "attivo", history: [{ date: isoDay(-3), total: 195 }] },
+  { id: "b2b3", name: "Pizzeria Vesuvio", contactName: "Gino", phone: "+39 333 9990003", zone: "Gaeta", deliveryDays: ["mer", "sab"], status: "prospect", history: [], notes: "In valutazione preventivo" },
+];
+
+export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [
+  { id: "sp1", date: isoDay(-7), beneficiary: "Tucciarone Salumi", beneficiaryType: "fornitore", category: "Merce", amount: 145.0, method: "bonifico", status: "pagato", recurrence: "una_tantum", document: "fattura", supplierId: "sup1" },
+  { id: "sp2", date: isoDay(-3), beneficiary: "Enel Energia", beneficiaryType: "servizio", category: "Utenze", amount: 178.50, method: "bonifico", status: "pagato", dueDate: isoDay(-3), recurrence: "mensile", document: "fattura" },
+  { id: "sp3", date: isoDay(0), beneficiary: "Studio Bianchi Commercialista", beneficiaryType: "consulente", category: "Commercialista", amount: 250.0, method: "bonifico", status: "da_pagare", dueDate: isoDay(7), recurrence: "mensile", document: "fattura" },
+  { id: "sp4", date: isoDay(-15), beneficiary: "Affittuario Locale", beneficiaryType: "altro", category: "Affitto", amount: 850.0, method: "bonifico", status: "pagato", dueDate: isoDay(-15), recurrence: "mensile" },
+  { id: "sp5", date: isoDay(-30), beneficiary: "Marketing Web Srl", beneficiaryType: "consulente", category: "Consulenza marketing", amount: 350.0, method: "bonifico", status: "scaduto", dueDate: isoDay(-5), recurrence: "una_tantum", document: "fattura" },
+];
+
+
 export function calcMargin(p: Product): number | null {
   if (p.cost == null || p.price === 0) return null;
   return ((p.price - p.cost) / p.price) * 100;
