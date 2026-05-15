@@ -19,6 +19,9 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/entrate-merci", label: "Entrate Merci", short: "Entr." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
   ]},
+  { label: "E-commerce", items: [
+    { to: "/ecommerce", label: "E-commerce", short: "Ecom" },
+  ]},
   { label: "Clienti", items: [
     { to: "/clienti", label: "Clienti", short: "Clienti" },
     { to: "/b2b", label: "B2B", short: "B2B" },
