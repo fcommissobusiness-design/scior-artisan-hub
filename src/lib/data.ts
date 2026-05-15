@@ -594,21 +594,3 @@ export function bundleMargin(b: Bundle): { pct: number | null; eur: number | nul
   const eur = price - b.estimatedCost;
   return { pct: (eur / price) * 100, eur };
 }
-
-
-export function calcMargin(p: Product): number | null {
-  if (p.cost == null || p.price === 0) return null;
-  return ((p.price - p.cost) / p.price) * 100;
-}
-
-export function calcMarginEur(p: Product): number | null {
-  if (p.cost == null) return null;
-  return p.price - p.cost;
-}
-
-export function bundleMargin(b: Bundle): { pct: number | null; eur: number | null } {
-  const price = b.offerPrice ?? b.fullPrice;
-  if (b.estimatedCost == null || !price) return { pct: null, eur: null };
-  const eur = price - b.estimatedCost;
-  return { pct: (eur / price) * 100, eur };
-}
