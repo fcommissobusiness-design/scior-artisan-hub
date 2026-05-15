@@ -162,6 +162,8 @@ function AdminPage() {
           </div>
         </section>
 
+        <OperativeExportSection onMsg={flash} />
+
         <CrmSettingsSection onMsg={flash} />
 
         <section>
