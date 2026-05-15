@@ -40,7 +40,7 @@ export interface Product {
 
 export interface LoyaltyEvent {
   date: string; // ISO
-  type: "stamp" | "reward" | "reset" | "manual";
+  type: "stamp" | "reward" | "reset" | "manual" | "segment" | "note" | "whatsapp";
   delta?: number;
   note?: string;
 }
