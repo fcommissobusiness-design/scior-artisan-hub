@@ -466,7 +466,17 @@ export function useStore() {
       setStore(next);
     },
 
-    // BACKUP
+    // FIXED COSTS
+    addFixedCost: (f: Omit<FixedCost, "id">) => {
+      const fc: FixedCost = { ...f, id: uid("fc_") };
+      setStore({ ...store, fixedCosts: [fc, ...store.fixedCosts] });
+      return fc;
+    },
+    updateFixedCost: (id: string, patch: Partial<FixedCost>) =>
+      setStore({ ...store, fixedCosts: store.fixedCosts.map((f) => f.id === id ? { ...f, ...patch } : f) }),
+    deleteFixedCost: (id: string) =>
+      setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
+
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
