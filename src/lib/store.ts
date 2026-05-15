@@ -483,7 +483,61 @@ export function useStore() {
     deleteFixedCost: (id: string) =>
       setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
 
-    exportJson: () => JSON.stringify(store, null, 2),
+    // ONLINE ORDERS
+    addOnlineOrder: (o: Omit<OnlineOrder, "id" | "createdAt">) => {
+      const order: OnlineOrder = { ...o, id: uid("eo_"), createdAt: nowIso() };
+      let next: Store = { ...store, onlineOrders: [order, ...store.onlineOrders] };
+      if (order.status === "spedito" || order.status === "consegnato") {
+        next = applyOnlineOrderStock(next, order, -1);
+      }
+      setStore(next);
+      return order;
+    },
+    addOnlineOrders: (orders: Omit<OnlineOrder, "id" | "createdAt">[]) => {
+      const made: OnlineOrder[] = orders.map((o) => ({ ...o, id: uid("eo_"), createdAt: nowIso() }));
+      let next: Store = { ...store, onlineOrders: [...made, ...store.onlineOrders] };
+      for (const o of made) {
+        if (o.status === "spedito" || o.status === "consegnato") next = applyOnlineOrderStock(next, o, -1);
+      }
+      setStore(next);
+      return made;
+    },
+    updateOnlineOrder: (id: string, patch: Partial<OnlineOrder>) => {
+      const prev = store.onlineOrders.find((o) => o.id === id);
+      if (!prev) return;
+      const merged: OnlineOrder = { ...prev, ...patch };
+      let next: Store = { ...store, onlineOrders: store.onlineOrders.map((o) => o.id === id ? merged : o) };
+      const wasOut = prev.status === "spedito" || prev.status === "consegnato";
+      const isOut = merged.status === "spedito" || merged.status === "consegnato";
+      if (!wasOut && isOut) next = applyOnlineOrderStock(next, merged, -1);
+      else if (wasOut && !isOut) next = applyOnlineOrderStock(next, prev, +1);
+      setStore(next);
+    },
+    deleteOnlineOrder: (id: string) => {
+      const prev = store.onlineOrders.find((o) => o.id === id);
+      if (!prev) return;
+      let next: Store = {
+        ...store,
+        onlineOrders: store.onlineOrders.filter((o) => o.id !== id),
+        shipments: store.shipments.filter((sh) => sh.orderId !== id),
+      };
+      if (prev.status === "spedito" || prev.status === "consegnato") {
+        next = applyOnlineOrderStock(next, prev, +1);
+      }
+      setStore(next);
+    },
+
+    // SHIPMENTS
+    addShipment: (sh: Omit<Shipment, "id" | "createdAt">) => {
+      const s: Shipment = { ...sh, id: uid("sh_"), createdAt: nowIso() };
+      setStore({ ...store, shipments: [s, ...store.shipments] });
+      return s;
+    },
+    updateShipment: (id: string, patch: Partial<Shipment>) =>
+      setStore({ ...store, shipments: store.shipments.map((s) => s.id === id ? { ...s, ...patch } : s) }),
+    deleteShipment: (id: string) =>
+      setStore({ ...store, shipments: store.shipments.filter((s) => s.id !== id) }),
+
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
       const next = migrate(parsed);
