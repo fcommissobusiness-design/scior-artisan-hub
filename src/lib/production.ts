@@ -112,19 +112,22 @@ export interface Suggestion {
 
 /** Suggerisce la quantità da preparare per `date` per `productId`. */
 export function suggestQuantity(input: SuggestionInput): Suggestion {
-  const { productId, date, logs, orders, unsold, specials } = input;
+  const { productId, productName, productUnit, date, logs, orders, unsold, specials, hours } = input;
   const target = new Date(date);
   const targetKey = dayKey(target);
+  const unitLabel = productUnit ?? "";
+  const fmt = (n: number) => productUnit === "kg" ? n.toFixed(1) : Math.round(n).toString();
 
   // 1) Storico stesso giorno settimana scorsa
   const lastWeek = new Date(target.getTime() - 7 * DAY_MS);
   const lastWeekLog = freshLogFor(logs, productId, lastWeek);
   const lastWeekSold = lastWeekLog ? lastWeekLog.qtySold + lastWeekLog.qtyRecovered : null;
 
-  // 2) Media ultimi 7 giorni con vendite
+  // 2) Media ultimi 7 giorni APERTI con vendite
   const weekLogs: FreshLog[] = [];
-  for (let i = 1; i <= 14 && weekLogs.length < 7; i++) {
+  for (let i = 1; i <= 21 && weekLogs.length < 7; i++) {
     const d = new Date(target.getTime() - i * DAY_MS);
+    if (hours && isClosedDay(d, hours, specials).closed) continue;
     const fl = freshLogFor(logs, productId, d);
     if (fl) weekLogs.push(fl);
   }
@@ -147,39 +150,40 @@ export function suggestQuantity(input: SuggestionInput): Suggestion {
   const avgUnsold = recentUnsold.length
     ? recentUnsold.reduce((s, e) => s + e.qty, 0) / Math.min(7, recentUnsold.length)
     : 0;
+  const unsoldLabel = avgUnsold === 0 ? "nullo" : avgUnsold < 1 ? "basso" : avgUnsold < 3 ? "medio" : "alto";
 
   // 5) Moltiplicatore giorno speciale
   const sp = specialDayFor(target, specials);
   const multiplier = sp ? sp.multiplier : 1;
 
   const samples: { label: string; value: number }[] = [];
-  if (lastWeekSold !== null) samples.push({ label: "Stessa settimana scorsa", value: +lastWeekSold.toFixed(1) });
-  if (avg7 !== null) samples.push({ label: `Media ultimi ${weekLogs.length} giorni`, value: +avg7.toFixed(1) });
+  if (lastWeekSold !== null) samples.push({ label: "Stesso giorno settimana scorsa", value: +lastWeekSold.toFixed(1) });
+  if (avg7 !== null) samples.push({ label: `Media ${weekLogs.length} giorni aperti`, value: +avg7.toFixed(1) });
   if (bookedQty > 0) samples.push({ label: "Già prenotato", value: +bookedQty.toFixed(1) });
   if (avgUnsold > 0) samples.push({ label: "Invenduto medio", value: +avgUnsold.toFixed(1) });
   if (sp) samples.push({ label: `${sp.name} (×${multiplier})`, value: multiplier });
 
   // Base = max tra stesso giorno settimana scorsa e media 7g
   const base = Math.max(lastWeekSold ?? 0, avg7 ?? 0);
-  // Riduci per invenduto medio (max 30% sconto), aggiungi prenotazioni, applica moltiplicatore
   const adjusted = (base - Math.min(avgUnsold, base * 0.3) + bookedQty) * multiplier;
   const qty = Math.max(bookedQty, +adjusted.toFixed(1));
 
-  // Risk: basso se ho dati stessa settimana scorsa + media 7g; alto se nulla
+  // Risk
   let risk: Suggestion["risk"] = "alto";
   if (lastWeekSold !== null && avg7 !== null) risk = "basso";
   else if (lastWeekSold !== null || avg7 !== null) risk = "medio";
 
-  let reason = "Nessuno storico disponibile";
-  if (lastWeekSold !== null && avg7 !== null) {
-    reason = `Stessa settimana scorsa ${lastWeekSold.toFixed(1)}, media 7g ${avg7!.toFixed(1)}`;
-  } else if (avg7 !== null) {
-    reason = `Media ultimi ${weekLogs.length} giorni ${avg7!.toFixed(1)}`;
-  } else if (lastWeekSold !== null) {
-    reason = `Settimana scorsa ${lastWeekSold.toFixed(1)}`;
-  }
-  if (bookedQty > 0) reason += `, +${bookedQty.toFixed(1)} prenotati`;
-  if (sp) reason += `, ${sp.name} ×${multiplier}`;
+  // Motivazione leggibile completa
+  const namePart = productName ? `${fmt(qty)} ${unitLabel} ${productName}` : `${fmt(qty)} ${unitLabel}`;
+  const parts: string[] = [];
+  if (lastWeekSold !== null) parts.push(`stesso giorno settimana scorsa ${fmt(lastWeekSold)} ${unitLabel} venduti`);
+  if (avg7 !== null) parts.push(`media ultimi ${weekLogs.length} giorni aperti ${fmt(avg7)} ${unitLabel}`);
+  if (bookedQty > 0) parts.push(`prenotazioni già presenti ${fmt(bookedQty)} ${unitLabel}`);
+  parts.push(`invenduto medio ${unsoldLabel}`);
+  if (sp) parts.push(`${sp.name} ×${multiplier}`);
+  const reason = parts.length > 0
+    ? `Consigliati ${namePart}: ${parts.join(", ")}.`
+    : "Nessuno storico disponibile.";
 
   return { qty, reason, samples, risk, bookedQty, multiplier };
 }
