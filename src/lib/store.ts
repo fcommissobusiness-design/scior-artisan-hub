@@ -35,6 +35,7 @@ interface Store {
   specialDays: SpecialDay[];
   businessHours: BusinessHours;
   goodsReceipts: GoodsReceipt[];
+  fixedCosts: FixedCost[];
 }
 
 const SEED: Store = {
