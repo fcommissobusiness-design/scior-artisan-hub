@@ -6,7 +6,9 @@ import { SEGMENT_META, type Client, type Segment } from "@/lib/data";
 import {
   clientLTV, clientOrderCount, clientAvgTicket, clientFrequencyPerMonth,
   daysInactive, suggestSegment, clientTopProducts, clientBadges,
+  recoverableClients,
 } from "@/lib/metrics";
+import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 interface Search { f?: string }
