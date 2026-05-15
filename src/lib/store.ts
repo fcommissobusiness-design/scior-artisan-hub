@@ -75,6 +75,12 @@ function load(): Store {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) return migrate(JSON.parse(raw));
+    const v3 = localStorage.getItem(LEGACY_V3);
+    if (v3) {
+      const m = migrate(JSON.parse(v3));
+      localStorage.setItem(KEY, JSON.stringify(m));
+      return m;
+    }
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {
       const m = migrate(JSON.parse(legacy));
