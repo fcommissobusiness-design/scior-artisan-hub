@@ -165,6 +165,7 @@ function AdminPage() {
             <CsvBtn label="Freschi giorn." n={freshLogs.length} onClick={() => exportFreshLogs(freshLogs, products)} />
             <CsvBtn label="Invenduto" n={unsoldEntries.length} onClick={() => exportUnsold(unsoldEntries, products)} />
             <CsvBtn label="Giorni speciali" n={specialDays.length} onClick={() => exportSpecialDays(specialDays)} />
+            <CsvBtn label="Entrate merci" n={goodsReceipts.length} onClick={() => exportGoodsReceipts(goodsReceipts, suppliers, products)} />
           </div>
         </section>
 
