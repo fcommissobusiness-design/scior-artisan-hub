@@ -195,7 +195,7 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
   onSave: (patch: Partial<Client>) => void;
   onDelete: () => void;
 }) {
-  const { orders, casualSales, products, addLoyaltyEvent, setLoyaltyStamps } = useStore();
+  const { orders, casualSales, products, addLoyaltyEvent, setLoyaltyStamps, logClientEvent } = useStore();
   const [openWa, setOpenWa] = useState(false);
 
   const [name, setName] = useState(client.name);
