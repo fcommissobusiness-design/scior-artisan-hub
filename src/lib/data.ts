@@ -213,6 +213,34 @@ export interface SupplierPayment {
   supplierId?: string;
 }
 
+// ============= COSTI FISSI =============
+export type FixedCostFrequency = "mensile" | "annuale" | "una_tantum";
+export type FixedCostStatus = "attivo" | "inattivo";
+export const FIXED_COST_CATEGORIES = [
+  "affitto", "utenze", "personale", "consulenti", "marketing",
+  "software", "assicurazioni", "commercialista", "altro",
+] as const;
+export type FixedCostCategory = typeof FIXED_COST_CATEGORIES[number];
+
+export interface FixedCost {
+  id: string;
+  name: string;
+  category: FixedCostCategory;
+  amount: number;
+  frequency: FixedCostFrequency;
+  status: FixedCostStatus;
+  startDate?: string;
+  notes?: string;
+}
+
+export const SEED_FIXED_COSTS: FixedCost[] = [
+  { id: "fc1", name: "Affitto negozio", category: "affitto", amount: 850, frequency: "mensile", status: "attivo" },
+  { id: "fc2", name: "Enel — luce", category: "utenze", amount: 280, frequency: "mensile", status: "attivo" },
+  { id: "fc3", name: "Commercialista", category: "commercialista", amount: 1200, frequency: "annuale", status: "attivo" },
+  { id: "fc4", name: "Gestionale software", category: "software", amount: 29, frequency: "mensile", status: "attivo" },
+  { id: "fc5", name: "Assicurazione attività", category: "assicurazioni", amount: 480, frequency: "annuale", status: "attivo" },
+];
+
 export const CASH_CATEGORIES = [
   "Vendita banco", "Vendita ordine", "Vendita consegna", "B2B", "Altro",
   "Merce", "Utenze", "Affitto", "Personale", "Manutenzione", "Trasporti",
