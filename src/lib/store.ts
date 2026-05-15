@@ -148,6 +148,28 @@ function applyOrderRitirato(store: Store, order: Order): Store {
   return { ...store, clients };
 }
 
+function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store {
+  const deltaBy = new Map<string, number>();
+  for (const it of rec.items) {
+    deltaBy.set(it.productId, (deltaBy.get(it.productId) ?? 0) + sign * it.qty);
+  }
+  return {
+    ...store,
+    products: store.products.map((p) => {
+      const d = deltaBy.get(p.id);
+      if (!d) return p;
+      const cur = p.stock ?? 0;
+      const nextStock = Math.max(0, +(cur + d).toFixed(3));
+      return {
+        ...p,
+        stock: nextStock,
+        supplierId: sign > 0 ? rec.supplierId : p.supplierId,
+        lastRestock: sign > 0 ? rec.date : p.lastRestock,
+      };
+    }),
+  };
+}
+
 export function useStore() {
   const [, setTick] = useState(0);
   useEffect(() => {
