@@ -160,6 +160,8 @@ function AdminPage() {
           </div>
         </section>
 
+        <CrmSettingsSection onMsg={flash} />
+
         <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Backup automatici (settimanali)</h2>
           <div className="bg-card rounded-xl p-4 space-y-3">
