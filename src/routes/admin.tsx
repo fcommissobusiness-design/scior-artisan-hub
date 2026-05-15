@@ -333,3 +333,67 @@ function CsvBtn({ label, n, onClick }: { label: string; n: number; onClick: () =
     </button>
   );
 }
+
+function CrmSettingsSection({ onMsg }: { onMsg: (m: string) => void }) {
+  const { runCrmAuto } = useStore();
+  const [s, setS] = useState<CrmSettings>(() => loadCrmSettings());
+  const set = <K extends keyof CrmSettings>(k: K, v: number) => setS((p) => ({ ...p, [k]: v }));
+
+  const num = (k: keyof CrmSettings, label: string, sub?: string) => (
+    <Field label={label}>
+      <input type="number" min={0} step={k.includes("Freq") ? 0.1 : 1}
+        value={s[k]} onChange={(e) => set(k, +e.target.value)}
+        className="w-full bg-card border border-border rounded-lg p-2 text-sm" />
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
+    </Field>
+  );
+
+  const save = () => { saveCrmSettings(s); onMsg("Configurazione CRM salvata."); };
+  const recompute = async () => {
+    saveCrmSettings(s);
+    const n = await runCrmAuto();
+    onMsg(n > 0 ? `${n} segmento/i aggiornato/i.` : "Nessuna modifica necessaria.");
+  };
+  const reset = () => { resetCrmSettings(); setS(CRM_DEFAULTS); onMsg("Soglie ripristinate ai default."); };
+
+  return (
+    <section>
+      <h2 className="font-display text-lg text-brand-green mb-3">CRM — segmentazione automatica</h2>
+      <div className="bg-card rounded-xl p-4 space-y-4">
+        <div>
+          <p className="text-xs uppercase text-muted-foreground mb-2 font-semibold">Upgrade</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {num("newDays", "Giorni \"nuovo\"", "dal primo ordine")}
+            {num("abitualiMinFreq", "Abituali ≥ freq", "ordini/mese")}
+            {num("topMinLTV", "Top ≥ LTV", "EUR speso lifetime")}
+            {num("topMinFreq", "Top ≥ freq", "ordini/mese alt.")}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-muted-foreground mb-2 font-semibold">Downgrade per inattività (giorni dall'ultimo ordine)</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {num("inactiveTopDays", "Top → Abituali")}
+            {num("inactiveAbitualiDays", "Abituali → Occas.")}
+            {num("inactiveOccDays", "Occas. → Inattivi")}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs uppercase text-muted-foreground mb-2 font-semibold">Clienti recuperabili</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {num("recoverableMinDays", "Inattività min", "giorni")}
+            {num("recoverableMaxDays", "Inattività max", "giorni")}
+            {num("recoverableMinLTV", "LTV minimo", "EUR")}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+          <button onClick={save} className="bg-brand-green text-brand-cream rounded-lg px-3 py-2 text-sm font-semibold">Salva</button>
+          <button onClick={recompute} className="bg-brand-gold text-white rounded-lg px-3 py-2 text-sm font-semibold">Salva e ricalcola subito</button>
+          <button onClick={reset} className="bg-card border border-border rounded-lg px-3 py-2 text-sm">Ripristina default</button>
+        </div>
+        <p className="text-[11px] text-muted-foreground italic">
+          La segmentazione gira automaticamente all'apertura dell'app. Non sovrascrive clienti con segmento marcato come <strong>manuale</strong>. Ogni cambio è tracciato nella timeline del cliente.
+        </p>
+      </div>
+    </section>
+  );
+}
