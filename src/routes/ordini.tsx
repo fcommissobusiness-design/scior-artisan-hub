@@ -5,6 +5,7 @@ import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@
 import type { Order, OrderItem, OrderStatus, OrderSource } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
+import { CallBtn, CopyBtn } from "@/components/QuickActions";
 
 interface Search { f?: string }
 
@@ -147,10 +148,12 @@ function OrdiniPage() {
                 )}
                 <button onClick={() => duplicateOrder(o.id)}
                   className="text-xs bg-card border border-border rounded-lg px-2 py-1.5 font-semibold">Duplica</button>
+                {c?.phone && <CallBtn phone={c.phone} />}
                 {c?.phone && (
                   <button onClick={() => setWaOpen(o.id)}
                     className="text-xs bg-brand-gold text-white rounded-lg px-2 py-1.5 font-semibold">WA</button>
                 )}
+                {c?.phone && <CopyBtn text={c.phone} label="Copia tel" />}
               </div>
             </div>
           );
