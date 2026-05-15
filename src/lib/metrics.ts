@@ -2,7 +2,9 @@
 import type {
   Client, Order, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
   Production, CashEntry, SupplierPayment, B2BClient,
+  FixedCost, GoodsReceipt, UnsoldEntry, BusinessHours, SpecialDay, ProductCategory,
 } from "./data";
+import { calcReceiptTotal } from "./data";
 import { CRM_DEFAULTS, type CrmSettings } from "./crm-settings";
 
 export const DAY = 86_400_000;
