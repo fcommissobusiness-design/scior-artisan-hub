@@ -9,13 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReportRouteImport } from './routes/report'
 import { Route as ProdottiRouteImport } from './routes/prodotti'
 import { Route as OrdiniRouteImport } from './routes/ordini'
 import { Route as OfferteRouteImport } from './routes/offerte'
+import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ReportRoute = ReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdottiRoute = ProdottiRouteImport.update({
   id: '/prodotti',
   path: '/prodotti',
@@ -29,6 +36,11 @@ const OrdiniRoute = OrdiniRouteImport.update({
 const OfferteRoute = OfferteRouteImport.update({
   id: '/offerte',
   path: '/offerte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsegneRoute = ConsegneRouteImport.update({
+  id: '/consegne',
+  path: '/consegne',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientiRoute = ClientiRouteImport.update({
@@ -51,53 +63,86 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/clienti': typeof ClientiRoute
+  '/consegne': typeof ConsegneRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/prodotti': typeof ProdottiRoute
+  '/report': typeof ReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/clienti': typeof ClientiRoute
+  '/consegne': typeof ConsegneRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/prodotti': typeof ProdottiRoute
+  '/report': typeof ReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/clienti': typeof ClientiRoute
+  '/consegne': typeof ConsegneRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/prodotti': typeof ProdottiRoute
+  '/report': typeof ReportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/clienti' | '/offerte' | '/ordini' | '/prodotti'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/clienti'
+    | '/consegne'
+    | '/offerte'
+    | '/ordini'
+    | '/prodotti'
+    | '/report'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/clienti' | '/offerte' | '/ordini' | '/prodotti'
+  to:
+    | '/'
+    | '/admin'
+    | '/clienti'
+    | '/consegne'
+    | '/offerte'
+    | '/ordini'
+    | '/prodotti'
+    | '/report'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/clienti'
+    | '/consegne'
     | '/offerte'
     | '/ordini'
     | '/prodotti'
+    | '/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ClientiRoute: typeof ClientiRoute
+  ConsegneRoute: typeof ConsegneRoute
   OfferteRoute: typeof OfferteRoute
   OrdiniRoute: typeof OrdiniRoute
   ProdottiRoute: typeof ProdottiRoute
+  ReportRoute: typeof ReportRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/report': {
+      id: '/report'
+      path: '/report'
+      fullPath: '/report'
+      preLoaderRoute: typeof ReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prodotti': {
       id: '/prodotti'
       path: '/prodotti'
@@ -117,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/offerte'
       fullPath: '/offerte'
       preLoaderRoute: typeof OfferteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consegne': {
+      id: '/consegne'
+      path: '/consegne'
+      fullPath: '/consegne'
+      preLoaderRoute: typeof ConsegneRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clienti': {
@@ -147,9 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ClientiRoute: ClientiRoute,
+  ConsegneRoute: ConsegneRoute,
   OfferteRoute: OfferteRoute,
   OrdiniRoute: OrdiniRoute,
   ProdottiRoute: ProdottiRoute,
+  ReportRoute: ReportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
