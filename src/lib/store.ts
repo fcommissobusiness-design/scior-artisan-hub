@@ -92,6 +92,8 @@ function migrate(parsed: any): Store {
     businessHours: parsed.businessHours ?? SEED.businessHours,
     goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
     fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
+    onlineOrders: parsed.onlineOrders ?? SEED.onlineOrders,
+    shipments: parsed.shipments ?? SEED.shipments,
   };
   return out;
 }
