@@ -3,13 +3,17 @@ import { useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/store";
 
 const NAV = [
-  { to: "/", label: "Dashboard" },
-  { to: "/ordini", label: "Ordini" },
-  { to: "/clienti", label: "Clienti" },
-  { to: "/prodotti", label: "Prodotti" },
-  { to: "/offerte", label: "Offerte" },
-  { to: "/admin", label: "Amministrazione" },
+  { to: "/", label: "Dashboard", short: "Home" },
+  { to: "/ordini", label: "Ordini", short: "Ordini" },
+  { to: "/consegne", label: "Consegne", short: "Conseg." },
+  { to: "/clienti", label: "Clienti", short: "Clienti" },
+  { to: "/prodotti", label: "Prodotti", short: "Prod." },
+  { to: "/offerte", label: "Offerte", short: "Offerte" },
+  { to: "/report", label: "Report", short: "Report" },
+  { to: "/admin", label: "Amministrazione", short: "Admin" },
 ] as const;
+
+const MOBILE_NAV = NAV.filter(n => n.to !== "/admin" && n.to !== "/report");
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
   const [pin, setPin] = useState("");
