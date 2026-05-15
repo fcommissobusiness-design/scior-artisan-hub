@@ -219,6 +219,10 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
   const [stock, setStock] = useState<string>(product?.stock?.toString() ?? "");
   const [stockMin, setStockMin] = useState<string>(product?.stockMin?.toString() ?? "");
   const [supplierId, setSupplierId] = useState<string>(product?.supplierId ?? "");
+  const [fresh, setFresh] = useState<boolean>(product?.fresh ?? false);
+  const [shelfLifeDays, setShelfLifeDays] = useState<string>(product?.shelfLifeDays?.toString() ?? "");
+  const [perishability, setPerishability] = useState<"bassa" | "media" | "alta">(product?.perishability ?? "media");
+  const [trackUnsold, setTrackUnsold] = useState<boolean>(product?.trackUnsold ?? false);
   const { suppliers } = useStore();
 
   const c = cost === "" ? null : parseFloat(cost);
