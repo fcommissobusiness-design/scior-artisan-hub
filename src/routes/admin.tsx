@@ -71,28 +71,37 @@ function AdminPage() {
   const monthLabel = now.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const info = storageInfo();
 
+  const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
+
   const doExport = () => {
-    const blob = new Blob([exportJson()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sciorio-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMsg("Backup esportato.");
-    setTimeout(() => setMsg(null), 2000);
+    downloadFullBackup();
+    flash("Backup completo esportato.");
   };
 
   const onFileChosen = async (file: File) => {
     try {
       const text = await file.text();
-      importJson(text);
-      setMsg("Backup importato con successo.");
+      const v = validateBackup(text);
+      if (!v.ok) throw new Error(v.error);
+      if (!confirm(`Confermi il ripristino?\n\nVersione: ${v.backup.version}\nEsportato: ${v.backup.exportedAt}\n\nTutti i dati attuali verranno sostituiti.`)) {
+        setOpenImport(false);
+        return;
+      }
+      try { importJson(JSON.stringify(v.backup.data)); } catch { /* fall back */ }
+      applyBackup(v.backup);
+      setOpenImport(false);
+      flash("Backup ripristinato. Ricarico l'app…");
+      setTimeout(() => window.location.reload(), 800);
     } catch (e: any) {
-      setMsg("Errore import: " + e.message);
+      setOpenImport(false);
+      flash("Errore import: " + e.message, 4000);
     }
-    setOpenImport(false);
-    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const runManualAutoBackup = () => {
+    maybeAutoBackup(true);
+    setAutoTick((t) => t + 1);
+    flash("Backup automatico creato.");
   };
 
   return (
