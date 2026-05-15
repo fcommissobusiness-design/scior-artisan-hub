@@ -7,7 +7,7 @@ import { makeTimeFrame, inFrame } from "@/lib/timeframe";
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
-  exportFreshLogs, exportUnsold, exportSpecialDays,
+  exportFreshLogs, exportUnsold, exportSpecialDays, exportGoodsReceipts,
   downloadFullBackup, validateBackup, applyBackup,
   maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
   getStorageStats,
