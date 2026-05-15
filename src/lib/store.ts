@@ -179,6 +179,23 @@ function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store
   };
 }
 
+function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Store {
+  const deltaBy = new Map<string, number>();
+  for (const it of o.items) {
+    if (!it.productId) continue;
+    deltaBy.set(it.productId, (deltaBy.get(it.productId) ?? 0) + sign * it.qty);
+  }
+  if (deltaBy.size === 0) return store;
+  return {
+    ...store,
+    products: store.products.map((p) => {
+      const d = deltaBy.get(p.id);
+      if (!d || p.stock === undefined) return p;
+      return { ...p, stock: Math.max(0, +(p.stock + d).toFixed(3)) };
+    }),
+  };
+}
+
 export function useStore() {
   const [, setTick] = useState(0);
   useEffect(() => {
