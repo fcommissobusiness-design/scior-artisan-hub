@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, Sheet, Field, formatDate } from "@/components/AppShell";
+import { TopBar, Sheet, Field, formatDate, formatEuro } from "@/components/AppShell";
 import { lowStockProducts, outOfStockProducts } from "@/lib/metrics";
+import { calcReceiptTotal } from "@/lib/data";
 
 export const Route = createFileRoute("/magazzino")({ component: MagazzinoPage });
 
