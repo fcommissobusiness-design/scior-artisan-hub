@@ -2,7 +2,9 @@
 import type {
   Product, Client, Order, Delivery, Supplier, CashEntry,
   Production, SupplierPayment, B2BClient, CasualSale, Bundle,
+  FreshLog, UnsoldEntry, SpecialDay,
 } from "./data";
+import { UNSOLD_DESTINATION_LABEL } from "./data";
 
 const SEP = ";"; // Italian Excel-friendly separator
 const BOM = "\uFEFF"; // UTF-8 BOM for Excel compatibility
