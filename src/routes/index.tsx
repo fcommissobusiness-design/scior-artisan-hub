@@ -7,13 +7,15 @@ import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/
 import {
   pendingPickupsToday, lateOrders, inactiveClients,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
+  lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
+  cashFlowMonth, paymentsTotalMonth, grossMargin, productionsForDate,
 } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
-  const { orders, products, clients, casualSales, deliveries, updateOrder, addCasualSale, addClient } = useStore();
+  const { orders, products, clients, casualSales, deliveries, cashEntries, supplierPayments, productions, updateOrder, addCasualSale, addClient } = useStore();
   const [tfId, setTfId] = useState<TimeFrameId>("today");
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
@@ -43,6 +45,22 @@ function Dashboard() {
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
   const sottoCosto = products.filter((p) => { const m = calcMargin(p); return m !== null && m < 0; });
+  const lowStock = useMemo(() => lowStockProducts(products), [products]);
+  const outStock = useMemo(() => outOfStockProducts(products), [products]);
+  const overduePay = useMemo(() => supplierPaymentsOverdue(supplierPayments), [supplierPayments]);
+  const prodOggi = useMemo(() => productionsForDate(productions), [productions]);
+
+  // Finanza mese
+  const cashM = useMemo(() => cashFlowMonth(cashEntries), [cashEntries]);
+  const payM = useMemo(() => paymentsTotalMonth(supplierPayments), [supplierPayments]);
+  const marginM = useMemo(
+    () => grossMargin(orders, casualSales, products, (iso) => {
+      const d = new Date(iso), n = new Date();
+      return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
+    }),
+    [orders, casualSales, products],
+  );
+  const saldoNetto = marginM - payM + (cashM.in - cashM.out);
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
@@ -75,12 +93,24 @@ function Dashboard() {
         )}
 
         {/* ATTENZIONE */}
-        {(ritardi.length > 0 || premi.length > 0 || sottoCosto.length > 0 || consegneAperte.length > 0) && (
+        {(ritardi.length > 0 || premi.length > 0 || sottoCosto.length > 0 || consegneAperte.length > 0 || lowStock.length > 0 || outStock.length > 0 || overduePay.length > 0 || prodOggi.filter(p => p.status === "da_preparare").length > 0) && (
           <section className="bg-warning/10 border border-warning/30 rounded-xl p-4">
             <h2 className="font-display text-base text-warning mb-2">Attenzione</h2>
             <ul className="text-sm space-y-1 text-foreground/85">
               {ritardi.length > 0 && (
                 <li>· <button onClick={() => navigate({ to: "/ordini", search: { f: "ritardi" } as any })} className="underline underline-offset-2">{ritardi.length} ordine/i in ritardo</button></li>
+              )}
+              {prodOggi.filter(p => p.status === "da_preparare").length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/produzione" })} className="underline underline-offset-2">{prodOggi.filter(p => p.status === "da_preparare").length} preparazione/i da fare oggi</button></li>
+              )}
+              {outStock.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/magazzino" })} className="underline underline-offset-2 text-danger">{outStock.length} prodotto/i esaurito/i</button></li>
+              )}
+              {lowStock.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/magazzino" })} className="underline underline-offset-2">{lowStock.length} prodotto/i sotto soglia</button></li>
+              )}
+              {overduePay.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/pagamenti" })} className="underline underline-offset-2 text-danger">{overduePay.length} pagamento/i scaduto/i</button></li>
               )}
               {premi.length > 0 && (
                 <li>· <button onClick={() => navigate({ to: "/clienti", search: { f: "premi" } as any })} className="underline underline-offset-2">{premi.length} cliente/i con premio fedeltà pronto</button></li>
@@ -114,11 +144,37 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* KPI ECONOMICI */}
+        <section>
+          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Economici</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
+            <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
+            <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
+            <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
+          </div>
+        </section>
+
+        {/* FINANZA MESE */}
+        <section>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground">Finanza mese</h2>
+            <Link to="/finanza" className="text-xs text-brand-gold font-semibold">Dettaglio →</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi to={{ to: "/finanza" }} label="Margine lordo" value={formatEuro(marginM)} sub="ordini+scontrini" />
+            <Kpi to={{ to: "/pagamenti" }} label="Uscite pagate" value={formatEuro(payM)} sub="fornitori+servizi" danger={payM > marginM} />
+            <Kpi to={{ to: "/incassi" }} label="Cassa netta" value={formatEuro(cashM.in - cashM.out)} sub={`+${formatEuro(cashM.in)} / -${formatEuro(cashM.out)}`} />
+            <Kpi to={{ to: "/finanza" }} label="Saldo stimato" value={formatEuro(saldoNetto)} sub="margine - uscite" highlight={saldoNetto >= 0} danger={saldoNetto < 0} />
+          </div>
+        </section>
+
         {/* KPI OPERATIVI */}
         <section>
           <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Operativi</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi to={{ to: "/ordini", search: { f: "oggi" } as any }} label="Ritiri oggi" value={ritiriOggi.length.toString()} sub="da gestire" />
+            <Kpi to={{ to: "/produzione" }} label="Preparazioni oggi" value={prodOggi.length.toString()} sub={`${prodOggi.filter(p => p.status === "da_preparare").length} da fare`} />
             <Kpi to={{ to: "/consegne" }} label="Consegne aperte" value={consegneAperte.length.toString()} sub={`${deliveries.length} totali`} />
             <Kpi to={{ to: "/clienti", search: { f: "inattivi" } as any }} label="Clienti inattivi" value={inattivi.length.toString()} sub="oltre 60gg" danger={inattivi.length > 0} />
             <Kpi to={{ to: "/clienti", search: { f: "premi" } as any }} label="Premi pronti" value={premi.length.toString()} sub="fedeltà completata" />
