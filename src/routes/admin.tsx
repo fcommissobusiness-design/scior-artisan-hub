@@ -11,6 +11,7 @@ import {
   maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
   getStorageStats,
 } from "@/lib/backup";
+import { CRM_DEFAULTS, loadCrmSettings, saveCrmSettings, resetCrmSettings, type CrmSettings } from "@/lib/crm-settings";
 
 const APP_VERSION = "0.4.0";
 
