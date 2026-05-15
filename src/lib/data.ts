@@ -31,6 +31,11 @@ export interface Product {
   seasonal?: boolean;
   magnet?: boolean;        // prodotto magnete / civetta
   priceHistory?: PriceChange[];
+  // magazzino
+  stock?: number;
+  stockMin?: number;
+  supplierId?: string;
+  lastRestock?: string;
 }
 
 export interface LoyaltyEvent {
