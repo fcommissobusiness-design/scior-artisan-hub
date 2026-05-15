@@ -10,6 +10,7 @@ import {
 } from "@/lib/metrics";
 import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
+import { CopyBtn, CallBtn } from "@/components/QuickActions";
 
 interface Search { f?: string }
 
@@ -235,8 +236,10 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
   return (
     <Sheet open={true} onClose={onClose} title={client.name}
       footer={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          {client.phone && <CallBtn phone={client.phone} className="bg-brand-green text-brand-cream rounded-xl px-3 py-3 text-sm font-semibold" />}
+          {client.phone && <CopyBtn text={client.phone} label="Copia tel" className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold text-foreground/80" />}
           {client.phone && (
             <button onClick={() => { setOpenWa(true); logClientEvent(client.id, "whatsapp", "Aperto WhatsApp"); }} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
           )}
