@@ -101,8 +101,11 @@ function ClientiPage() {
           <span className="w-2" />
           {[
             { id: "premi" as const, label: "Premi pronti" },
-            { id: "inattivi" as const, label: "Inattivi 60+gg" },
+            { id: "vicini" as const, label: "Vicini al premio" },
+            { id: "recuperabili" as const, label: "Da recuperare" },
+            { id: "inattivi" as const, label: `Inattivi ${crmSettings.inactiveOccDays}+gg` },
             { id: "caldi" as const, label: "Caldi 7gg" },
+            { id: "nuovi" as const, label: "Nuovi" },
             { id: "alto" as const, label: "Alto spendenti" },
           ].map(b => (
             <button key={b.id} onClick={() => setFilter(filter === b.id ? "" : b.id)}
