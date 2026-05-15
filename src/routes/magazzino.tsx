@@ -126,11 +126,12 @@ function MagazzinoPage() {
   );
 }
 
-function Kpi({ label, value, warn, danger }: { label: string; value: string; warn?: boolean; danger?: boolean }) {
+function Kpi({ label, value, sub, warn, danger }: { label: string; value: string; sub?: string; warn?: boolean; danger?: boolean }) {
   return (
     <div className="bg-card rounded-xl p-3">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={`font-display text-2xl mt-1 ${danger ? "text-danger" : warn ? "text-warning" : "text-brand-green"}`}>{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   );
 }
