@@ -1,76 +1,101 @@
-## Sciorio HQ — Espansione gestionale
+# Sciorio HQ — Rifinitura operativa
 
-Lavoro in più fasi su layout responsive, CRUD completo, AI suggerimenti, acquisti casuali e sezione amministrativa.
+Obiettivo: trasformare il gestionale esistente in uno strumento veloce per uso quotidiano. Mantengo architettura, store localStorage, routing, design system, branding. Nessun backend, nessuna AI.
 
-### 1. Layout responsive (mobile + desktop)
-- `AppShell`: su desktop (≥768px) sostituire la bottom-nav con una **sidebar laterale sinistra** (240px), contenuto centrato max-w-6xl con padding generoso.
-- Mobile invariato (bottom nav fissa, container 390px).
-- Tutte le schermate: griglie che passano da 1 colonna (mobile) a 2-3 colonne (desktop).
-- Modali: su desktop max-w-2xl centrati, su mobile full-screen sheet.
+## Approccio
 
-### 2. Fix modale "Nuovo Ordine"
-- Sostituire il dialog con `Sheet` (bottom su mobile, side su desktop) + footer **sticky** con bottone "Conferma" sempre visibile.
-- Padding-bottom area scrollabile per non coprire il CTA.
+Lavoro in 3 ondate per non rompere nulla:
+1. **Fondamenta condivise** (store + utility) — base per tutto il resto
+2. **Rifinitura sezioni esistenti** — Dashboard, Ordini, Clienti, Prodotti, Offerte
+3. **Nuove sezioni leggere** — Consegne, Report, Admin completato + WhatsApp center
 
-### 3. Ordini — modifica completa
-- Tap su un ordine apre uno sheet di **dettaglio/modifica** con tutti i campi editabili: nome cliente, data ritiro, orario ritiro, note, righe prodotti (quantità), **status** (select: in attesa / ritirato / annullato).
-- Cambio status sposta automaticamente nelle tab (già reattivo via store).
-- Pulsanti rapidi: "Segna ritirato", "Annulla", "Elimina".
+## 1. Fondamenta (store + utility)
 
-### 4. Offerte (bundle) — CRUD
-- Tap su offerta → sheet di modifica: nome, descrizione, ingredienti (lista editabile add/remove), prezzo pieno, prezzo offerta, attiva/non attiva.
-- Margine % e € **ricalcolati live** (basati su somma costi prodotti collegati o costo manuale per ingrediente).
-- FAB "+" per **aggiungere nuova offerta**.
+Estendo `src/lib/data.ts` e `src/lib/store.ts` senza rompere i tipi attuali:
+- `Client`: aggiungo `notes`, `preferredProducts[]`, `preferredTimeSlot`, `deliveryZone`, `tags[]`, `loyaltyStamps`, `loyaltyHistory[]`
+- `Order`: aggiungo `source` (negozio/whatsapp/telefono), `timeline[]` (eventi datati), `deliveryId?`
+- `Product`: aggiungo `available`, `seasonal`, `magnet`, `priceHistory[]`, `certification` (DOP/IGP/DOC/BIO)
+- `Bundle`: aggiungo `active`, `startDate`, `endDate`, `channel`, `targetSegment`
+- nuovo `Delivery`: cliente, indirizzo, fascia, stato, pagamento, ordine collegato
+- nuovo `LoyaltyEvent` per la timeline
 
-### 5. Prodotti — CRUD + AI Suggerimenti
-- FAB "+" → nuovo prodotto: nome, categoria, certificazione (DOP/IGP/Bio/—), costo, prezzo, unità, note. Margine calcolato automaticamente.
-- Tap su prodotto → modifica/elimina.
-- Bottone **"Consiglio AI"** per ciascun prodotto e bundle: chiama edge function (Lovable AI Gateway, modello `google/gemini-3-flash-preview`) che restituisce JSON strutturato:
-  - per prodotto: `quando_proporre`, `target_clienti`, `bundle_consigliati`, `offerta_suggerita`.
-  - per bundle: `target_ideale`, `momento_ideale`, `modalita_proposta`, `addon_collegabili`.
-- Richiede attivazione **Lovable Cloud** + **Lovable AI** (faccio io, key auto-provisioned).
+Nuovi file utility:
+- `src/lib/whatsapp.ts` — `normalizePhone()`, `buildMessage(template, ctx)`, `openChat(phone, msg)`, template (conferma ordine, promemoria ritiro, consegna, promo bundle, cliente inattivo, premio disponibile)
+- `src/lib/metrics.ts` — selettori derivati: `clientLTV`, `clientFrequency`, `clientSegment`, `daysSinceLastOrder`, `productMargin`, `topProducts`, `bundleStats`, `pendingDeliveries`, `dailyMargin`
+- `src/lib/loyalty.ts` — gestione timbri, reset post-premio, badge "quasi completato"
 
-### 6. Clienti — CRUD + storico leggibile
-- FAB "+" nuovo cliente: nome, cognome, telefono, data primo ordine, note, status (segmento).
-- Tap su cliente → sheet ampia con **storico ordini scrollabile** (no truncation desktop) + tutti i campi editabili.
-- Cambio status aggiorna automaticamente i conteggi per segmento (deriva dai dati live).
+Migrazione automatica al load: se manca un campo, default sensato. Bump chiave a `sciorio-hq-v3` con migrazione da v2.
 
-### 7. Acquisti casuali (scontrini)
-- Nuova sezione in **Dashboard** + FAB dedicato "Nuovo scontrino".
-- Form: data, orario, righe prodotti+quantità (autocomplete da catalogo), nome cliente (autocomplete da clienti esistenti, opzionale).
-- Se nome combacia con cliente esistente → aggancia ID, append a storico.
-- Se nome nuovo → crea automaticamente nuova scheda cliente (status "occasionale").
-- Se vuoto → registrato come anonimo.
+## 2. Rifinitura sezioni esistenti
 
-### 8. Dashboard — fatturato + time frame
-- Selettore periodo in alto a destra: Oggi / Ieri / Settimana corrente / Settimana scorsa / Mese corrente / Mese scorso / Personalizzato (calendario 2026 con shadcn DatePicker, range).
-- KPI ricalcolati per il periodo selezionato:
-  - **Fatturato stimato** = ordini con status "in attesa" nel periodo.
-  - **Fatturato generato** = ordini "ritirati" + acquisti casuali confermati nel periodo.
-  - Numero ordini, numero scontrini, kg mozzarella, ecc.
+### Dashboard (`src/routes/index.tsx`)
+- Riordino KPI in 2 gruppi visivi: **Economici** (fatturato gen/stim, margine giornaliero, scontrino medio) e **Operativi** (ritiri oggi, consegne aperte, clienti inattivi, premi disponibili)
+- Tutte le card KPI diventano `<Link>` a liste pre-filtrate (es. `/ordini?filter=oggi`)
+- Quick actions in bottom sheet rapido: nuovo ordine, prenotazione mozzarella, WhatsApp rapido, segna ritiro
+- Sezione **Attenzione** in cima con: ordini vecchi non ritirati, clienti a 5 timbri, prodotti sotto costo, consegne aperte in ritardo
 
-### 9. Sezione Amministrativa
-- Nuova route `/admin` (accessibile da sidebar/dashboard).
-- Card mese corrente: fatturato generato progressivo, numero giorni trascorsi, **proiezione fine mese** (`generato / giorni_trascorsi * giorni_totali`).
-- Margine previsto (somma margini per riga venduta).
-- Breakdown: ordini vs scontrini, top prodotti del mese.
+### Ordini (`src/routes/ordini.tsx`)
+- Filtri rapidi a chip: oggi · domani · ritardi · consegne · mozzarella · alto valore
+- Ricerca con autocomplete cliente (`Command`) e prodotti
+- Card ordine arricchita: cliente · tel · origine · data creazione · ritiro · totale · margine · stato · indicatore consegna
+- Azioni rapide inline: duplica · pronto · ritirato · WhatsApp
+- Sheet ordine: timeline eventi + edit prodotti veloce
+- Su "ritirato": aggiorna automaticamente cliente (totale speso, n° ordini, ultimo ordine, timbro fedeltà)
 
-### 10. Persistenza
-- Estendere `store.ts` con: `addClient`, `addProduct`, `addBundle`, `deleteOrder`, `addCasualSale`, ecc.
-- Nuovo tipo `CasualSale` in `data.ts`.
-- Tutto salvato in `localStorage` (chiave `sciorio-hq-v2` con migrazione soft).
+### Clienti (`src/routes/clienti.tsx`)
+- Header scheda con LTV, media spesa, frequenza, giorni inattività, ultimo ordine
+- Badge automatici: caldo · inattivo · alto spendente · vicino premio
+- Segmento auto-calcolato (Top/Abituali/Occasionali/Nuovi/Inattivi) con override manuale
+- Timeline unificata: ordini + premi + consegne + note
+- Note rapide editabili, prodotti preferiti, fascia oraria, zona consegna
+- Ricerca istantanea per nome/telefono/tag/segmento
+- Pannello fedeltà: 5 timbri grafici, "quasi completato", storico premi, modifica manuale road timbri
 
-### Dettagli tecnici
-- Stack: React + TanStack Router (esistente) + Tailwind + shadcn (Sheet, Dialog, Calendar, Popover, Command per autocomplete).
-- AI: edge function `consiglio-prodotto` e `consiglio-bundle` su Lovable AI Gateway (richiede abilitazione Lovable Cloud — chiederò conferma prima di procedere col passo AI se vuoi saltarla).
-- Nessun grafico, nessuna animazione (rispetto vincoli iniziali) — solo numeri, liste, badge.
+### Prodotti (`src/routes/prodotti.tsx`)
+- Colonna margine € e % con colore (rosso sotto costo, ambra basso, verde ottimo)
+- Badge certificazioni visivi (DOP/IGP/DOC/BIO)
+- Toggle disponibile · stagionale · magnete
+- Sezioni: più venduti · meno venduti · più profittevoli
+- Storico prezzi nel sheet di edit
 
-### Ordine di esecuzione consigliato
-1. Layout responsive + fix modale Conferma (rapido, sblocca review desktop).
-2. CRUD Ordini / Clienti / Prodotti / Offerte + storico cliente leggibile.
-3. Acquisti casuali + nuovo store.
-4. Dashboard time frame + fatturato stimato/generato.
-5. Sezione amministrativa.
-6. AI suggerimenti (richiede Lovable Cloud).
+### Offerte (`src/routes/offerte.tsx`)
+- Toggle attivo, date inizio/fine, canale, segmento target
+- Stats: bundle più venduti / più profittevoli / stagionali
+- Pulsante "Genera messaggio promo" → apre WhatsApp center con testo precompilato
 
-Confermi di procedere con tutti e 6 i passi (incluso attivare Lovable Cloud per l'AI), oppure vuoi che mi fermi prima dell'AI?
+## 3. Nuove sezioni
+
+### Consegne (`src/routes/consegne.tsx`)
+- Lista per stato (da preparare · in consegna · consegnata · annullata)
+- Card: cliente · tel · indirizzo · fascia · ordine · pagamento
+- Azioni: WhatsApp · Chiama (`tel:`) · Segna consegnata
+- Header con KPI: aperte · completate · valore totale · ritardi
+- Aggiunta in bottom nav
+
+### Report (`src/routes/report.tsx`)
+- KPI semplici: top clienti · top margini · top bundle · inattivi · scontrino medio · margine totale · trend mozzarella · top profitti
+- Filtri timeframe esistente
+
+### Admin (`src/routes/admin.tsx`) — completamento
+- Cambio PIN (salvato in localStorage)
+- Export JSON (download `sciorio-backup-YYYYMMDD.json`)
+- Import JSON con conferma
+- Reset dati con doppia conferma
+- Info storage (size kb, n° record per entità)
+- Versione app
+
+### WhatsApp center
+Non una pagina dedicata — un componente `WhatsAppDialog` riutilizzato ovunque (ordine, cliente, consegna, bundle). Mostra preview messaggio, pulsante copia, pulsante apri chat. Template selezionabile.
+
+## Bottom nav / sidebar
+Aggiunta voce **Consegne** e **Report**. Riordino: Dashboard · Ordini · Consegne · Clienti · Prodotti · Offerte · Report. Admin resta accessibile da menu.
+
+## Note tecniche
+- Tutto frontend, nessun backend
+- shadcn esistente (Sheet, Command, Popover, Dialog)
+- Migrazione store con fallback safe
+- Niente animazioni pesanti (solo micro-feedback timbri)
+- Tutto in italiano, design tokens Sciorio invariati
+
+## Fuori scope (esplicitamente)
+Backend, Supabase, auth multiutente, push, AI, ecommerce, analytics enterprise, nuove dipendenze pesanti.
