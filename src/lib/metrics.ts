@@ -371,3 +371,189 @@ export function grossMargin(orders: Order[], sales: CasualSale[], products: Prod
   for (const s of sales) if (inPeriod(s.date)) m += margin(s.items);
   return m;
 }
+
+// ============= FINANZA =============
+
+const isOpenDay = (d: Date, hours?: BusinessHours, specials?: SpecialDay[]): boolean => {
+  if (!hours) return true;
+  const k = d.toISOString().slice(0, 10);
+  const sp = specials?.find((s) => s.date.slice(0, 10) === k);
+  if (sp && sp.multiplier === 0) return false;
+  const KEYS = ["sun","mon","tue","wed","thu","fri","sat"] as const;
+  const wk = KEYS[d.getDay()];
+  return !hours[wk]?.closed;
+};
+
+export function openDaysInMonth(date: Date, hours?: BusinessHours, specials?: SpecialDay[]): number {
+  const y = date.getFullYear(), m = date.getMonth();
+  const last = new Date(y, m + 1, 0).getDate();
+  let n = 0;
+  for (let i = 1; i <= last; i++) if (isOpenDay(new Date(y, m, i), hours, specials)) n++;
+  return n;
+}
+
+export function openDaysSoFarInMonth(date: Date, hours?: BusinessHours, specials?: SpecialDay[]): number {
+  const y = date.getFullYear(), m = date.getMonth();
+  let n = 0;
+  for (let i = 1; i <= date.getDate(); i++) if (isOpenDay(new Date(y, m, i), hours, specials)) n++;
+  return n;
+}
+
+/** Costo fisso normalizzato al mese: mensile=amount, annuale=/12, una_tantum=0. Solo attivi. */
+export function monthlyFixedCostsTotal(costs: FixedCost[]): number {
+  return costs.filter((c) => c.status === "attivo").reduce((s, c) => {
+    if (c.frequency === "mensile") return s + c.amount;
+    if (c.frequency === "annuale") return s + c.amount / 12;
+    return s;
+  }, 0);
+}
+
+export function fixedCostsByCategory(costs: FixedCost[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of costs) {
+    if (c.status !== "attivo") continue;
+    const monthly = c.frequency === "mensile" ? c.amount
+      : c.frequency === "annuale" ? c.amount / 12 : 0;
+    out[c.category] = (out[c.category] ?? 0) + monthly;
+  }
+  return out;
+}
+
+export function topFixedCosts(costs: FixedCost[], limit = 5): FixedCost[] {
+  return [...costs.filter((c) => c.status === "attivo")]
+    .sort((a, b) => {
+      const am = a.frequency === "annuale" ? a.amount / 12 : a.frequency === "mensile" ? a.amount : 0;
+      const bm = b.frequency === "annuale" ? b.amount / 12 : b.frequency === "mensile" ? b.amount : 0;
+      return bm - am;
+    }).slice(0, limit);
+}
+
+const inSameMonth = (iso: string, date: Date) => {
+  const d = new Date(iso);
+  return d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
+};
+
+/** Costi variabili stimati nel mese: COGS (ordini ritirati + scontrini) + valore perso invenduto. */
+export function variableCostsMonth(
+  orders: Order[], sales: CasualSale[], products: Product[],
+  unsold: UnsoldEntry[], date: Date = new Date(),
+): { cogs: number; unsoldLoss: number; total: number } {
+  const cogs = (items: { productId: string; qty: number }[]) =>
+    items.reduce((s, i) => {
+      const p = products.find((x) => x.id === i.productId);
+      if (!p || p.cost == null) return s;
+      return s + p.cost * i.qty;
+    }, 0);
+  let c = 0;
+  for (const o of orders) if (o.status === "ritirato" && inSameMonth(o.pickupDate, date)) c += cogs(o.items);
+  for (const s of sales) if (inSameMonth(s.date, date)) c += cogs(s.items);
+  let loss = 0;
+  for (const u of unsold) if (inSameMonth(u.date, date)) loss += (u.lostValue ?? 0);
+  return { cogs: c, unsoldLoss: loss, total: c + loss };
+}
+
+/** Totale entrate merci nel mese (alternativa informativa, non sommata a variableCosts per evitare duplicazioni). */
+export function goodsReceiptsMonth(receipts: GoodsReceipt[], date: Date = new Date()): number {
+  return receipts.filter((r) => inSameMonth(r.date, date))
+    .reduce((s, r) => s + calcReceiptTotal(r), 0);
+}
+
+/** Pagamenti effettivamente usciti nel mese (solo pagati o scaduti, esclude da_pagare). */
+export function paymentsPaidMonth(payments: SupplierPayment[], date: Date = new Date()): number {
+  return payments.filter((p) => inSameMonth(p.date, date) && p.status === "pagato")
+    .reduce((s, p) => s + p.amount, 0);
+}
+
+export function dueSoonPayments(payments: SupplierPayment[], days = 7): SupplierPayment[] {
+  const now = Date.now();
+  const limit = now + days * DAY;
+  return payments.filter((p) => p.status === "da_pagare" && p.dueDate &&
+    +new Date(p.dueDate) >= now && +new Date(p.dueDate) <= limit);
+}
+
+export interface FinanceForecast {
+  monthRevenue: number;
+  avgDailyRevenue: number;
+  daysOpenSoFar: number;
+  daysOpenTotal: number;
+  projectedRevenue: number;
+  fixedMonth: number;
+  variableMonth: number;
+  variableProjected: number;
+  prudente: number;
+  standard: number;
+  ottimistico: number;
+}
+
+export function forecastMonth(args: {
+  orders: Order[]; sales: CasualSale[]; products: Product[]; unsold: UnsoldEntry[];
+  fixedCosts: FixedCost[]; hours?: BusinessHours; specials?: SpecialDay[]; date?: Date;
+}): FinanceForecast {
+  const { orders, sales, products, unsold, fixedCosts, hours, specials } = args;
+  const date = args.date ?? new Date();
+  const revOrders = orders.filter((o) => o.status === "ritirato" && inSameMonth(o.pickupDate, date))
+    .reduce((s, o) => s + o.total, 0);
+  const revSales = sales.filter((s) => inSameMonth(s.date, date)).reduce((s, x) => s + x.total, 0);
+  const monthRevenue = revOrders + revSales;
+
+  const daysOpenTotal = openDaysInMonth(date, hours, specials);
+  const daysOpenSoFar = Math.max(1, openDaysSoFarInMonth(date, hours, specials));
+  const avgDailyRevenue = monthRevenue / daysOpenSoFar;
+  const projectedRevenue = avgDailyRevenue * daysOpenTotal;
+
+  const fixedMonth = monthlyFixedCostsTotal(fixedCosts);
+  const variable = variableCostsMonth(orders, sales, products, unsold, date);
+  const variableProjected = (variable.total / daysOpenSoFar) * daysOpenTotal;
+
+  const standard = projectedRevenue - fixedMonth - variableProjected;
+  const prudente = projectedRevenue * 0.85 - fixedMonth - variableProjected * 1.10;
+  const ottimistico = projectedRevenue * 1.10 - fixedMonth - variableProjected * 0.95;
+
+  return {
+    monthRevenue, avgDailyRevenue, daysOpenSoFar, daysOpenTotal,
+    projectedRevenue, fixedMonth,
+    variableMonth: variable.total, variableProjected,
+    prudente, standard, ottimistico,
+  };
+}
+
+/** Margine per categoria di prodotto sul mese. */
+export function marginByCategoryMonth(
+  orders: Order[], sales: CasualSale[], products: Product[], date: Date = new Date(),
+): { category: ProductCategory; revenue: number; cogs: number; margin: number }[] {
+  const map = new Map<ProductCategory, { revenue: number; cogs: number }>();
+  const add = (items: { productId: string; qty: number }[]) => {
+    for (const it of items) {
+      const p = products.find((x) => x.id === it.productId);
+      if (!p) continue;
+      const cur = map.get(p.category) ?? { revenue: 0, cogs: 0 };
+      cur.revenue += p.price * it.qty;
+      cur.cogs += (p.cost ?? 0) * it.qty;
+      map.set(p.category, cur);
+    }
+  };
+  for (const o of orders) if (o.status === "ritirato" && inSameMonth(o.pickupDate, date)) add(o.items);
+  for (const s of sales) if (inSameMonth(s.date, date)) add(s.items);
+  return [...map.entries()].map(([category, v]) => ({ category, revenue: v.revenue, cogs: v.cogs, margin: v.revenue - v.cogs }))
+    .sort((a, b) => b.margin - a.margin);
+}
+
+export function topSuppliersByCost(payments: SupplierPayment[], limit = 5): { name: string; total: number }[] {
+  const map = new Map<string, number>();
+  for (const p of payments) {
+    if (p.status === "da_pagare") continue;
+    if (p.beneficiaryType !== "fornitore") continue;
+    map.set(p.beneficiary, (map.get(p.beneficiary) ?? 0) + p.amount);
+  }
+  return [...map.entries()].map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, limit);
+}
+
+export function topConsultantsByCost(payments: SupplierPayment[], limit = 5): { name: string; total: number }[] {
+  const map = new Map<string, number>();
+  for (const p of payments) {
+    if (p.status === "da_pagare") continue;
+    if (p.beneficiaryType !== "consulente" && p.beneficiaryType !== "servizio") continue;
+    map.set(p.beneficiary, (map.get(p.beneficiary) ?? 0) + p.amount);
+  }
+  return [...map.entries()].map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, limit);
+}
