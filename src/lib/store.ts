@@ -490,6 +490,7 @@ export function useStore() {
           cashEntries: store.cashEntries.length,
           b2bClients: store.b2bClients.length,
           supplierPayments: store.supplierPayments.length,
+          goodsReceipts: store.goodsReceipts.length,
         },
       };
     },
