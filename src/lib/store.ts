@@ -84,6 +84,7 @@ function migrate(parsed: any): Store {
     unsoldEntries: parsed.unsoldEntries ?? [],
     specialDays: parsed.specialDays ?? SEED.specialDays,
     businessHours: parsed.businessHours ?? SEED.businessHours,
+    goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
   };
   return out;
 }
