@@ -1,5 +1,5 @@
 // Centro WhatsApp: normalizzazione numeri + template messaggi + apertura chat
-import type { Order, Client, Bundle, Delivery, Product } from "./data";
+import type { Order, Client, Bundle, Delivery, Product, CasualSale } from "./data";
 
 export function normalizePhone(raw: string): string {
   if (!raw) return "";
