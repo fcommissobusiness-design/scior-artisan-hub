@@ -81,8 +81,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "SciorHQ" },
       { name: "twitter:description", content: "Gestionale" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3455e882-dbd3-4cea-bc2a-3e6dd9a6fdc4/id-preview-0ab460cd--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778684457455.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3455e882-dbd3-4cea-bc2a-3e6dd9a6fdc4/id-preview-0ab460cd--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778684457455.png" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3774eb5d-8643-4503-9c42-8736d4b601f7/id-preview-a9678285--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778771061452.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3774eb5d-8643-4503-9c42-8736d4b601f7/id-preview-a9678285--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778771061452.png" },
     ],
     links: [
       {
