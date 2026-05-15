@@ -5,6 +5,7 @@ import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@
 import type { Delivery, DeliveryStatus, DeliveryPayment } from "@/lib/data";
 import { openDeliveries } from "@/lib/metrics";
 import { telUrl } from "@/lib/whatsapp";
+import { CopyBtn, MapsBtn } from "@/components/QuickActions";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 export const Route = createFileRoute("/consegne")({ component: ConsegnePage });
@@ -102,6 +103,9 @@ function ConsegnePage() {
                     <button onClick={() => setWaId(d.id)} className="text-xs bg-brand-gold text-white rounded-lg px-2 py-1.5 font-semibold">WA</button>
                   </>
                 )}
+                <MapsBtn address={d.address} />
+                <CopyBtn text={d.address} label="Copia indirizzo" />
+                {c?.phone && <CopyBtn text={c.phone} label="Copia tel" />}
               </div>
             </div>
           );

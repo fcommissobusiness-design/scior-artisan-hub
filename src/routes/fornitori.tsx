@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatDate } from "@/components/AppShell";
 import type { Supplier } from "@/lib/data";
 import { telUrl } from "@/lib/whatsapp";
+import { CopyBtn } from "@/components/QuickActions";
 
 export const Route = createFileRoute("/fornitori")({ component: FornitoriPage });
 
@@ -50,10 +51,11 @@ function FornitoriPage() {
                 {s.notes && <p className="text-xs italic text-muted-foreground mt-1">{s.notes}</p>}
               </button>
               {s.phone && (
-                <div className="flex gap-1.5 mt-3">
+                <div className="flex gap-1.5 mt-3 flex-wrap">
                   <a href={telUrl(s.phone)} className="flex-1 text-center text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 font-semibold">Chiama</a>
                   <button onClick={() => updateSupplier(s.id, { lastOrderDate: new Date().toISOString() })}
                     className="flex-1 text-xs bg-brand-gold text-white rounded-lg py-1.5 font-semibold">Ordine fatto</button>
+                  <CopyBtn text={s.phone} label="Copia tel" />
                 </div>
               )}
             </div>
