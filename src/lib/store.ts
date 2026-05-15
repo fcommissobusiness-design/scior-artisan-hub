@@ -407,6 +407,40 @@ export function useStore() {
     // BUSINESS HOURS
     setBusinessHours: (h: BusinessHours) => setStore({ ...store, businessHours: h }),
 
+    // GOODS RECEIPTS
+    addGoodsReceipt: (r: Omit<GoodsReceipt, "id" | "createdAt">) => {
+      const rec: GoodsReceipt = { ...r, id: uid("gr_"), createdAt: nowIso() };
+      let next: Store = { ...store, goodsReceipts: [rec, ...store.goodsReceipts] };
+      // Aggiorna stock prodotti se ricevuta/verificata/archiviata
+      if (rec.status !== "attesa") next = applyReceiptStock(next, rec, +1);
+      // Aggiorna lastOrderDate fornitore
+      next = {
+        ...next,
+        suppliers: next.suppliers.map((s) =>
+          s.id === rec.supplierId ? { ...s, lastOrderDate: rec.date } : s),
+      };
+      setStore(next);
+      return rec;
+    },
+    updateGoodsReceipt: (id: string, patch: Partial<GoodsReceipt>) => {
+      const prev = store.goodsReceipts.find((g) => g.id === id);
+      if (!prev) return;
+      const merged: GoodsReceipt = { ...prev, ...patch };
+      let next: Store = { ...store, goodsReceipts: store.goodsReceipts.map((g) => g.id === id ? merged : g) };
+      const wasReceived = prev.status !== "attesa";
+      const isReceived = merged.status !== "attesa";
+      if (!wasReceived && isReceived) next = applyReceiptStock(next, merged, +1);
+      else if (wasReceived && !isReceived) next = applyReceiptStock(next, prev, -1);
+      setStore(next);
+    },
+    deleteGoodsReceipt: (id: string) => {
+      const prev = store.goodsReceipts.find((g) => g.id === id);
+      if (!prev) return;
+      let next: Store = { ...store, goodsReceipts: store.goodsReceipts.filter((g) => g.id !== id) };
+      if (prev.status !== "attesa") next = applyReceiptStock(next, prev, -1);
+      setStore(next);
+    },
+
     // BACKUP
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
