@@ -28,6 +28,10 @@ interface Store {
   cashEntries: CashEntry[];
   b2bClients: B2BClient[];
   supplierPayments: SupplierPayment[];
+  freshLogs: FreshLog[];
+  unsoldEntries: UnsoldEntry[];
+  specialDays: SpecialDay[];
+  businessHours: BusinessHours;
 }
 
 const SEED: Store = {
@@ -42,6 +46,10 @@ const SEED: Store = {
   cashEntries: SEED_CASH_ENTRIES,
   b2bClients: SEED_B2B_CLIENTS,
   supplierPayments: SEED_SUPPLIER_PAYMENTS,
+  freshLogs: SEED_FRESH_LOGS,
+  unsoldEntries: SEED_UNSOLD_ENTRIES,
+  specialDays: SEED_SPECIAL_DAYS,
+  businessHours: DEFAULT_BUSINESS_HOURS,
 };
 
 function migrate(parsed: any): Store {
