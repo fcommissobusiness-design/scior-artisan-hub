@@ -9,7 +9,10 @@ import {
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
   cashFlowMonth, paymentsTotalMonth, grossMargin, productionsForDate,
+  recoverableClients, topSpenders, newClientsInPeriod, segmentChangesInPeriod,
+  nearLoyaltyClients,
 } from "@/lib/metrics";
+import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
