@@ -25,7 +25,8 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 const SOURCE_LABEL: Record<OrderSource, string> = {
-  negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono", consegna: "Consegna", altro: "Altro",
+  negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
+  consegna: "Consegna", sito: "Sito", b2b: "B2B", altro: "Altro",
 };
 
 type Filter = "all" | "oggi" | "domani" | "ritardi" | "consegne" | "mozzarella" | "alto" | "attesa" | "pronti" | "ritirati" | "annullati";
