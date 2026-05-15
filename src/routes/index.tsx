@@ -144,17 +144,6 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* KPI ECONOMICI */}
-        <section>
-          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Economici</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
-            <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
-            <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
-            <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
-          </div>
-        </section>
-
         {/* FINANZA MESE */}
         <section>
           <div className="flex justify-between items-center mb-2">
