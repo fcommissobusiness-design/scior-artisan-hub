@@ -76,6 +76,10 @@ function migrate(parsed: any): Store {
     cashEntries: parsed.cashEntries ?? SEED.cashEntries,
     b2bClients: parsed.b2bClients ?? SEED.b2bClients,
     supplierPayments: parsed.supplierPayments ?? SEED.supplierPayments,
+    freshLogs: parsed.freshLogs ?? [],
+    unsoldEntries: parsed.unsoldEntries ?? [],
+    specialDays: parsed.specialDays ?? SEED.specialDays,
+    businessHours: parsed.businessHours ?? SEED.businessHours,
   };
   return out;
 }
