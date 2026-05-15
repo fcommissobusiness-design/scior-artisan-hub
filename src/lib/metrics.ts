@@ -53,16 +53,101 @@ export function clientFrequencyPerMonth(orders: Order[], sales: CasualSale[], cl
 }
 
 export type AutoSegment = Segment;
-export function suggestSegment(orders: Order[], sales: CasualSale[], client: Client): AutoSegment {
+export function suggestSegment(
+  orders: Order[], sales: CasualSale[], client: Client, settings: CrmSettings = CRM_DEFAULTS,
+): AutoSegment {
   const ltv = clientLTV(orders, sales, client.id);
   const inactive = daysInactive(orders, sales, client) ?? 9999;
   const freq = clientFrequencyPerMonth(orders, sales, client);
-  const isNew = client.firstOrder ? (now() - +new Date(client.firstOrder)) < 60 * DAY : true;
-  if (inactive > 60) return "inattivi";
-  if (isNew) return "nuovi";
-  if (ltv >= 300 || freq >= 4) return "top";
-  if (freq >= 1.5) return "abituali";
+  const orderCount = clientOrderCount(orders, sales, client.id);
+  const isNew = client.firstOrder
+    ? (now() - +new Date(client.firstOrder)) < settings.newDays * DAY
+    : true;
+
+  // Inattività progressive (sovrascrivono livello attuale)
+  if (inactive > settings.inactiveOccDays) return "inattivi";
+
+  if (isNew && orderCount < 3) return "nuovi";
+
+  // Top
+  if ((ltv >= settings.topMinLTV || freq >= settings.topMinFreq) && inactive <= settings.inactiveTopDays)
+    return "top";
+
+  // Abituali
+  if (freq >= settings.abitualiMinFreq && inactive <= settings.inactiveAbitualiDays)
+    return "abituali";
+
   return "occasionali";
+}
+
+export interface SegmentChange {
+  clientId: string;
+  from: Segment;
+  to: Segment;
+  event: LoyaltyEvent;
+}
+
+/** Compute new segments for non-manual clients; returns the list of changes. */
+export function recomputeSegments(
+  clients: Client[], orders: Order[], sales: CasualSale[], settings: CrmSettings = CRM_DEFAULTS,
+): SegmentChange[] {
+  const changes: SegmentChange[] = [];
+  for (const c of clients) {
+    if (c.segmentManual) continue;
+    const next = suggestSegment(orders, sales, c, settings);
+    if (next !== c.segment) {
+      changes.push({
+        clientId: c.id,
+        from: c.segment,
+        to: next,
+        event: {
+          date: new Date().toISOString(),
+          type: "segment",
+          note: `Auto: ${c.segment} → ${next}`,
+        },
+      });
+    }
+  }
+  return changes;
+}
+
+export function recoverableClients(
+  orders: Order[], sales: CasualSale[], clients: Client[], settings: CrmSettings = CRM_DEFAULTS,
+): Client[] {
+  return clients.filter((c) => {
+    const d = daysInactive(orders, sales, c);
+    if (d === null) return false;
+    if (d < settings.recoverableMinDays || d > settings.recoverableMaxDays) return false;
+    return clientLTV(orders, sales, c.id) >= settings.recoverableMinLTV;
+  });
+}
+
+export function topSpenders(
+  orders: Order[], sales: CasualSale[], clients: Client[], limit = 5,
+): { client: Client; ltv: number }[] {
+  return clients
+    .map((c) => ({ client: c, ltv: clientLTV(orders, sales, c.id) }))
+    .filter((x) => x.ltv > 0)
+    .sort((a, b) => b.ltv - a.ltv)
+    .slice(0, limit);
+}
+
+export function newClientsInPeriod(
+  clients: Client[], inPeriod: (iso: string) => boolean,
+): Client[] {
+  return clients.filter((c) => c.firstOrder && inPeriod(c.firstOrder));
+}
+
+export function segmentChangesInPeriod(
+  clients: Client[], inPeriod: (iso: string) => boolean,
+): { client: Client; event: LoyaltyEvent }[] {
+  const out: { client: Client; event: LoyaltyEvent }[] = [];
+  for (const c of clients) {
+    for (const e of c.loyaltyHistory ?? []) {
+      if (e.type === "segment" && inPeriod(e.date)) out.push({ client: c, event: e });
+    }
+  }
+  return out;
 }
 
 export function clientTopProducts(orders: Order[], sales: CasualSale[], products: Product[], clientId: string, limit = 5) {
