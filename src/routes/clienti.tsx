@@ -238,7 +238,7 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
         <div className="flex gap-2">
           <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           {client.phone && (
-            <button onClick={() => setOpenWa(true)} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
+            <button onClick={() => { setOpenWa(true); logClientEvent(client.id, "whatsapp", "Aperto WhatsApp"); }} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
           )}
           <button onClick={save} disabled={!name.trim()}
             className="flex-1 bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
