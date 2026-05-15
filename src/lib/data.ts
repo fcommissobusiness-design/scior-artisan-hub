@@ -36,6 +36,11 @@ export interface Product {
   stockMin?: number;
   supplierId?: string;
   lastRestock?: string;
+  // freschi / invenduto
+  fresh?: boolean;                         // prodotto fresco/deperibile
+  shelfLifeDays?: number;                  // durata stimata in giorni
+  perishability?: "bassa" | "media" | "alta";
+  trackUnsold?: boolean;                   // gestire invenduto sì/no
 }
 
 export interface LoyaltyEvent {
