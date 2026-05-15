@@ -55,6 +55,7 @@ const SEED: Store = {
   specialDays: SEED_SPECIAL_DAYS,
   businessHours: DEFAULT_BUSINESS_HOURS,
   goodsReceipts: SEED_GOODS_RECEIPTS,
+  fixedCosts: SEED_FIXED_COSTS,
 };
 
 function migrate(parsed: any): Store {
@@ -86,6 +87,7 @@ function migrate(parsed: any): Store {
     specialDays: parsed.specialDays ?? SEED.specialDays,
     businessHours: parsed.businessHours ?? SEED.businessHours,
     goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
+    fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
   };
   return out;
 }
