@@ -269,6 +269,61 @@ export function useStore() {
     deleteDelivery: (id: string) =>
       setStore({ ...store, deliveries: store.deliveries.filter((d) => d.id !== id) }),
 
+    // PRODUCTIONS
+    addProduction: (p: Omit<Production, "id">) => {
+      const prod: Production = { ...p, id: uid("pr_") };
+      setStore({ ...store, productions: [prod, ...store.productions] });
+      return prod;
+    },
+    updateProduction: (id: string, patch: Partial<Production>) =>
+      setStore({ ...store, productions: store.productions.map((p) => p.id === id ? { ...p, ...patch } : p) }),
+    deleteProduction: (id: string) =>
+      setStore({ ...store, productions: store.productions.filter((p) => p.id !== id) }),
+
+    // SUPPLIERS
+    addSupplier: (s: Omit<Supplier, "id">) => {
+      const sup: Supplier = { ...s, id: uid("sup_") };
+      setStore({ ...store, suppliers: [sup, ...store.suppliers] });
+      return sup;
+    },
+    updateSupplier: (id: string, patch: Partial<Supplier>) =>
+      setStore({ ...store, suppliers: store.suppliers.map((s) => s.id === id ? { ...s, ...patch } : s) }),
+    deleteSupplier: (id: string) =>
+      setStore({ ...store, suppliers: store.suppliers.filter((s) => s.id !== id) }),
+
+    // CASH ENTRIES
+    addCashEntry: (e: Omit<CashEntry, "id">) => {
+      const entry: CashEntry = { ...e, id: uid("ce_") };
+      setStore({ ...store, cashEntries: [entry, ...store.cashEntries] });
+      return entry;
+    },
+    updateCashEntry: (id: string, patch: Partial<CashEntry>) =>
+      setStore({ ...store, cashEntries: store.cashEntries.map((e) => e.id === id ? { ...e, ...patch } : e) }),
+    deleteCashEntry: (id: string) =>
+      setStore({ ...store, cashEntries: store.cashEntries.filter((e) => e.id !== id) }),
+
+    // B2B
+    addB2BClient: (c: Omit<B2BClient, "id">) => {
+      const cli: B2BClient = { ...c, id: uid("b2b_") };
+      setStore({ ...store, b2bClients: [cli, ...store.b2bClients] });
+      return cli;
+    },
+    updateB2BClient: (id: string, patch: Partial<B2BClient>) =>
+      setStore({ ...store, b2bClients: store.b2bClients.map((c) => c.id === id ? { ...c, ...patch } : c) }),
+    deleteB2BClient: (id: string) =>
+      setStore({ ...store, b2bClients: store.b2bClients.filter((c) => c.id !== id) }),
+
+    // SUPPLIER PAYMENTS
+    addSupplierPayment: (p: Omit<SupplierPayment, "id">) => {
+      const pay: SupplierPayment = { ...p, id: uid("sp_") };
+      setStore({ ...store, supplierPayments: [pay, ...store.supplierPayments] });
+      return pay;
+    },
+    updateSupplierPayment: (id: string, patch: Partial<SupplierPayment>) =>
+      setStore({ ...store, supplierPayments: store.supplierPayments.map((p) => p.id === id ? { ...p, ...patch } : p) }),
+    deleteSupplierPayment: (id: string) =>
+      setStore({ ...store, supplierPayments: store.supplierPayments.filter((p) => p.id !== id) }),
+
     // BACKUP
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
@@ -291,6 +346,11 @@ export function useStore() {
           bundles: store.bundles.length,
           casualSales: store.casualSales.length,
           deliveries: store.deliveries.length,
+          productions: store.productions.length,
+          suppliers: store.suppliers.length,
+          cashEntries: store.cashEntries.length,
+          b2bClients: store.b2bClients.length,
+          supplierPayments: store.supplierPayments.length,
         },
       };
     },
@@ -298,6 +358,7 @@ export function useStore() {
     reset: () => {
       if (typeof window !== "undefined") {
         localStorage.removeItem(KEY);
+        localStorage.removeItem(LEGACY_V3);
         localStorage.removeItem(LEGACY_KEY);
       }
       cache = null;
