@@ -564,9 +564,11 @@ function SuggerimentiTab() {
   const suggestions = useMemo(() => fresh.map((p) => ({
     product: p,
     s: suggestQuantity({
-      productId: p.id, date: day, logs: freshLogs, orders, unsold: unsoldEntries, specials: specialDays,
+      productId: p.id, productName: p.name, productUnit: p.unit,
+      date: day, logs: freshLogs, orders, unsold: unsoldEntries,
+      specials: specialDays, hours: businessHours,
     }),
-  })), [fresh, day, freshLogs, orders, unsoldEntries, specialDays]);
+  })), [fresh, day, freshLogs, orders, unsoldEntries, specialDays, businessHours]);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
