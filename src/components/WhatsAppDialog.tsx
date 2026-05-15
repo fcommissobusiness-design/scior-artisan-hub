@@ -18,7 +18,7 @@ interface Props {
 const ALL: TemplateId[] = [
   "conferma_ordine", "promemoria_ritiro", "ordine_pronto",
   "consegna_in_arrivo", "promo_bundle", "cliente_inattivo",
-  "premio_disponibile", "libero",
+  "premio_disponibile", "ringraziamento", "libero",
 ];
 
 export function WhatsAppDialog({ open, onClose, phone, context, defaultTemplate, templates = ALL, title = "Messaggio WhatsApp" }: Props) {
