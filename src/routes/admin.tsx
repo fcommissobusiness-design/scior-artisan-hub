@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
 import { TopBar, formatEuro, Sheet, Field } from "@/components/AppShell";
 import { calcMargin } from "@/lib/data";
 import { makeTimeFrame, inFrame } from "@/lib/timeframe";
+import {
+  exportClients, exportOrders, exportProducts, exportDeliveries,
+  exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
+  downloadFullBackup, validateBackup, applyBackup,
+  maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
+  getStorageStats,
+} from "@/lib/backup";
 
 const APP_VERSION = "0.4.0";
 
