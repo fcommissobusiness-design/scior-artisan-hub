@@ -128,6 +128,92 @@ export interface Delivery {
   createdAt: string;
 }
 
+// ============= NUOVE ENTITÀ v4 =============
+
+export type ProductionStatus = "da_preparare" | "preparato" | "completato";
+export interface Production {
+  id: string;
+  date: string;        // ISO datetime (giorno preparazione)
+  productId: string;
+  qtyPlanned: number;
+  qtyActual?: number;
+  orderIds?: string[];
+  notes?: string;
+  status: ProductionStatus;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  category: string;     // es. "Latticini", "Salumi", "Pane"
+  phone?: string;
+  contactName?: string;
+  productIds?: string[];
+  notes?: string;
+  lastOrderDate?: string;
+}
+
+export type CashType = "entrata" | "uscita";
+export type PaymentMethod = "contanti" | "pos" | "bonifico" | "carta" | "altro";
+export type CashRefType = "order" | "delivery" | "casual" | "payment" | "manual";
+export interface CashEntry {
+  id: string;
+  date: string;          // ISO
+  type: CashType;
+  category: string;
+  amount: number;
+  method: PaymentMethod;
+  notes?: string;
+  refType?: CashRefType;
+  refId?: string;
+}
+
+export type B2BStatus = "prospect" | "attivo" | "sospeso";
+export interface B2BHistoryEntry { date: string; total: number; note?: string; }
+export interface B2BClient {
+  id: string;
+  name: string;            // nome attività
+  contactName?: string;    // referente
+  phone?: string;
+  zone?: string;
+  priceListId?: string;
+  deliveryDays: string[];  // es. ["lun","gio"]
+  status: B2BStatus;
+  notes?: string;
+  history: B2BHistoryEntry[];
+}
+
+export type SupplierPaymentStatus = "da_pagare" | "pagato" | "scaduto";
+export type SupplierPaymentRecurrence = "una_tantum" | "settimanale" | "mensile" | "annuale";
+export type SupplierPaymentBeneficiaryType = "fornitore" | "consulente" | "servizio" | "altro";
+export type SupplierPaymentDocument = "fattura" | "ricevuta" | "preventivo" | "nessuno";
+export interface SupplierPayment {
+  id: string;
+  date: string;            // ISO data registrazione
+  beneficiary: string;
+  beneficiaryType: SupplierPaymentBeneficiaryType;
+  category: string;        // merce, affitto, utenze, commercialista, ecc
+  amount: number;
+  method: PaymentMethod;
+  status: SupplierPaymentStatus;
+  dueDate?: string;
+  recurrence: SupplierPaymentRecurrence;
+  notes?: string;
+  document?: SupplierPaymentDocument;
+  supplierId?: string;
+}
+
+export const CASH_CATEGORIES = [
+  "Vendita banco", "Vendita ordine", "Vendita consegna", "B2B", "Altro",
+  "Merce", "Utenze", "Affitto", "Personale", "Manutenzione", "Trasporti",
+  "Software", "Marketing", "Tasse", "Consulenza", "Cancelleria",
+] as const;
+
+export const PAYMENT_CATEGORIES = [
+  "Merce", "Affitto", "Utenze", "Commercialista", "Consulenza marketing",
+  "Personale", "Manutenzione", "Trasporti", "Software", "Tasse", "Altro",
+] as const;
+
 export const SEGMENT_META: Record<Segment, { label: string; mode: string; color: string }> = {
   top:         { label: "Top Fidelizzati", mode: "messaggio manuale con nome", color: "bg-brand-gold text-white" },
   abituali:    { label: "Abituali",        mode: "messaggio manuale con nome", color: "bg-success text-white" },
