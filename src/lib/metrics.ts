@@ -448,7 +448,7 @@ export function variableCostsMonth(
   for (const o of orders) if (o.status === "ritirato" && inSameMonth(o.pickupDate, date)) c += cogs(o.items);
   for (const s of sales) if (inSameMonth(s.date, date)) c += cogs(s.items);
   let loss = 0;
-  for (const u of unsold) if (inSameMonth(u.date, date)) loss += (u.lostValue ?? 0);
+  for (const u of unsold) if (inSameMonth(u.date, date)) loss += (u.valueLost ?? 0);
   return { cogs: c, unsoldLoss: loss, total: c + loss };
 }
 
