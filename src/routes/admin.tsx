@@ -5,7 +5,7 @@ import { TopBar, formatEuro, Sheet, Field } from "@/components/AppShell";
 import { calcMargin } from "@/lib/data";
 import { makeTimeFrame, inFrame } from "@/lib/timeframe";
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
 

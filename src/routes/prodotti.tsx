@@ -216,6 +216,10 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
   const [seasonal, setSeasonal] = useState<boolean>(product?.seasonal ?? false);
   const [magnet, setMagnet] = useState<boolean>(product?.magnet ?? false);
   const [notes, setNotes] = useState(product?.notes ?? "");
+  const [stock, setStock] = useState<string>(product?.stock?.toString() ?? "");
+  const [stockMin, setStockMin] = useState<string>(product?.stockMin?.toString() ?? "");
+  const [supplierId, setSupplierId] = useState<string>(product?.supplierId ?? "");
+  const { suppliers } = useStore();
 
   const c = cost === "" ? null : parseFloat(cost);
   const pr = parseFloat(price) || 0;
@@ -229,6 +233,9 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
       available, seasonal, magnet,
       badge: badge ? (badge as any) : undefined,
       notes: notes.trim() || undefined,
+      stock: stock === "" ? undefined : parseFloat(stock),
+      stockMin: stockMin === "" ? undefined : parseFloat(stockMin),
+      supplierId: supplierId || undefined,
     });
   };
 
@@ -291,6 +298,24 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
         <Toggle label="Disponibile" value={available} onChange={setAvailable} />
         <Toggle label="Stagionale" value={seasonal} onChange={setSeasonal} />
         <Toggle label="Magnete" value={magnet} onChange={setMagnet} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="Stock attuale">
+          <input type="number" step="0.1" value={stock} onChange={(e) => setStock(e.target.value)}
+            placeholder="es. 5" className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Soglia minima">
+          <input type="number" step="0.1" value={stockMin} onChange={(e) => setStockMin(e.target.value)}
+            placeholder="es. 2" className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Fornitore">
+          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="">— Nessuno —</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
       </div>
 
       <Field label="Note">
