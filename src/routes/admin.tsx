@@ -320,3 +320,13 @@ function BigCard({ label, value, sub, highlight }: { label: string; value: strin
     </div>
   );
 }
+
+function CsvBtn({ label, n, onClick }: { label: string; n: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="bg-card border border-border rounded-lg p-3 text-left hover:bg-accent transition-colors">
+      <p className="text-sm font-semibold text-brand-green">{label}</p>
+      <p className="text-xs text-muted-foreground">{n} record</p>
+    </button>
+  );
+}
