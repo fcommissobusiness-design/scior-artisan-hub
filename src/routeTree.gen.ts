@@ -10,11 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReportRouteImport } from './routes/report'
+import { Route as ProduzioneRouteImport } from './routes/produzione'
 import { Route as ProdottiRouteImport } from './routes/prodotti'
+import { Route as PagamentiRouteImport } from './routes/pagamenti'
 import { Route as OrdiniRouteImport } from './routes/ordini'
 import { Route as OfferteRouteImport } from './routes/offerte'
+import { Route as MagazzinoRouteImport } from './routes/magazzino'
+import { Route as IncassiRouteImport } from './routes/incassi'
+import { Route as FornitoriRouteImport } from './routes/fornitori'
+import { Route as FiscaleRouteImport } from './routes/fiscale'
+import { Route as FinanzaRouteImport } from './routes/finanza'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
+import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -23,9 +31,19 @@ const ReportRoute = ReportRouteImport.update({
   path: '/report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProduzioneRoute = ProduzioneRouteImport.update({
+  id: '/produzione',
+  path: '/produzione',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdottiRoute = ProdottiRouteImport.update({
   id: '/prodotti',
   path: '/prodotti',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentiRoute = PagamentiRouteImport.update({
+  id: '/pagamenti',
+  path: '/pagamenti',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdiniRoute = OrdiniRouteImport.update({
@@ -38,6 +56,31 @@ const OfferteRoute = OfferteRouteImport.update({
   path: '/offerte',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MagazzinoRoute = MagazzinoRouteImport.update({
+  id: '/magazzino',
+  path: '/magazzino',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncassiRoute = IncassiRouteImport.update({
+  id: '/incassi',
+  path: '/incassi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FornitoriRoute = FornitoriRouteImport.update({
+  id: '/fornitori',
+  path: '/fornitori',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FiscaleRoute = FiscaleRouteImport.update({
+  id: '/fiscale',
+  path: '/fiscale',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanzaRoute = FinanzaRouteImport.update({
+  id: '/finanza',
+  path: '/finanza',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConsegneRoute = ConsegneRouteImport.update({
   id: '/consegne',
   path: '/consegne',
@@ -46,6 +89,11 @@ const ConsegneRoute = ConsegneRouteImport.update({
 const ClientiRoute = ClientiRouteImport.update({
   id: '/clienti',
   path: '/clienti',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const B2bRoute = B2bRouteImport.update({
+  id: '/b2b',
+  path: '/b2b',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -62,32 +110,56 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/finanza': typeof FinanzaRoute
+  '/fiscale': typeof FiscaleRoute
+  '/fornitori': typeof FornitoriRoute
+  '/incassi': typeof IncassiRoute
+  '/magazzino': typeof MagazzinoRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
+  '/pagamenti': typeof PagamentiRoute
   '/prodotti': typeof ProdottiRoute
+  '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/finanza': typeof FinanzaRoute
+  '/fiscale': typeof FiscaleRoute
+  '/fornitori': typeof FornitoriRoute
+  '/incassi': typeof IncassiRoute
+  '/magazzino': typeof MagazzinoRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
+  '/pagamenti': typeof PagamentiRoute
   '/prodotti': typeof ProdottiRoute
+  '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/finanza': typeof FinanzaRoute
+  '/fiscale': typeof FiscaleRoute
+  '/fornitori': typeof FornitoriRoute
+  '/incassi': typeof IncassiRoute
+  '/magazzino': typeof MagazzinoRoute
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
+  '/pagamenti': typeof PagamentiRoute
   '/prodotti': typeof ProdottiRoute
+  '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
 }
 export interface FileRouteTypes {
@@ -95,42 +167,74 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/finanza'
+    | '/fiscale'
+    | '/fornitori'
+    | '/incassi'
+    | '/magazzino'
     | '/offerte'
     | '/ordini'
+    | '/pagamenti'
     | '/prodotti'
+    | '/produzione'
     | '/report'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/finanza'
+    | '/fiscale'
+    | '/fornitori'
+    | '/incassi'
+    | '/magazzino'
     | '/offerte'
     | '/ordini'
+    | '/pagamenti'
     | '/prodotti'
+    | '/produzione'
     | '/report'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/finanza'
+    | '/fiscale'
+    | '/fornitori'
+    | '/incassi'
+    | '/magazzino'
     | '/offerte'
     | '/ordini'
+    | '/pagamenti'
     | '/prodotti'
+    | '/produzione'
     | '/report'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  B2bRoute: typeof B2bRoute
   ClientiRoute: typeof ClientiRoute
   ConsegneRoute: typeof ConsegneRoute
+  FinanzaRoute: typeof FinanzaRoute
+  FiscaleRoute: typeof FiscaleRoute
+  FornitoriRoute: typeof FornitoriRoute
+  IncassiRoute: typeof IncassiRoute
+  MagazzinoRoute: typeof MagazzinoRoute
   OfferteRoute: typeof OfferteRoute
   OrdiniRoute: typeof OrdiniRoute
+  PagamentiRoute: typeof PagamentiRoute
   ProdottiRoute: typeof ProdottiRoute
+  ProduzioneRoute: typeof ProduzioneRoute
   ReportRoute: typeof ReportRoute
 }
 
@@ -143,11 +247,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/produzione': {
+      id: '/produzione'
+      path: '/produzione'
+      fullPath: '/produzione'
+      preLoaderRoute: typeof ProduzioneRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prodotti': {
       id: '/prodotti'
       path: '/prodotti'
       fullPath: '/prodotti'
       preLoaderRoute: typeof ProdottiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamenti': {
+      id: '/pagamenti'
+      path: '/pagamenti'
+      fullPath: '/pagamenti'
+      preLoaderRoute: typeof PagamentiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ordini': {
@@ -164,6 +282,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfferteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/magazzino': {
+      id: '/magazzino'
+      path: '/magazzino'
+      fullPath: '/magazzino'
+      preLoaderRoute: typeof MagazzinoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incassi': {
+      id: '/incassi'
+      path: '/incassi'
+      fullPath: '/incassi'
+      preLoaderRoute: typeof IncassiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fornitori': {
+      id: '/fornitori'
+      path: '/fornitori'
+      fullPath: '/fornitori'
+      preLoaderRoute: typeof FornitoriRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fiscale': {
+      id: '/fiscale'
+      path: '/fiscale'
+      fullPath: '/fiscale'
+      preLoaderRoute: typeof FiscaleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finanza': {
+      id: '/finanza'
+      path: '/finanza'
+      fullPath: '/finanza'
+      preLoaderRoute: typeof FinanzaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/consegne': {
       id: '/consegne'
       path: '/consegne'
@@ -176,6 +329,13 @@ declare module '@tanstack/react-router' {
       path: '/clienti'
       fullPath: '/clienti'
       preLoaderRoute: typeof ClientiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/b2b': {
+      id: '/b2b'
+      path: '/b2b'
+      fullPath: '/b2b'
+      preLoaderRoute: typeof B2bRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -198,11 +358,19 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  B2bRoute: B2bRoute,
   ClientiRoute: ClientiRoute,
   ConsegneRoute: ConsegneRoute,
+  FinanzaRoute: FinanzaRoute,
+  FiscaleRoute: FiscaleRoute,
+  FornitoriRoute: FornitoriRoute,
+  IncassiRoute: IncassiRoute,
+  MagazzinoRoute: MagazzinoRoute,
   OfferteRoute: OfferteRoute,
   OrdiniRoute: OrdiniRoute,
+  PagamentiRoute: PagamentiRoute,
   ProdottiRoute: ProdottiRoute,
+  ProduzioneRoute: ProduzioneRoute,
   ReportRoute: ReportRoute,
 }
 export const routeTree = rootRouteImport

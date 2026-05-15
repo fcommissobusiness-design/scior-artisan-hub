@@ -31,7 +31,6 @@ function FinanzaPage() {
   const b2bMonth = b2bClients.flatMap(c => c.history).filter(h => inMonth(h.date)).reduce((s, h) => s + h.total, 0);
 
   // Saldo netto stimato = margine lordo - uscite/pagamenti del mese
-  const totalOutflows = monthPayments + (byType.fornitore + byType.consulente + byType.servizio + byType.altro - monthPayments); // evita double count: usa solo monthPayments
   const netEstimate = margin - monthPayments;
   const netImpactPct = margin > 0 ? (monthPayments / margin) * 100 : 0;
 
