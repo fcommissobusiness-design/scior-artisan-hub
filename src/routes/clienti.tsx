@@ -25,7 +25,12 @@ function ClientiPage() {
   const { clients, orders, products, casualSales, addClient, updateClient, deleteClient } = useStore();
   const [tab, setTab] = useState<Segment | "all">("all");
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"" | "premi" | "inattivi" | "caldi" | "alto">("");
+  const [filter, setFilter] = useState<"" | "premi" | "vicini" | "inattivi" | "caldi" | "alto" | "recuperabili" | "nuovi">("");
+  const crmSettings = useMemo(() => loadCrmSettings(), []);
+  const recuperabiliSet = useMemo(
+    () => new Set(recoverableClients(orders, casualSales, clients, crmSettings).map((c) => c.id)),
+    [orders, casualSales, clients, crmSettings],
+  );
   const [openId, setOpenId] = useState<string | null>(null);
   const [openNew, setOpenNew] = useState(false);
 
