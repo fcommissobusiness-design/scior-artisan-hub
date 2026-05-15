@@ -33,6 +33,34 @@ export function telUrl(phone: string): string {
   return n ? `tel:+${n}` : "tel:";
 }
 
+export function mapsUrl(address: string): string {
+  const a = (address || "").trim();
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}`;
+}
+
+export function openMaps(address: string) {
+  if (!address?.trim() || typeof window === "undefined") return;
+  window.open(mapsUrl(address), "_blank", "noopener,noreferrer");
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  if (!text) return false;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fallback */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 const formatDateLong = (iso: string) =>
