@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
+  SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
+  type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
 } from "./data";
 
-const KEY = "sciorio-hq-v3";
+const KEY = "sciorio-hq-v4";
+const LEGACY_V3 = "sciorio-hq-v3";
 const LEGACY_KEY = "sciorio-hq-v2";
 const PIN_KEY = "sciorio-hq-auth";
 const PIN_VALUE_KEY = "sciorio-hq-pin";
@@ -18,6 +21,11 @@ interface Store {
   bundles: Bundle[];
   casualSales: CasualSale[];
   deliveries: Delivery[];
+  productions: Production[];
+  suppliers: Supplier[];
+  cashEntries: CashEntry[];
+  b2bClients: B2BClient[];
+  supplierPayments: SupplierPayment[];
 }
 
 const SEED: Store = {
@@ -27,6 +35,11 @@ const SEED: Store = {
   bundles: SEED_BUNDLES,
   casualSales: SEED_CASUAL_SALES,
   deliveries: SEED_DELIVERIES,
+  productions: SEED_PRODUCTIONS,
+  suppliers: SEED_SUPPLIERS,
+  cashEntries: SEED_CASH_ENTRIES,
+  b2bClients: SEED_B2B_CLIENTS,
+  supplierPayments: SEED_SUPPLIER_PAYMENTS,
 };
 
 function migrate(parsed: any): Store {
@@ -48,6 +61,11 @@ function migrate(parsed: any): Store {
     bundles: parsed.bundles ?? SEED.bundles,
     casualSales: parsed.casualSales ?? SEED.casualSales,
     deliveries: parsed.deliveries ?? SEED.deliveries,
+    productions: parsed.productions ?? SEED.productions,
+    suppliers: parsed.suppliers ?? SEED.suppliers,
+    cashEntries: parsed.cashEntries ?? SEED.cashEntries,
+    b2bClients: parsed.b2bClients ?? SEED.b2bClients,
+    supplierPayments: parsed.supplierPayments ?? SEED.supplierPayments,
   };
   return out;
 }
