@@ -76,6 +76,7 @@ export type TemplateId =
   | "promo_bundle"
   | "cliente_inattivo"
   | "premio_disponibile"
+  | "ringraziamento"
   | "libero";
 
 export const TEMPLATE_LABEL: Record<TemplateId, string> = {
@@ -86,6 +87,7 @@ export const TEMPLATE_LABEL: Record<TemplateId, string> = {
   promo_bundle: "Promo bundle",
   cliente_inattivo: "Cliente inattivo",
   premio_disponibile: "Premio fedeltà",
+  ringraziamento: "Ringraziamento",
   libero: "Messaggio libero",
 };
 
