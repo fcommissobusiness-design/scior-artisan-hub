@@ -25,6 +25,7 @@ function AdminPage() {
   const {
     orders, casualSales, products, clients, deliveries, suppliers,
     cashEntries, productions, supplierPayments, freshLogs, unsoldEntries, specialDays,
+    goodsReceipts,
     importJson, reset, storageInfo,
   } = store;
   const [openPin, setOpenPin] = useState(false);
