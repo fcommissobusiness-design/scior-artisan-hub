@@ -120,6 +120,8 @@ export function buildMessage(template: TemplateId, ctx: MessageContext): string 
       return `Buongiorno ${nome},\nci manca! Per il suo ritorno in caseificio le riserviamo una piccola sorpresa: ricotta di bufala in omaggio sul prossimo ordine.\nA presto,\nCaseificio Sciorio`;
     case "premio_disponibile":
       return `${nome ? nome + ", complimenti" : "Complimenti"}! Ha completato la cartolina fedeltà: 1kg di mozzarella di bufala in omaggio sul suo prossimo ritiro.\nLa aspettiamo,\nCaseificio Sciorio`;
+    case "ringraziamento":
+      return `Grazie ${nome || "di cuore"} per il suo acquisto!${ctx.order ? `\nLe auguriamo di gustare al meglio i prodotti scelti.` : ""}\nA presto in caseificio,\nCaseificio Sciorio dal 1947`;
     case "libero":
       return ctx.custom ?? "";
   }
@@ -128,3 +130,63 @@ export function buildMessage(template: TemplateId, ctx: MessageContext): string 
 export function productName(p?: Product): string {
   return p?.name ?? "";
 }
+
+// ===== Export operativi rapidi (testo copiabile) =====
+const dt = (iso: string) => new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" });
+const tm = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+const isSameDay = (iso: string, day: Date) => {
+  const d = new Date(iso);
+  return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate();
+};
+
+export function buildOrdersTodayText(orders: Order[], clients: Client[], products: Product[], day = new Date()): string {
+  const list = orders
+    .filter((o) => isSameDay(o.pickupDate, day) && o.status !== "annullato")
+    .sort((a, b) => +new Date(a.pickupDate) - +new Date(b.pickupDate));
+  const header = `ORDINI ${day.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" }).toUpperCase()}\n${list.length} ordini\n`;
+  if (!list.length) return header + "\nNessun ordine.";
+  const lines = list.map((o) => {
+    const c = clients.find((x) => x.id === o.clientId);
+    const items = o.items.map((i) => {
+      const p = products.find((p) => p.id === i.productId);
+      return `  · ${p?.name ?? i.productId} x${i.qty}${p?.unit === "kg" ? "kg" : ""}`;
+    }).join("\n");
+    return `${tm(o.pickupDate)} — ${c?.name ?? "—"} (${c?.phone ?? "—"}) — ${eur(o.total)} [${o.status}]\n${items}${o.notes ? `\n  Note: ${o.notes}` : ""}`;
+  });
+  return header + "\n" + lines.join("\n\n");
+}
+
+export function buildDeliveriesTodayText(deliveries: Delivery[], clients: Client[], orders: Order[], day = new Date()): string {
+  const list = deliveries
+    .filter((d) => isSameDay(d.date, day) && d.status !== "annullata")
+    .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+  const header = `CONSEGNE ${day.toLocaleDateString("it-IT", { weekday: "long", day: "2-digit", month: "long" }).toUpperCase()}\n${list.length} consegne\n`;
+  if (!list.length) return header + "\nNessuna consegna.";
+  const lines = list.map((d) => {
+    const c = clients.find((x) => x.id === d.clientId);
+    const o = d.orderId ? orders.find((o) => o.id === d.orderId) : null;
+    return `${d.timeSlot} — ${c?.name ?? "—"} (${c?.phone ?? "—"})\n  ${d.address}${o ? `\n  Totale: ${eur(o.total)}` : ""}${d.notes ? `\n  Note: ${d.notes}` : ""}`;
+  });
+  return header + "\n" + lines.join("\n\n");
+}
+
+export function buildRecoverableText(clients: Client[]): string {
+  const header = `CLIENTI DA RECUPERARE — ${clients.length}\n`;
+  if (!clients.length) return header + "\nNessun cliente da recuperare.";
+  const lines = clients.map((c) => `· ${c.name} — ${c.phone || "—"}${c.lastOrder ? ` — ultimo ${dt(c.lastOrder)}` : ""}`);
+  return header + "\n" + lines.join("\n");
+}
+
+export function downloadText(filename: string, text: string) {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// silenzia type non usato
+export type _CasualSale = CasualSale;
+
