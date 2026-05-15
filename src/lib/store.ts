@@ -3,12 +3,12 @@ import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
-  SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS,
+  SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
-  type GoodsReceipt, type FixedCost,
+  type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -36,6 +36,8 @@ interface Store {
   businessHours: BusinessHours;
   goodsReceipts: GoodsReceipt[];
   fixedCosts: FixedCost[];
+  onlineOrders: OnlineOrder[];
+  shipments: Shipment[];
 }
 
 const SEED: Store = {
@@ -56,6 +58,8 @@ const SEED: Store = {
   businessHours: DEFAULT_BUSINESS_HOURS,
   goodsReceipts: SEED_GOODS_RECEIPTS,
   fixedCosts: SEED_FIXED_COSTS,
+  onlineOrders: SEED_ONLINE_ORDERS,
+  shipments: SEED_SHIPMENTS,
 };
 
 function migrate(parsed: any): Store {
