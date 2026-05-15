@@ -246,15 +246,18 @@ const p = (
   available: true, seasonal: false, magnet: false,
 });
 
+const fresh = (p: Product, shelfLifeDays: number, perishability: "bassa" | "media" | "alta" = "alta"): Product =>
+  ({ ...p, fresh: true, shelfLifeDays, perishability, trackUnsold: true });
+
 export const SEED_PRODUCTS: Product[] = [
-  p("Mozzarella di Bufala Campana DOP", "Freschi di Bufala", 10.5, 15.0, "kg", true, "DOP"),
-  p("Mozzarella Senza Lattosio DOP", "Freschi di Bufala", 11.5, 17.0, "kg", true, "DOP"),
-  p("Ricotta di Bufala", "Freschi di Bufala", 1.0, 1.6, "pz", true),
+  fresh(p("Mozzarella di Bufala Campana DOP", "Freschi di Bufala", 10.5, 15.0, "kg", true, "DOP"), 2),
+  fresh(p("Mozzarella Senza Lattosio DOP", "Freschi di Bufala", 11.5, 17.0, "kg", true, "DOP"), 2),
+  fresh(p("Ricotta di Bufala", "Freschi di Bufala", 1.0, 1.6, "pz", true), 3),
   p("Burro di Bufala Gentile", "Freschi di Bufala", 3.0, 4.2, "pz", false),
   p("Yogurt di Bufala Gentile", "Freschi di Bufala", 1.3, 2.3, "pz", false),
-  p("Ricotta di Pecora", "Freschi di Pecora", 0.8, 1.3, "pz", true),
-  p("Marzolina di Pecora Bianca", "Freschi di Pecora", 1.2, 1.9, "pz", true),
-  p("Marzolina di Pecora Condita", "Freschi di Pecora", 1.2, 2.0, "pz", true),
+  fresh(p("Ricotta di Pecora", "Freschi di Pecora", 0.8, 1.3, "pz", true), 3),
+  fresh(p("Marzolina di Pecora Bianca", "Freschi di Pecora", 1.2, 1.9, "pz", true), 5, "media"),
+  fresh(p("Marzolina di Pecora Condita", "Freschi di Pecora", 1.2, 2.0, "pz", true), 5, "media"),
   p("Marzolina Sottovuoto", "Freschi di Pecora", 2.6, 4.2, "pz", true),
   p("Caciocavallo Dolce", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
   p("Caciocavallo Affumicato", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
