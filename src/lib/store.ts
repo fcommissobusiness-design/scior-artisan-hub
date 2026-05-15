@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
+  SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
+  type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -26,6 +28,10 @@ interface Store {
   cashEntries: CashEntry[];
   b2bClients: B2BClient[];
   supplierPayments: SupplierPayment[];
+  freshLogs: FreshLog[];
+  unsoldEntries: UnsoldEntry[];
+  specialDays: SpecialDay[];
+  businessHours: BusinessHours;
 }
 
 const SEED: Store = {
@@ -40,6 +46,10 @@ const SEED: Store = {
   cashEntries: SEED_CASH_ENTRIES,
   b2bClients: SEED_B2B_CLIENTS,
   supplierPayments: SEED_SUPPLIER_PAYMENTS,
+  freshLogs: SEED_FRESH_LOGS,
+  unsoldEntries: SEED_UNSOLD_ENTRIES,
+  specialDays: SEED_SPECIAL_DAYS,
+  businessHours: DEFAULT_BUSINESS_HOURS,
 };
 
 function migrate(parsed: any): Store {
@@ -66,6 +76,10 @@ function migrate(parsed: any): Store {
     cashEntries: parsed.cashEntries ?? SEED.cashEntries,
     b2bClients: parsed.b2bClients ?? SEED.b2bClients,
     supplierPayments: parsed.supplierPayments ?? SEED.supplierPayments,
+    freshLogs: parsed.freshLogs ?? [],
+    unsoldEntries: parsed.unsoldEntries ?? [],
+    specialDays: parsed.specialDays ?? SEED.specialDays,
+    businessHours: parsed.businessHours ?? SEED.businessHours,
   };
   return out;
 }
@@ -351,6 +365,42 @@ export function useStore() {
       setStore({ ...store, supplierPayments: store.supplierPayments.map((p) => p.id === id ? { ...p, ...patch } : p) }),
     deleteSupplierPayment: (id: string) =>
       setStore({ ...store, supplierPayments: store.supplierPayments.filter((p) => p.id !== id) }),
+
+    // FRESH LOGS
+    addFreshLog: (l: Omit<FreshLog, "id">) => {
+      const log: FreshLog = { ...l, id: uid("fl_") };
+      setStore({ ...store, freshLogs: [log, ...store.freshLogs] });
+      return log;
+    },
+    updateFreshLog: (id: string, patch: Partial<FreshLog>) =>
+      setStore({ ...store, freshLogs: store.freshLogs.map((l) => l.id === id ? { ...l, ...patch } : l) }),
+    deleteFreshLog: (id: string) =>
+      setStore({ ...store, freshLogs: store.freshLogs.filter((l) => l.id !== id) }),
+
+    // UNSOLD ENTRIES
+    addUnsoldEntry: (u: Omit<UnsoldEntry, "id">) => {
+      const e: UnsoldEntry = { ...u, id: uid("un_") };
+      setStore({ ...store, unsoldEntries: [e, ...store.unsoldEntries] });
+      return e;
+    },
+    updateUnsoldEntry: (id: string, patch: Partial<UnsoldEntry>) =>
+      setStore({ ...store, unsoldEntries: store.unsoldEntries.map((e) => e.id === id ? { ...e, ...patch } : e) }),
+    deleteUnsoldEntry: (id: string) =>
+      setStore({ ...store, unsoldEntries: store.unsoldEntries.filter((e) => e.id !== id) }),
+
+    // SPECIAL DAYS
+    addSpecialDay: (s: Omit<SpecialDay, "id">) => {
+      const d: SpecialDay = { ...s, id: uid("sd_") };
+      setStore({ ...store, specialDays: [d, ...store.specialDays] });
+      return d;
+    },
+    updateSpecialDay: (id: string, patch: Partial<SpecialDay>) =>
+      setStore({ ...store, specialDays: store.specialDays.map((s) => s.id === id ? { ...s, ...patch } : s) }),
+    deleteSpecialDay: (id: string) =>
+      setStore({ ...store, specialDays: store.specialDays.filter((s) => s.id !== id) }),
+
+    // BUSINESS HOURS
+    setBusinessHours: (h: BusinessHours) => setStore({ ...store, businessHours: h }),
 
     // BACKUP
     exportJson: () => JSON.stringify(store, null, 2),

@@ -219,6 +219,10 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
   const [stock, setStock] = useState<string>(product?.stock?.toString() ?? "");
   const [stockMin, setStockMin] = useState<string>(product?.stockMin?.toString() ?? "");
   const [supplierId, setSupplierId] = useState<string>(product?.supplierId ?? "");
+  const [fresh, setFresh] = useState<boolean>(product?.fresh ?? false);
+  const [shelfLifeDays, setShelfLifeDays] = useState<string>(product?.shelfLifeDays?.toString() ?? "");
+  const [perishability, setPerishability] = useState<"bassa" | "media" | "alta">(product?.perishability ?? "media");
+  const [trackUnsold, setTrackUnsold] = useState<boolean>(product?.trackUnsold ?? false);
   const { suppliers } = useStore();
 
   const c = cost === "" ? null : parseFloat(cost);
@@ -236,6 +240,9 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
       stock: stock === "" ? undefined : parseFloat(stock),
       stockMin: stockMin === "" ? undefined : parseFloat(stockMin),
       supplierId: supplierId || undefined,
+      fresh, trackUnsold,
+      shelfLifeDays: shelfLifeDays === "" ? undefined : parseFloat(shelfLifeDays),
+      perishability: fresh ? perishability : undefined,
     });
   };
 
@@ -298,7 +305,26 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
         <Toggle label="Disponibile" value={available} onChange={setAvailable} />
         <Toggle label="Stagionale" value={seasonal} onChange={setSeasonal} />
         <Toggle label="Magnete" value={magnet} onChange={setMagnet} />
+        <Toggle label="Fresco" value={fresh} onChange={setFresh} />
+        <Toggle label="Tracc. invenduto" value={trackUnsold} onChange={setTrackUnsold} />
       </div>
+
+      {fresh && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Durata stimata (giorni)">
+            <input type="number" step="1" value={shelfLifeDays} onChange={(e) => setShelfLifeDays(e.target.value)}
+              placeholder="es. 2" className="w-full bg-card border border-border rounded-lg p-3" />
+          </Field>
+          <Field label="Deperibilità">
+            <select value={perishability} onChange={(e) => setPerishability(e.target.value as any)}
+              className="w-full bg-card border border-border rounded-lg p-3">
+              <option value="bassa">Bassa</option>
+              <option value="media">Media</option>
+              <option value="alta">Alta</option>
+            </select>
+          </Field>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Field label="Stock attuale">

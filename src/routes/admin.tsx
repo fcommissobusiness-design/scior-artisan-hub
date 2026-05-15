@@ -7,6 +7,7 @@ import { makeTimeFrame, inFrame } from "@/lib/timeframe";
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
+  exportFreshLogs, exportUnsold, exportSpecialDays,
   downloadFullBackup, validateBackup, applyBackup,
   maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
   getStorageStats,
@@ -23,7 +24,8 @@ function AdminPage() {
   const store = useStore();
   const {
     orders, casualSales, products, clients, deliveries, suppliers,
-    cashEntries, productions, supplierPayments, importJson, reset, storageInfo,
+    cashEntries, productions, supplierPayments, freshLogs, unsoldEntries, specialDays,
+    importJson, reset, storageInfo,
   } = store;
   const [openPin, setOpenPin] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -159,6 +161,9 @@ function AdminPage() {
             <CsvBtn label="Produzione" n={productions.length} onClick={() => exportProductions(productions, products)} />
             <CsvBtn label="Magazzino" n={products.filter(p => p.stock !== undefined).length} onClick={() => exportStock(products, suppliers)} />
             <CsvBtn label="Pagamenti" n={supplierPayments.length} onClick={() => exportPayments(supplierPayments, suppliers)} />
+            <CsvBtn label="Freschi giorn." n={freshLogs.length} onClick={() => exportFreshLogs(freshLogs, products)} />
+            <CsvBtn label="Invenduto" n={unsoldEntries.length} onClick={() => exportUnsold(unsoldEntries, products)} />
+            <CsvBtn label="Giorni speciali" n={specialDays.length} onClick={() => exportSpecialDays(specialDays)} />
           </div>
         </section>
 
