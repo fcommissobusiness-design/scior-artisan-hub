@@ -12,6 +12,8 @@ import {
   getStorageStats,
 } from "@/lib/backup";
 import { CRM_DEFAULTS, loadCrmSettings, saveCrmSettings, resetCrmSettings, type CrmSettings } from "@/lib/crm-settings";
+import { buildOrdersTodayText, buildDeliveriesTodayText, buildRecoverableText, copyText, downloadText } from "@/lib/whatsapp";
+import { recoverableClients } from "@/lib/metrics";
 
 const APP_VERSION = "0.4.0";
 
@@ -159,6 +161,8 @@ function AdminPage() {
             <CsvBtn label="Pagamenti" n={supplierPayments.length} onClick={() => exportPayments(supplierPayments, suppliers)} />
           </div>
         </section>
+
+        <OperativeExportSection onMsg={flash} />
 
         <CrmSettingsSection onMsg={flash} />
 
@@ -393,6 +397,63 @@ function CrmSettingsSection({ onMsg }: { onMsg: (m: string) => void }) {
         <p className="text-[11px] text-muted-foreground italic">
           La segmentazione gira automaticamente all'apertura dell'app. Non sovrascrive clienti con segmento marcato come <strong>manuale</strong>. Ogni cambio è tracciato nella timeline del cliente.
         </p>
+      </div>
+    </section>
+  );
+}
+
+function OperativeExportSection({ onMsg }: { onMsg: (m: string) => void }) {
+  const { orders, clients, products, deliveries, casualSales } = useStore();
+  const settings = loadCrmSettings();
+
+  const builders = [
+    {
+      key: "ordini-oggi",
+      label: "Ordini di oggi",
+      build: () => buildOrdersTodayText(orders, clients, products),
+      file: `ordini-${new Date().toISOString().slice(0, 10)}.txt`,
+    },
+    {
+      key: "consegne-oggi",
+      label: "Consegne di oggi",
+      build: () => buildDeliveriesTodayText(deliveries, clients, orders),
+      file: `consegne-${new Date().toISOString().slice(0, 10)}.txt`,
+    },
+    {
+      key: "recuperabili",
+      label: "Clienti da recuperare",
+      build: () => buildRecoverableText(recoverableClients(orders, casualSales, clients, settings)),
+      file: `clienti-recuperabili-${new Date().toISOString().slice(0, 10)}.txt`,
+    },
+  ];
+
+  return (
+    <section>
+      <h2 className="font-display text-lg text-brand-green mb-3">Export rapido operativo</h2>
+      <p className="text-xs text-muted-foreground mb-3">Testo leggibile e condivisibile (WhatsApp, note, stampa).</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {builders.map((b) => (
+          <div key={b.key} className="bg-card rounded-xl p-4 flex flex-col gap-2">
+            <p className="font-display text-base text-brand-green">{b.label}</p>
+            <div className="flex gap-2 mt-auto">
+              <button
+                onClick={async () => {
+                  const ok = await copyText(b.build());
+                  onMsg(ok ? `${b.label}: copiato.` : "Copia non riuscita.");
+                }}
+                className="flex-1 bg-brand-green text-brand-cream rounded-lg py-2 text-sm font-semibold"
+              >
+                Copia
+              </button>
+              <button
+                onClick={() => { downloadText(b.file, b.build()); onMsg(`${b.label}: file scaricato.`); }}
+                className="flex-1 bg-card border border-border rounded-lg py-2 text-sm font-semibold"
+              >
+                Scarica
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

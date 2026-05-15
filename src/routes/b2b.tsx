@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import type { B2BClient, B2BStatus } from "@/lib/data";
 import { telUrl } from "@/lib/whatsapp";
+import { CopyBtn } from "@/components/QuickActions";
 import { topB2BByRevenue } from "@/lib/metrics";
 
 export const Route = createFileRoute("/b2b")({ component: B2BPage });
@@ -82,7 +83,10 @@ function B2BPage() {
                 {last && <p className="text-[11px] text-muted-foreground mt-1">Ultimo ordine: {formatDate(last.date)} · {formatEuro(last.total)}</p>}
               </button>
               {c.phone && (
-                <a href={telUrl(c.phone)} className="block text-center mt-3 text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 font-semibold">Chiama</a>
+                <div className="flex gap-1.5 mt-3">
+                  <a href={telUrl(c.phone)} className="flex-1 text-center text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 font-semibold">Chiama</a>
+                  <CopyBtn text={c.phone} label="Copia tel" />
+                </div>
               )}
             </div>
           );
