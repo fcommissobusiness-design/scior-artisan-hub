@@ -1,8 +1,9 @@
 // Metriche derivate. Nessuno stato — sempre calcolato dai dati store.
 import type {
-  Client, Order, CasualSale, Product, Delivery, Bundle, Segment,
+  Client, Order, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
   Production, CashEntry, SupplierPayment, B2BClient,
 } from "./data";
+import { CRM_DEFAULTS, type CrmSettings } from "./crm-settings";
 
 export const DAY = 86_400_000;
 export const now = () => Date.now();
