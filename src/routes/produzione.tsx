@@ -73,7 +73,7 @@ function ProduzionePage() {
 
 function PianificazioneTab() {
   const { productions, products, orders, addProduction, updateProduction, deleteProduction,
-          businessHours, specialDays } = useStore();
+          businessHours, specialDays, freshLogs, unsoldEntries } = useStore();
   const [day, setDay] = useState(() => todayIso());
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -92,6 +92,17 @@ function PianificazioneTab() {
   const closed = isClosedDay(day, businessHours, specialDays);
   const sp = specialDayFor(day, specialDays);
 
+  // KPI freschi/invenduto ieri
+  const yesterdayIso = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const freshMonitored = freshProducts(products).length;
+  const yStats = unsoldStatsForDate(unsoldEntries, yesterdayIso);
+  const tgtgBoxesTot = unsoldEntries.filter(e => e.destination === "tgtg")
+    .reduce((s, e) => s + (e.tgtgBoxes ?? 0), 0);
+  const missingDays = missingLogDays(freshLogs, products, businessHours, specialDays, 7);
+
   return (
     <div>
       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -99,6 +110,14 @@ function PianificazioneTab() {
         <Kpi label="Righe totali" value={String(todays.length)} />
         <Kpi label="Pezzi/Kg pianificati" value={totItems.toFixed(1)} />
         <Kpi label="Completati" value={`${fatti}/${todays.length}`} />
+      </div>
+
+      <div className="px-4 md:px-6 pb-2 grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Kpi label="Freschi monitorati" value={String(freshMonitored)} />
+        <Kpi label="Invenduto ieri" value={`${yStats.qty.toFixed(1)}`} />
+        <Kpi label="Valore perso ieri" value={formatEuro(yStats.valueLost)} />
+        <Kpi label="Recuperato ieri" value={formatEuro(yStats.valueRecovered)} />
+        <Kpi label="Box TGTG totali" value={`${tgtgBoxesTot}${missingDays.length ? ` · ${missingDays.length} gg da compl.` : ""}`} />
       </div>
 
       <div className="px-4 md:px-6 flex items-center gap-3 pb-2">
