@@ -26,15 +26,54 @@ function MagazzinoPage() {
     return base.sort((a, b) => a.name.localeCompare(b.name));
   }, [products, tracked, low, out, tab, q]);
 
+  const stockValue = useMemo(() =>
+    products.reduce((s, p) => s + ((p.stock ?? 0) * (p.cost ?? 0)), 0),
+  [products]);
+
+  const recentReceipts = useMemo(() =>
+    [...goodsReceipts].sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 3),
+  [goodsReceipts]);
+
+  const invoicesToPay = useMemo(() => {
+    const list = goodsReceipts.filter(r => r.paymentStatus === "da_pagare");
+    const overdue = list.filter(r => r.paymentDueDate && new Date(r.paymentDueDate).getTime() < Date.now());
+    const total = list.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
+    return { count: list.length, overdue: overdue.length, total };
+  }, [goodsReceipts]);
+
   return (
     <div>
       <TopBar title="Magazzino" subtitle={`${tracked.length} tracciati · ${low.length} sotto soglia · ${out.length} esauriti`} />
 
-      <div className="p-4 md:p-6 grid grid-cols-3 gap-3">
+      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-5 gap-3">
         <Kpi label="Tracciati" value={String(tracked.length)} />
         <Kpi label="Sotto soglia" value={String(low.length)} warn={low.length > 0} />
         <Kpi label="Esauriti" value={String(out.length)} danger={out.length > 0} />
+        <Kpi label="Valore stimato" value={formatEuro(stockValue)} />
+        <Kpi label="Fatture da pagare" value={String(invoicesToPay.count)} sub={formatEuro(invoicesToPay.total)} warn={invoicesToPay.count > 0} danger={invoicesToPay.overdue > 0} />
       </div>
+
+      {recentReceipts.length > 0 && (
+        <div className="px-4 md:px-6 pb-2">
+          <div className="bg-card rounded-xl p-3">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Ultime consegne</p>
+              <Link to="/entrate-merci" className="text-[11px] text-brand-green font-semibold">Vedi tutte →</Link>
+            </div>
+            <div className="space-y-1">
+              {recentReceipts.map(r => {
+                const sup = suppliers.find(s => s.id === r.supplierId);
+                return (
+                  <Link key={r.id} to="/entrate-merci" className="flex justify-between text-xs py-1 border-b border-border last:border-0">
+                    <span className="truncate">{formatDate(r.date)} · {sup?.name ?? "—"}</span>
+                    <span className="text-foreground/70 shrink-0">{formatEuro(r.documentTotal ?? calcReceiptTotal(r))}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 md:px-6 flex gap-2 pb-2 overflow-x-auto">
         {(["tracked", "low", "out", "all"] as const).map(t => (
