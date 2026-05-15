@@ -557,3 +557,99 @@ export function topConsultantsByCost(payments: SupplierPayment[], limit = 5): { 
   }
   return [...map.entries()].map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, limit);
 }
+
+// ============= E-COMMERCE =============
+import type { OnlineOrder, Shipment } from "./data";
+import { calcOnlineOrderCost } from "./data";
+
+const monthFn = (date: Date) => (iso: string) => inSameMonth(iso, date);
+
+export function ecomOrdersInMonth(orders: OnlineOrder[], date: Date = new Date()): OnlineOrder[] {
+  const f = monthFn(date);
+  return orders.filter((o) => f(o.date));
+}
+
+/** Fatturato online del mese: solo ordini pagati (non rimborsati) e non annullati. */
+export function ecomRevenueMonth(orders: OnlineOrder[], date: Date = new Date()): number {
+  return ecomOrdersInMonth(orders, date)
+    .filter((o) => o.paymentStatus === "pagato" && o.status !== "annullato")
+    .reduce((s, o) => s + o.total, 0);
+}
+
+export function ecomMarginMonth(orders: OnlineOrder[], products: Product[], date: Date = new Date()): number {
+  return ecomOrdersInMonth(orders, date)
+    .filter((o) => o.paymentStatus === "pagato" && o.status !== "annullato")
+    .reduce((s, o) => s + (o.total - calcOnlineOrderCost(o, products) - (o.shippingCost ?? 0)), 0);
+}
+
+export function ecomShippingCostMonth(orders: OnlineOrder[], date: Date = new Date()): number {
+  return ecomOrdersInMonth(orders, date)
+    .filter((o) => o.status !== "annullato")
+    .reduce((s, o) => s + (o.shippingCost ?? 0), 0);
+}
+
+export function ecomCogsMonth(orders: OnlineOrder[], products: Product[], date: Date = new Date()): number {
+  return ecomOrdersInMonth(orders, date)
+    .filter((o) => o.status !== "annullato")
+    .reduce((s, o) => s + calcOnlineOrderCost(o, products), 0);
+}
+
+export function shipmentsByStatus(shipments: Shipment[]): Record<Shipment["status"], number> {
+  const out: Record<Shipment["status"], number> = {
+    da_preparare: 0, affidata: 0, in_transito: 0, consegnata: 0, problema: 0,
+  };
+  for (const s of shipments) out[s.status]++;
+  return out;
+}
+
+export function avgShippingCost(orders: OnlineOrder[]): number {
+  const withCost = orders.filter((o) => typeof o.shippingCost === "number" && o.shippingCost! > 0);
+  if (withCost.length === 0) return 0;
+  return withCost.reduce((s, o) => s + (o.shippingCost ?? 0), 0) / withCost.length;
+}
+
+export function ecomByPlatform(orders: OnlineOrder[], products: Product[], date?: Date):
+  { platform: OnlineOrder["platform"]; orders: number; revenue: number; margin: number }[] {
+  const list = date ? ecomOrdersInMonth(orders, date) : orders;
+  const map = new Map<OnlineOrder["platform"], { orders: number; revenue: number; margin: number }>();
+  for (const o of list) {
+    if (o.status === "annullato") continue;
+    const cur = map.get(o.platform) ?? { orders: 0, revenue: 0, margin: 0 };
+    cur.orders++;
+    if (o.paymentStatus === "pagato") {
+      cur.revenue += o.total;
+      cur.margin += o.total - calcOnlineOrderCost(o, products) - (o.shippingCost ?? 0);
+    }
+    map.set(o.platform, cur);
+  }
+  return [...map.entries()].map(([platform, v]) => ({ platform, ...v })).sort((a, b) => b.revenue - a.revenue);
+}
+
+export function topOnlineProducts(orders: OnlineOrder[], products: Product[], limit = 5):
+  { product: Product; qty: number; revenue: number }[] {
+  const map = new Map<string, { qty: number; revenue: number }>();
+  for (const o of orders) {
+    if (o.status === "annullato") continue;
+    for (const it of o.items) {
+      if (!it.productId) continue;
+      const cur = map.get(it.productId) ?? { qty: 0, revenue: 0 };
+      cur.qty += it.qty;
+      cur.revenue += (it.unitPrice ?? 0) * it.qty;
+      map.set(it.productId, cur);
+    }
+  }
+  return [...map.entries()]
+    .map(([id, v]) => ({ product: products.find((p) => p.id === id)!, ...v }))
+    .filter((x) => x.product)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, limit);
+}
+
+export function problematicOnlineOrders(orders: OnlineOrder[], shipments: Shipment[]): OnlineOrder[] {
+  const problemIds = new Set(shipments.filter((s) => s.status === "problema").map((s) => s.orderId));
+  return orders.filter((o) =>
+    o.status === "annullato" ||
+    o.paymentStatus === "rimborsato" ||
+    problemIds.has(o.id)
+  );
+}
