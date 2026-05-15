@@ -1,5 +1,8 @@
 // Metriche derivate. Nessuno stato — sempre calcolato dai dati store.
-import type { Client, Order, CasualSale, Product, Delivery, Bundle, Segment } from "./data";
+import type {
+  Client, Order, CasualSale, Product, Delivery, Bundle, Segment,
+  Production, CashEntry, SupplierPayment, B2BClient,
+} from "./data";
 
 export const DAY = 86_400_000;
 export const now = () => Date.now();
