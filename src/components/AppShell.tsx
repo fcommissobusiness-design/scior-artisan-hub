@@ -82,13 +82,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50">
-        {NAV.map((n) => {
+        {MOBILE_NAV.map((n) => {
           const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
-          const short = n.label === "Amministrazione" ? "Admin" : n.label;
           return (
             <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${active ? "text-brand-gold" : "text-brand-cream/70"}`}>
               <span className={`w-1.5 h-1.5 rounded-full mb-1 ${active ? "bg-brand-gold" : "bg-transparent"}`} />
-              {short}
+              {n.short}
             </Link>
           );
         })}
