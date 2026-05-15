@@ -44,7 +44,7 @@ function Dashboard() {
   const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
   const ritiriOggi = useMemo(() => pendingPickupsToday(orders), [orders]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
-  const inattivi = useMemo(() => inactiveClients(orders, casualSales, clients, 60), [orders, casualSales, clients]);
+  const inattivi = useMemo(() => inactiveClients(orders, casualSales, clients, loadCrmSettings().inactiveOccDays), [orders, casualSales, clients]);
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
   const sottoCosto = products.filter((p) => { const m = calcMargin(p); return m !== null && m < 0; });
