@@ -366,6 +366,42 @@ export function useStore() {
     deleteSupplierPayment: (id: string) =>
       setStore({ ...store, supplierPayments: store.supplierPayments.filter((p) => p.id !== id) }),
 
+    // FRESH LOGS
+    addFreshLog: (l: Omit<FreshLog, "id">) => {
+      const log: FreshLog = { ...l, id: uid("fl_") };
+      setStore({ ...store, freshLogs: [log, ...store.freshLogs] });
+      return log;
+    },
+    updateFreshLog: (id: string, patch: Partial<FreshLog>) =>
+      setStore({ ...store, freshLogs: store.freshLogs.map((l) => l.id === id ? { ...l, ...patch } : l) }),
+    deleteFreshLog: (id: string) =>
+      setStore({ ...store, freshLogs: store.freshLogs.filter((l) => l.id !== id) }),
+
+    // UNSOLD ENTRIES
+    addUnsoldEntry: (u: Omit<UnsoldEntry, "id">) => {
+      const e: UnsoldEntry = { ...u, id: uid("un_") };
+      setStore({ ...store, unsoldEntries: [e, ...store.unsoldEntries] });
+      return e;
+    },
+    updateUnsoldEntry: (id: string, patch: Partial<UnsoldEntry>) =>
+      setStore({ ...store, unsoldEntries: store.unsoldEntries.map((e) => e.id === id ? { ...e, ...patch } : e) }),
+    deleteUnsoldEntry: (id: string) =>
+      setStore({ ...store, unsoldEntries: store.unsoldEntries.filter((e) => e.id !== id) }),
+
+    // SPECIAL DAYS
+    addSpecialDay: (s: Omit<SpecialDay, "id">) => {
+      const d: SpecialDay = { ...s, id: uid("sd_") };
+      setStore({ ...store, specialDays: [d, ...store.specialDays] });
+      return d;
+    },
+    updateSpecialDay: (id: string, patch: Partial<SpecialDay>) =>
+      setStore({ ...store, specialDays: store.specialDays.map((s) => s.id === id ? { ...s, ...patch } : s) }),
+    deleteSpecialDay: (id: string) =>
+      setStore({ ...store, specialDays: store.specialDays.filter((s) => s.id !== id) }),
+
+    // BUSINESS HOURS
+    setBusinessHours: (h: BusinessHours) => setStore({ ...store, businessHours: h }),
+
     // BACKUP
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
