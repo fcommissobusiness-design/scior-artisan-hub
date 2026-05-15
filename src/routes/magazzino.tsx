@@ -8,7 +8,7 @@ import { calcReceiptTotal } from "@/lib/data";
 export const Route = createFileRoute("/magazzino")({ component: MagazzinoPage });
 
 function MagazzinoPage() {
-  const { products, suppliers, updateProduct } = useStore();
+  const { products, suppliers, goodsReceipts, updateProduct } = useStore();
   const [tab, setTab] = useState<"all" | "low" | "out" | "tracked">("tracked");
   const [editId, setEditId] = useState<string | null>(null);
   const [q, setQ] = useState("");
