@@ -1,0 +1,494 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "@/lib/store";
+import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/AppShell";
+import {
+  type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
+  type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
+  type PaymentMethod,
+  GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal,
+} from "@/lib/data";
+import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
+
+export const Route = createFileRoute("/entrate-merci")({ component: EntrateMerciPage });
+
+const STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "verificata", "archiviata"];
+const PAY_STATUSES: InvoicePaymentStatus[] = ["da_pagare", "pagato", "scaduto", "non_applicabile"];
+const PAYMENT_METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
+
+function isOverdue(r: GoodsReceipt): boolean {
+  if (r.paymentStatus !== "da_pagare") return false;
+  if (!r.paymentDueDate) return false;
+  return new Date(r.paymentDueDate).getTime() < Date.now();
+}
+
+function EntrateMerciPage() {
+  const { goodsReceipts, suppliers, products, deleteGoodsReceipt } = useStore();
+  const [openNew, setOpenNew] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | GoodsReceiptStatus>("all");
+  const [payFilter, setPayFilter] = useState<"all" | InvoicePaymentStatus | "scaduto_only">("all");
+
+  const list = useMemo(() => {
+    let base = [...goodsReceipts];
+    if (supplierFilter) base = base.filter(r => r.supplierId === supplierFilter);
+    if (statusFilter !== "all") base = base.filter(r => r.status === statusFilter);
+    if (payFilter === "scaduto_only") base = base.filter(isOverdue);
+    else if (payFilter !== "all") base = base.filter(r => r.paymentStatus === payFilter);
+    if (q.trim()) {
+      const s = q.toLowerCase();
+      base = base.filter(r => {
+        const sup = suppliers.find(x => x.id === r.supplierId);
+        return (sup?.name ?? "").toLowerCase().includes(s)
+          || (r.invoiceNumber ?? "").toLowerCase().includes(s)
+          || (r.ddtNumber ?? "").toLowerCase().includes(s)
+          || (r.notes ?? "").toLowerCase().includes(s);
+      });
+    }
+    return base.sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  }, [goodsReceipts, suppliers, q, supplierFilter, statusFilter, payFilter]);
+
+  const kpis = useMemo(() => {
+    const toPay = goodsReceipts.filter(r => r.paymentStatus === "da_pagare");
+    const overdue = goodsReceipts.filter(isOverdue);
+    const toPayTotal = toPay.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
+    const overdueTotal = overdue.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
+    const last30 = goodsReceipts.filter(r => +new Date(r.date) > Date.now() - 30 * 86400000);
+    return {
+      total: goodsReceipts.length,
+      toPay: toPay.length,
+      toPayTotal,
+      overdue: overdue.length,
+      overdueTotal,
+      last30: last30.length,
+    };
+  }, [goodsReceipts]);
+
+  return (
+    <div>
+      <TopBar title="Entrate Merci" subtitle={`${kpis.total} consegne · ${kpis.toPay} fatture da pagare`} />
+
+      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi label="Ultime 30gg" value={String(kpis.last30)} />
+        <Kpi label="Da pagare" value={String(kpis.toPay)} sub={formatEuro(kpis.toPayTotal)} warn={kpis.toPay > 0} />
+        <Kpi label="Scadute" value={String(kpis.overdue)} sub={formatEuro(kpis.overdueTotal)} danger={kpis.overdue > 0} />
+        <Kpi label="Totale" value={String(kpis.total)} />
+      </div>
+
+      <div className="px-4 md:px-6 space-y-2 pb-2">
+        <input value={q} onChange={e => setQ(e.target.value)}
+          placeholder="Cerca fornitore, fattura, DDT, note..."
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm" />
+        <div className="flex flex-wrap gap-2">
+          <select value={supplierFilter} onChange={e => setSupplierFilter(e.target.value)}
+            className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+            <option value="">Tutti i fornitori</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
+            className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+            <option value="all">Tutti gli stati</option>
+            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+          </select>
+          <select value={payFilter} onChange={e => setPayFilter(e.target.value as any)}
+            className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+            <option value="all">Tutti pagamenti</option>
+            <option value="da_pagare">Da pagare</option>
+            <option value="scaduto_only">Solo scadute</option>
+            <option value="pagato">Pagate</option>
+            <option value="scaduto">Stato scaduto</option>
+            <option value="non_applicabile">N/A</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="p-4 md:p-6 space-y-2">
+        {list.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-8">Nessuna consegna trovata.</p>
+        )}
+        {list.map(r => {
+          const sup = suppliers.find(s => s.id === r.supplierId);
+          const tot = r.documentTotal ?? calcReceiptTotal(r);
+          const overdue = isOverdue(r);
+          return (
+            <button key={r.id} onClick={() => setEditId(r.id)}
+              className="w-full text-left bg-card rounded-xl p-3 shadow-sm">
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="font-display text-base text-brand-green truncate">{sup?.name ?? "Fornitore"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(r.date)} · {r.items.length} articoli
+                    {r.invoiceNumber ? ` · ${r.invoiceNumber}` : ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-display text-lg text-brand-green">{formatEuro(tot)}</p>
+                  <p className="text-[10px] text-muted-foreground">{(r.attachments ?? []).length} allegati</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge>{GOODS_RECEIPT_STATUS_LABEL[r.status]}</Badge>
+                {r.paymentStatus && (
+                  <Badge tone={overdue ? "danger" : r.paymentStatus === "pagato" ? "success" : r.paymentStatus === "da_pagare" ? "warn" : undefined}>
+                    {overdue ? "Scaduto" : INVOICE_STATUS_LABEL[r.paymentStatus]}
+                  </Badge>
+                )}
+                {r.paymentDueDate && r.paymentStatus === "da_pagare" && (
+                  <Badge>scad. {formatDate(r.paymentDueDate)}</Badge>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <Fab onClick={() => setOpenNew(true)} />
+
+      {openNew && (
+        <ReceiptSheet mode="new" onClose={() => setOpenNew(false)} />
+      )}
+      {editId && (() => {
+        const r = goodsReceipts.find(x => x.id === editId);
+        if (!r) return null;
+        return (
+          <ReceiptSheet mode="edit" receipt={r} onClose={() => setEditId(null)}
+            onDelete={async () => {
+              if (!confirm("Eliminare questa consegna? Lo stock verrà riportato indietro.")) return;
+              for (const a of r.attachments ?? []) {
+                try { await deleteAttachment(a.id); } catch {}
+              }
+              deleteGoodsReceipt(r.id);
+              setEditId(null);
+            }}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+function Kpi({ label, value, sub, warn, danger }: { label: string; value: string; sub?: string; warn?: boolean; danger?: boolean }) {
+  return (
+    <div className="bg-card rounded-xl p-3">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`font-display text-2xl mt-1 ${danger ? "text-danger" : warn ? "text-warning" : "text-brand-green"}`}>{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function Badge({ children, tone }: { children: React.ReactNode; tone?: "success" | "warn" | "danger" }) {
+  const cls =
+    tone === "success" ? "bg-success/15 text-success" :
+    tone === "warn" ? "bg-warning/15 text-warning" :
+    tone === "danger" ? "bg-danger/15 text-danger" :
+    "bg-muted text-foreground/70";
+  return <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${cls}`}>{children}</span>;
+}
+
+// --------- Sheet ---------
+
+function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
+  mode: "new" | "edit";
+  receipt?: GoodsReceipt;
+  onClose: () => void;
+  onDelete?: () => void;
+}) {
+  const { suppliers, products, addGoodsReceipt, updateGoodsReceipt } = useStore();
+
+  const [supplierId, setSupplierId] = useState(receipt?.supplierId ?? suppliers[0]?.id ?? "");
+  const [date, setDate] = useState(receipt?.date.slice(0, 16) ?? new Date().toISOString().slice(0, 16));
+  const [status, setStatus] = useState<GoodsReceiptStatus>(receipt?.status ?? "ricevuta");
+  const [items, setItems] = useState<GoodsReceiptItem[]>(receipt?.items ?? []);
+  const [carrier, setCarrier] = useState(receipt?.carrier ?? "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(receipt?.paymentMethod ?? "");
+  const [notes, setNotes] = useState(receipt?.notes ?? "");
+
+  const [invoiceNumber, setInvoiceNumber] = useState(receipt?.invoiceNumber ?? "");
+  const [invoiceDate, setInvoiceDate] = useState(receipt?.invoiceDate?.slice(0, 10) ?? "");
+  const [ddtNumber, setDdtNumber] = useState(receipt?.ddtNumber ?? "");
+  const [taxableAmount, setTaxableAmount] = useState(receipt?.taxableAmount?.toString() ?? "");
+  const [vatAmount, setVatAmount] = useState(receipt?.vatAmount?.toString() ?? "");
+  const [documentTotal, setDocumentTotal] = useState(receipt?.documentTotal?.toString() ?? "");
+  const [paymentDueDate, setPaymentDueDate] = useState(receipt?.paymentDueDate?.slice(0, 10) ?? "");
+  const [paymentStatus, setPaymentStatus] = useState<InvoicePaymentStatus | "">(receipt?.paymentStatus ?? "");
+
+  const [attachments, setAttachments] = useState<GoodsReceiptAttachment[]>(receipt?.attachments ?? []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const supplierProducts = useMemo(() => {
+    const sup = suppliers.find(s => s.id === supplierId);
+    const ids = new Set(sup?.productIds ?? []);
+    const linked = products.filter(p => ids.has(p.id));
+    const others = products.filter(p => !ids.has(p.id));
+    return [...linked, ...others];
+  }, [suppliers, products, supplierId]);
+
+  const computedTotal = useMemo(
+    () => items.reduce((s, it) => s + (it.unitCost ?? 0) * it.qty, 0),
+    [items]
+  );
+
+  const addItem = () => {
+    const first = supplierProducts[0];
+    if (!first) return;
+    setItems(prev => [...prev, { productId: first.id, qty: 1, unitCost: first.cost ?? undefined }]);
+  };
+
+  const updateItem = (idx: number, patch: Partial<GoodsReceiptItem>) => {
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+  };
+
+  const removeItem = (idx: number) => {
+    setItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    setUploadErr(null);
+    setUploading(true);
+    try {
+      const added: GoodsReceiptAttachment[] = [];
+      for (const f of Array.from(files)) {
+        if (f.size > 10 * 1024 * 1024) {
+          setUploadErr(`${f.name}: file > 10MB ignorato.`);
+          continue;
+        }
+        const meta = await putAttachment(f);
+        added.push({ ...meta, kind: guessKind(f.name) });
+      }
+      setAttachments(prev => [...prev, ...added]);
+    } catch (e) {
+      setUploadErr((e as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const removeAttachment = async (id: string) => {
+    try { await deleteAttachment(id); } catch {}
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const save = () => {
+    if (!supplierId) { alert("Seleziona un fornitore"); return; }
+    const payload: Omit<GoodsReceipt, "id" | "createdAt"> = {
+      supplierId,
+      date: new Date(date).toISOString(),
+      status,
+      items,
+      totalCost: documentTotal ? Number(documentTotal) : computedTotal || undefined,
+      carrier: carrier.trim() || undefined,
+      paymentMethod: paymentMethod || undefined,
+      notes: notes.trim() || undefined,
+      invoiceNumber: invoiceNumber.trim() || undefined,
+      invoiceDate: invoiceDate ? new Date(invoiceDate).toISOString() : undefined,
+      ddtNumber: ddtNumber.trim() || undefined,
+      taxableAmount: taxableAmount ? Number(taxableAmount) : undefined,
+      vatAmount: vatAmount ? Number(vatAmount) : undefined,
+      documentTotal: documentTotal ? Number(documentTotal) : undefined,
+      paymentDueDate: paymentDueDate ? new Date(paymentDueDate).toISOString() : undefined,
+      paymentStatus: paymentStatus || undefined,
+      attachments,
+    };
+    if (mode === "new") addGoodsReceipt(payload);
+    else if (receipt) updateGoodsReceipt(receipt.id, payload);
+    onClose();
+  };
+
+  return (
+    <Sheet open={true} onClose={onClose}
+      title={mode === "new" ? "Nuova entrata merce" : "Consegna fornitore"}
+      footer={
+        <div className="flex gap-3">
+          {mode === "edit" && onDelete && (
+            <button onClick={onDelete}
+              className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
+          <button onClick={save}
+            className="flex-1 bg-brand-gold text-white rounded-xl py-3 font-semibold">Salva</button>
+        </div>
+      }>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Fornitore">
+          <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="">— scegli —</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Data e ora">
+          <input type="datetime-local" value={date} onChange={e => setDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Stato consegna">
+          <select value={status} onChange={e => setStatus(e.target.value as GoodsReceiptStatus)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+          </select>
+        </Field>
+        <Field label="Corriere / consegna">
+          <input value={carrier} onChange={e => setCarrier(e.target.value)}
+            placeholder="Es. SDA, consegna diretta..."
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+      </div>
+
+      {/* ITEMS */}
+      <Field label={`Prodotti consegnati (${items.length}) · totale stimato ${formatEuro(computedTotal)}`}>
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div key={i} className="bg-card border border-border rounded-lg p-2 grid grid-cols-12 gap-2 items-center">
+              <select value={it.productId} onChange={e => updateItem(i, { productId: e.target.value })}
+                className="col-span-6 bg-background border border-border rounded p-2 text-sm">
+                {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input type="number" step="0.1" value={it.qty}
+                onChange={e => updateItem(i, { qty: Number(e.target.value) })}
+                placeholder="Qta"
+                className="col-span-2 bg-background border border-border rounded p-2 text-sm" />
+              <input type="number" step="0.01" value={it.unitCost ?? ""}
+                onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
+                placeholder="€/u"
+                className="col-span-3 bg-background border border-border rounded p-2 text-sm" />
+              <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg">×</button>
+            </div>
+          ))}
+          <button onClick={addItem}
+            className="w-full text-sm border border-dashed border-border rounded-lg py-2 text-brand-green font-semibold">
+            + Aggiungi prodotto
+          </button>
+        </div>
+      </Field>
+
+      {/* DOCUMENTO */}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="N. Fattura">
+          <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Data fattura">
+          <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="N. DDT">
+          <input value={ddtNumber} onChange={e => setDdtNumber(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Metodo pagamento">
+          <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as PaymentMethod | "")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="">—</option>
+            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </Field>
+        <Field label="Imponibile €">
+          <input type="number" step="0.01" value={taxableAmount} onChange={e => setTaxableAmount(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="IVA €">
+          <input type="number" step="0.01" value={vatAmount} onChange={e => setVatAmount(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Totale documento €">
+          <input type="number" step="0.01" value={documentTotal} onChange={e => setDocumentTotal(e.target.value)}
+            placeholder={computedTotal ? computedTotal.toFixed(2) : ""}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Scadenza pagamento">
+          <input type="date" value={paymentDueDate} onChange={e => setPaymentDueDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Stato pagamento">
+          <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value as InvoicePaymentStatus | "")}
+            className="w-full bg-card border border-border rounded-lg p-3 col-span-2">
+            <option value="">—</option>
+            {PAY_STATUSES.map(s => <option key={s} value={s}>{INVOICE_STATUS_LABEL[s]}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      {/* ALLEGATI */}
+      <Field label={`Allegati (${attachments.length}) — fattura, DDT, ricevuta, foto...`}>
+        <div className="space-y-2">
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple
+            onChange={e => onPickFiles(e.target.files)}
+            className="text-xs" />
+          {uploading && <p className="text-xs text-muted-foreground">Caricamento in corso...</p>}
+          {uploadErr && <p className="text-xs text-danger">{uploadErr}</p>}
+          <div className="space-y-1.5">
+            {attachments.map(a => (
+              <AttachmentRow key={a.id} att={a} onDelete={() => removeAttachment(a.id)} />
+            ))}
+            {attachments.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessun allegato. PDF e immagini, max 10MB.</p>
+            )}
+          </div>
+        </div>
+      </Field>
+
+      <Field label="Note">
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
+      </Field>
+
+      {mode === "edit" && (
+        <div className="text-xs text-muted-foreground">
+          <Link to="/fornitori" className="underline">Apri scheda fornitore →</Link>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+function guessKind(name: string): DocumentKind {
+  const n = name.toLowerCase();
+  if (n.includes("fatt")) return "fattura";
+  if (n.includes("ddt")) return "ddt";
+  if (n.includes("ricev")) return "ricevuta";
+  if (n.includes("prev")) return "preventivo";
+  return "altro";
+}
+
+function AttachmentRow({ att, onDelete }: { att: GoodsReceiptAttachment; onDelete: () => void }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImg = att.type.startsWith("image/");
+
+  useEffect(() => {
+    let alive = true;
+    let url: string | null = null;
+    if (isImg) {
+      getAttachmentUrl(att.id).then(u => { if (alive) { url = u; setPreviewUrl(u); } });
+    }
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [att.id, isImg]);
+
+  const open = async () => {
+    const u = await getAttachmentUrl(att.id);
+    if (u) window.open(u, "_blank");
+  };
+
+  return (
+    <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-2">
+      {isImg && previewUrl ? (
+        <img src={previewUrl} alt="" className="w-10 h-10 object-cover rounded" />
+      ) : (
+        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-[10px] font-semibold text-foreground/60">
+          {att.type.includes("pdf") ? "PDF" : "FILE"}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{att.name}</p>
+        <p className="text-[10px] text-muted-foreground">{(att.size / 1024).toFixed(0)} KB · {att.kind ?? "altro"}</p>
+      </div>
+      <button onClick={open} className="text-xs text-brand-green font-semibold px-2">Apri</button>
+      <button onClick={() => downloadAttachment(att)} className="text-xs text-brand-green font-semibold px-2">Scarica</button>
+      <button onClick={onDelete} className="text-xs text-danger font-semibold px-2">×</button>
+    </div>
+  );
+}
