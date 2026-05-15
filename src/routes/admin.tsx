@@ -18,12 +18,20 @@ export const Route = createFileRoute("/admin")({ component: AdminPage });
 
 function AdminPage() {
   const store = useStore();
-  const { orders, casualSales, products, clients, exportJson, importJson, reset, storageInfo } = store;
+  const {
+    orders, casualSales, products, clients, deliveries, suppliers,
+    cashEntries, productions, supplierPayments, importJson, reset, storageInfo,
+  } = store;
   const [openPin, setOpenPin] = useState(false);
   const [openImport, setOpenImport] = useState(false);
   const [openReset, setOpenReset] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [autoTick, setAutoTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { maybeAutoBackup(); }, []);
+  const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
+  const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
   const tfMonth = makeTimeFrame("thisMonth");
   const tfLastMonth = makeTimeFrame("lastMonth");
