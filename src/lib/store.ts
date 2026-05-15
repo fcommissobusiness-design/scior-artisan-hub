@@ -109,6 +109,8 @@ function setStore(next: Store) {
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const nowIso = () => new Date().toISOString();
 
+let crmAutoRan = false;
+
 function applyOrderRitirato(store: Store, order: Order): Store {
   // aggiorna stamps cliente, lastOrder, loyaltyHistory
   const clients = store.clients.map((c) => {
@@ -133,6 +135,32 @@ export function useStore() {
     const l = () => setTick((t) => t + 1);
     listeners.add(l);
     return () => { listeners.delete(l); };
+  }, []);
+  // Auto CRM (segmentazione automatica) — gira una volta per sessione, dopo il caricamento.
+  useEffect(() => {
+    if (crmAutoRan) return;
+    crmAutoRan = true;
+    // Lazy import per evitare cicli
+    Promise.resolve().then(async () => {
+      const { recomputeSegments } = await import("./metrics");
+      const { loadCrmSettings } = await import("./crm-settings");
+      const cur = getStore();
+      const changes = recomputeSegments(cur.clients, cur.orders, cur.casualSales, loadCrmSettings());
+      if (changes.length === 0) return;
+      const byId = new Map(changes.map((c) => [c.clientId, c] as const));
+      setStore({
+        ...cur,
+        clients: cur.clients.map((c) => {
+          const ch = byId.get(c.id);
+          if (!ch) return c;
+          return {
+            ...c,
+            segment: ch.to,
+            loyaltyHistory: [...(c.loyaltyHistory ?? []), ch.event],
+          };
+        }),
+      });
+    });
   }, []);
   const store = getStore();
   return {
@@ -363,6 +391,33 @@ export function useStore() {
       }
       cache = null;
       setStore(load());
+    },
+
+    // CRM
+    runCrmAuto: async () => {
+      const { recomputeSegments } = await import("./metrics");
+      const { loadCrmSettings } = await import("./crm-settings");
+      const cur = getStore();
+      const changes = recomputeSegments(cur.clients, cur.orders, cur.casualSales, loadCrmSettings());
+      if (changes.length === 0) return 0;
+      const byId = new Map(changes.map((c) => [c.clientId, c] as const));
+      setStore({
+        ...cur,
+        clients: cur.clients.map((c) => {
+          const ch = byId.get(c.id);
+          if (!ch) return c;
+          return { ...c, segment: ch.to, loyaltyHistory: [...(c.loyaltyHistory ?? []), ch.event] };
+        }),
+      });
+      return changes.length;
+    },
+    logClientEvent: (clientId: string, type: LoyaltyEvent["type"], note?: string) => {
+      setStore({
+        ...store,
+        clients: store.clients.map((c) => c.id === clientId
+          ? { ...c, loyaltyHistory: [...(c.loyaltyHistory ?? []), { date: nowIso(), type, note }] }
+          : c),
+      });
     },
   };
 }

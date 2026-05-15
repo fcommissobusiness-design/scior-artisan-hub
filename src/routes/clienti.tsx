@@ -6,7 +6,9 @@ import { SEGMENT_META, type Client, type Segment } from "@/lib/data";
 import {
   clientLTV, clientOrderCount, clientAvgTicket, clientFrequencyPerMonth,
   daysInactive, suggestSegment, clientTopProducts, clientBadges,
+  recoverableClients,
 } from "@/lib/metrics";
+import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 interface Search { f?: string }
@@ -23,13 +25,22 @@ function ClientiPage() {
   const { clients, orders, products, casualSales, addClient, updateClient, deleteClient } = useStore();
   const [tab, setTab] = useState<Segment | "all">("all");
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"" | "premi" | "inattivi" | "caldi" | "alto">("");
+  const [filter, setFilter] = useState<"" | "premi" | "vicini" | "inattivi" | "caldi" | "alto" | "recuperabili" | "nuovi">("");
+  const crmSettings = useMemo(() => loadCrmSettings(), []);
+  const recuperabiliSet = useMemo(
+    () => new Set(recoverableClients(orders, casualSales, clients, crmSettings).map((c) => c.id)),
+    [orders, casualSales, clients, crmSettings],
+  );
   const [openId, setOpenId] = useState<string | null>(null);
   const [openNew, setOpenNew] = useState(false);
 
   useEffect(() => {
     if (search.f === "premi") setFilter("premi");
     if (search.f === "inattivi") setFilter("inattivi");
+    if (search.f === "recuperabili") setFilter("recuperabili");
+    if (search.f === "vicini") setFilter("vicini");
+    if (search.f === "alto") setFilter("alto");
+    if (search.f === "nuovi") setFilter("nuovi");
   }, [search.f]);
 
   const counts = useMemo(() => {
@@ -45,17 +56,24 @@ function ClientiPage() {
       if (!(c.name.toLowerCase().includes(t) || c.phone.includes(q) || (c.tags ?? []).some(x => x.toLowerCase().includes(t)))) return false;
     }
     if (filter === "premi" && (c.stamps ?? 0) < 5) return false;
+    if (filter === "vicini" && (c.stamps ?? 0) !== 4) return false;
     if (filter === "inattivi") {
       const d = daysInactive(orders, casualSales, c);
-      if (d === null || d <= 60) return false;
+      if (d === null || d <= crmSettings.inactiveOccDays) return false;
     }
     if (filter === "caldi") {
       const d = daysInactive(orders, casualSales, c);
       if (d === null || d > 7) return false;
     }
     if (filter === "alto" && clientLTV(orders, casualSales, c.id) < 500) return false;
+    if (filter === "recuperabili" && !recuperabiliSet.has(c.id)) return false;
+    if (filter === "nuovi") {
+      if (!c.firstOrder) return false;
+      const days = (Date.now() - +new Date(c.firstOrder)) / 86400000;
+      if (days > crmSettings.newDays) return false;
+    }
     return true;
-  }), [clients, tab, q, filter, orders, casualSales]);
+  }), [clients, tab, q, filter, orders, casualSales, crmSettings, recuperabiliSet]);
 
   return (
     <div>
@@ -83,8 +101,11 @@ function ClientiPage() {
           <span className="w-2" />
           {[
             { id: "premi" as const, label: "Premi pronti" },
-            { id: "inattivi" as const, label: "Inattivi 60+gg" },
+            { id: "vicini" as const, label: "Vicini al premio" },
+            { id: "recuperabili" as const, label: "Da recuperare" },
+            { id: "inattivi" as const, label: `Inattivi ${crmSettings.inactiveOccDays}+gg` },
             { id: "caldi" as const, label: "Caldi 7gg" },
+            { id: "nuovi" as const, label: "Nuovi" },
             { id: "alto" as const, label: "Alto spendenti" },
           ].map(b => (
             <button key={b.id} onClick={() => setFilter(filter === b.id ? "" : b.id)}
@@ -174,7 +195,7 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
   onSave: (patch: Partial<Client>) => void;
   onDelete: () => void;
 }) {
-  const { orders, casualSales, products, addLoyaltyEvent, setLoyaltyStamps } = useStore();
+  const { orders, casualSales, products, addLoyaltyEvent, setLoyaltyStamps, logClientEvent } = useStore();
   const [openWa, setOpenWa] = useState(false);
 
   const [name, setName] = useState(client.name);
@@ -217,7 +238,7 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
         <div className="flex gap-2">
           <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           {client.phone && (
-            <button onClick={() => setOpenWa(true)} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
+            <button onClick={() => { setOpenWa(true); logClientEvent(client.id, "whatsapp", "Aperto WhatsApp"); }} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
           )}
           <button onClick={save} disabled={!name.trim()}
             className="flex-1 bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
