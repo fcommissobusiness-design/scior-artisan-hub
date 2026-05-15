@@ -2,18 +2,45 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/store";
 
-const NAV = [
+type NavItem = { to: string; label: string; short: string };
+type NavGroup = { label: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  { label: "Operativo", items: [
+    { to: "/", label: "Dashboard", short: "Home" },
+    { to: "/ordini", label: "Ordini", short: "Ordini" },
+    { to: "/produzione", label: "Produzione", short: "Prod." },
+    { to: "/consegne", label: "Consegne", short: "Conseg." },
+  ]},
+  { label: "Catalogo", items: [
+    { to: "/prodotti", label: "Prodotti", short: "Prod." },
+    { to: "/magazzino", label: "Magazzino", short: "Mag." },
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/offerte", label: "Offerte", short: "Offerte" },
+  ]},
+  { label: "Clienti", items: [
+    { to: "/clienti", label: "Clienti", short: "Clienti" },
+    { to: "/b2b", label: "B2B", short: "B2B" },
+  ]},
+  { label: "Finanza", items: [
+    { to: "/finanza", label: "Finanza", short: "Fin." },
+    { to: "/incassi", label: "Cassa & Incassi", short: "Cassa" },
+    { to: "/pagamenti", label: "Pagamenti", short: "Pag." },
+    { to: "/fiscale", label: "Riepilogo fiscale", short: "Fisc." },
+    { to: "/report", label: "Report", short: "Report" },
+  ]},
+  { label: "Sistema", items: [
+    { to: "/admin", label: "Amministrazione", short: "Admin" },
+  ]},
+];
+
+const MOBILE_PRIMARY: NavItem[] = [
   { to: "/", label: "Dashboard", short: "Home" },
   { to: "/ordini", label: "Ordini", short: "Ordini" },
+  { to: "/produzione", label: "Produzione", short: "Prod." },
   { to: "/consegne", label: "Consegne", short: "Conseg." },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
-  { to: "/prodotti", label: "Prodotti", short: "Prod." },
-  { to: "/offerte", label: "Offerte", short: "Offerte" },
-  { to: "/report", label: "Report", short: "Report" },
-  { to: "/admin", label: "Amministrazione", short: "Admin" },
-] as const;
-
-const MOBILE_NAV = NAV.filter(n => n.to !== "/admin" && n.to !== "/report");
+];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
   const [pin, setPin] = useState("");
@@ -51,27 +78,37 @@ function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const { authed, login } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const [moreOpen, setMoreOpen] = useState(false);
 
   if (!authed) return <PinScreen onOk={login} />;
+
+  const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
 
   return (
     <div className="min-h-screen bg-brand-cream md:flex">
       {/* Sidebar desktop */}
-      <aside className="hidden md:flex md:flex-col w-60 bg-brand-green text-brand-cream sticky top-0 h-screen p-4 z-40">
+      <aside className="hidden md:flex md:flex-col w-60 bg-brand-green text-brand-cream sticky top-0 h-screen p-4 z-40 overflow-y-auto">
         <div className="px-2 py-3 mb-4 border-b border-brand-cream/10">
           <h1 className="font-display text-2xl text-brand-gold leading-none">Sciorio HQ</h1>
           <p className="text-[11px] opacity-70 mt-1">Caseificio dal 1947</p>
         </div>
-        <nav className="flex flex-col gap-1">
-          {NAV.map((n) => {
-            const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
-            return (
-              <Link key={n.to} to={n.to}
-                className={`px-3 py-2.5 rounded-lg text-sm font-medium ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"}`}>
-                {n.label}
-              </Link>
-            );
-          })}
+        <nav className="flex flex-col gap-3">
+          {NAV_GROUPS.map((g) => (
+            <div key={g.label}>
+              <p className="text-[10px] uppercase tracking-wider text-brand-cream/50 px-3 mb-1">{g.label}</p>
+              <div className="flex flex-col gap-0.5">
+                {g.items.map((n) => {
+                  const active = isActive(n.to);
+                  return (
+                    <Link key={n.to} to={n.to}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"}`}>
+                      {n.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -82,8 +119,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50">
-        {MOBILE_NAV.map((n) => {
-          const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
+        {MOBILE_PRIMARY.map((n) => {
+          const active = isActive(n.to);
           return (
             <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${active ? "text-brand-gold" : "text-brand-cream/70"}`}>
               <span className={`w-1.5 h-1.5 rounded-full mb-1 ${active ? "bg-brand-gold" : "bg-transparent"}`} />
@@ -91,7 +128,39 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           );
         })}
+        <button onClick={() => setMoreOpen(true)}
+          className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${moreOpen ? "text-brand-gold" : "text-brand-cream/70"}`}>
+          <span className="w-1.5 h-1.5 rounded-full mb-1 bg-transparent" />
+          Più
+        </button>
       </nav>
+
+      {/* Più sheet */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-[60] flex items-end" onClick={() => setMoreOpen(false)}>
+          <div className="bg-brand-cream w-full rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <p className="font-display text-lg text-brand-green mb-3">Tutte le sezioni</p>
+            <div className="space-y-3">
+              {NAV_GROUPS.map(g => (
+                <div key={g.label}>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{g.label}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {g.items.map(n => {
+                      const active = isActive(n.to);
+                      return (
+                        <Link key={n.to} to={n.to} onClick={() => setMoreOpen(false)}
+                          className={`px-3 py-2.5 rounded-lg text-sm font-medium ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"}`}>
+                          {n.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
