@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
 import { TopBar, formatEuro, Sheet, Field } from "@/components/AppShell";
 import { calcMargin } from "@/lib/data";
 import { makeTimeFrame, inFrame } from "@/lib/timeframe";
+import {
+  exportClients, exportOrders, exportProducts, exportDeliveries,
+  exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
+  downloadFullBackup, validateBackup, applyBackup,
+  maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
+  getStorageStats,
+} from "@/lib/backup";
 
 const APP_VERSION = "0.4.0";
 
@@ -11,12 +18,20 @@ export const Route = createFileRoute("/admin")({ component: AdminPage });
 
 function AdminPage() {
   const store = useStore();
-  const { orders, casualSales, products, clients, exportJson, importJson, reset, storageInfo } = store;
+  const {
+    orders, casualSales, products, clients, deliveries, suppliers,
+    cashEntries, productions, supplierPayments, importJson, reset, storageInfo,
+  } = store;
   const [openPin, setOpenPin] = useState(false);
   const [openImport, setOpenImport] = useState(false);
   const [openReset, setOpenReset] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [autoTick, setAutoTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { maybeAutoBackup(); }, []);
+  const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
+  const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
   const tfMonth = makeTimeFrame("thisMonth");
   const tfLastMonth = makeTimeFrame("lastMonth");
@@ -56,28 +71,37 @@ function AdminPage() {
   const monthLabel = now.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const info = storageInfo();
 
+  const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
+
   const doExport = () => {
-    const blob = new Blob([exportJson()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `sciorio-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMsg("Backup esportato.");
-    setTimeout(() => setMsg(null), 2000);
+    downloadFullBackup();
+    flash("Backup completo esportato.");
   };
 
   const onFileChosen = async (file: File) => {
     try {
       const text = await file.text();
-      importJson(text);
-      setMsg("Backup importato con successo.");
+      const v = validateBackup(text);
+      if (!v.ok) throw new Error(v.error);
+      if (!confirm(`Confermi il ripristino?\n\nVersione: ${v.backup.version}\nEsportato: ${v.backup.exportedAt}\n\nTutti i dati attuali verranno sostituiti.`)) {
+        setOpenImport(false);
+        return;
+      }
+      try { importJson(JSON.stringify(v.backup.data)); } catch { /* fall back */ }
+      applyBackup(v.backup);
+      setOpenImport(false);
+      flash("Backup ripristinato. Ricarico l'app…");
+      setTimeout(() => window.location.reload(), 800);
     } catch (e: any) {
-      setMsg("Errore import: " + e.message);
+      setOpenImport(false);
+      flash("Errore import: " + e.message, 4000);
     }
-    setOpenImport(false);
-    setTimeout(() => setMsg(null), 3000);
+  };
+
+  const runManualAutoBackup = () => {
+    maybeAutoBackup(true);
+    setAutoTick((t) => t + 1);
+    flash("Backup automatico creato.");
   };
 
   return (
@@ -120,9 +144,61 @@ function AdminPage() {
         </section>
 
         <section>
+          <h2 className="font-display text-lg text-brand-green mb-3">Esporta CSV (Excel / Google Sheets)</h2>
+          <p className="text-xs text-muted-foreground mb-3">UTF-8 con separatore <code>;</code> (compatibile Excel italiano e Google Sheets). Da consegnare a commercialista o consulenti.</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <CsvBtn label="Clienti" n={clients.length} onClick={() => exportClients(clients)} />
+            <CsvBtn label="Ordini" n={orders.length} onClick={() => exportOrders(orders, clients, products)} />
+            <CsvBtn label="Prodotti" n={products.length} onClick={() => exportProducts(products, suppliers)} />
+            <CsvBtn label="Consegne" n={deliveries.length} onClick={() => exportDeliveries(deliveries, clients)} />
+            <CsvBtn label="Fornitori" n={suppliers.length} onClick={() => exportSuppliers(suppliers)} />
+            <CsvBtn label="Movimenti finanz." n={cashEntries.length} onClick={() => exportCashEntries(cashEntries)} />
+            <CsvBtn label="Produzione" n={productions.length} onClick={() => exportProductions(productions, products)} />
+            <CsvBtn label="Magazzino" n={products.filter(p => p.stock !== undefined).length} onClick={() => exportStock(products, suppliers)} />
+            <CsvBtn label="Pagamenti" n={supplierPayments.length} onClick={() => exportPayments(supplierPayments, suppliers)} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-lg text-brand-green mb-3">Backup automatici (settimanali)</h2>
+          <div className="bg-card rounded-xl p-4 space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+              <Info label="Backup presenti" value={`${autoInfo.count} / 5`} />
+              <Info label="Ultimo backup" value={autoInfo.last ? new Date(autoInfo.last).toLocaleString("it-IT") : "mai"} />
+              <Info label="Spazio backup" value={`${autoInfo.totalKb} KB`} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={runManualAutoBackup}
+                className="bg-brand-green text-brand-cream rounded-lg px-3 py-2 text-sm font-semibold">
+                Crea backup ora
+              </button>
+            </div>
+            {autoInfo.list.length > 0 && (
+              <div className="divide-y divide-border">
+                {autoInfo.list.map((b) => (
+                  <div key={b.date} className="flex items-center justify-between py-2 text-sm">
+                    <div>
+                      <p className="font-medium">{new Date(b.date).toLocaleString("it-IT")}</p>
+                      <p className="text-xs text-muted-foreground">{(b.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadAutoBackup(b.date)}
+                        className="text-xs bg-card border border-border rounded px-2 py-1">Scarica</button>
+                      <button onClick={() => { deleteAutoBackup(b.date); setAutoTick(t => t + 1); }}
+                        className="text-xs text-danger border border-danger/30 rounded px-2 py-1">Elimina</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Stato archivio</h2>
           <div className="bg-card rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <Info label="Spazio usato" value={`${info.kb} KB`} />
+            <Info label="Spazio dati" value={`${info.kb} KB`} />
+            <Info label="Spazio totale localStorage" value={`${storageStats.totalKb} KB`} />
             <Info label="Versione app" value={APP_VERSION} />
             <Info label="Prodotti" value={info.counts.products.toString()} />
             <Info label="Clienti" value={info.counts.clients.toString()} />
@@ -130,8 +206,17 @@ function AdminPage() {
             <Info label="Bundle" value={info.counts.bundles.toString()} />
             <Info label="Scontrini" value={info.counts.casualSales.toString()} />
             <Info label="Consegne" value={info.counts.deliveries.toString()} />
+            <Info label="Fornitori" value={info.counts.suppliers.toString()} />
+            <Info label="Movimenti" value={info.counts.cashEntries.toString()} />
+            <Info label="Pagamenti" value={info.counts.supplierPayments.toString()} />
           </div>
+          {storageStats.totalKb > 4000 && (
+            <p className="text-xs text-warning mt-2">
+              ⚠ Storage elevato ({storageStats.totalKb} KB). Esporta un backup ed elimina backup automatici vecchi se necessario.
+            </p>
+          )}
         </section>
+
 
         <p className="text-xs text-muted-foreground italic">
           Proiezione lineare: <code>(fatturato_progressivo / giorni_trascorsi) × giorni_totali_mese</code>.
@@ -233,5 +318,15 @@ function BigCard({ label, value, sub, highlight }: { label: string; value: strin
       <p className={`font-display text-3xl mt-1 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
       {sub && <p className={`text-xs mt-1 ${highlight ? "text-brand-cream/70" : "text-muted-foreground"}`}>{sub}</p>}
     </div>
+  );
+}
+
+function CsvBtn({ label, n, onClick }: { label: string; n: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="bg-card border border-border rounded-lg p-3 text-left hover:bg-accent transition-colors">
+      <p className="text-sm font-semibold text-brand-green">{label}</p>
+      <p className="text-xs text-muted-foreground">{n} record</p>
+    </button>
   );
 }
