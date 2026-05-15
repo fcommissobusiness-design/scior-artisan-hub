@@ -91,11 +91,14 @@ export function missingLogDays(
 
 export interface SuggestionInput {
   productId: string;
+  productName?: string;
+  productUnit?: "kg" | "pz";
   date: Date | string;        // giorno target
   logs: FreshLog[];
   orders: Order[];
   unsold: UnsoldEntry[];
   specials: SpecialDay[];
+  hours?: BusinessHours;
 }
 
 export interface Suggestion {
