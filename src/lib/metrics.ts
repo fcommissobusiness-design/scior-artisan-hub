@@ -383,9 +383,6 @@ const isOpenDay = (d: Date, hours?: BusinessHours, specials?: SpecialDay[]): boo
   const wk = KEYS[d.getDay()];
   return !hours[wk]?.closed;
 };
-  const wk = KEYS[d.getDay()];
-  return !hours[wk]?.closed;
-};
 
 export function openDaysInMonth(date: Date, hours?: BusinessHours, specials?: SpecialDay[]): number {
   const y = date.getFullYear(), m = date.getMonth();
