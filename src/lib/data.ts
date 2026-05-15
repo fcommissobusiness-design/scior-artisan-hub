@@ -365,6 +365,90 @@ export const SEED_PRODUCTIONS: Production[] = [
   { id: "pr3", date: isoToday(7, 0, 1), productId: "mozzarella-di-bufala-campana-dop", qtyPlanned: 15, status: "da_preparare" },
 ];
 
+// ============= FRESH / UNSOLD / CALENDAR =============
+
+export type WeekdayKey = "lun" | "mar" | "mer" | "gio" | "ven" | "sab" | "dom";
+export const WEEKDAYS: WeekdayKey[] = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+export const WEEKDAY_LABEL: Record<WeekdayKey, string> = {
+  lun: "Lunedì", mar: "Martedì", mer: "Mercoledì", gio: "Giovedì",
+  ven: "Venerdì", sab: "Sabato", dom: "Domenica",
+};
+// JS getDay(): 0=domenica
+export function weekdayKey(d: Date | string): WeekdayKey {
+  const n = new Date(d).getDay();
+  return (["dom", "lun", "mar", "mer", "gio", "ven", "sab"] as WeekdayKey[])[n];
+}
+
+export interface DayHours { closed: boolean; open?: string; close?: string; }
+export type BusinessHours = Record<WeekdayKey, DayHours>;
+export const DEFAULT_BUSINESS_HOURS: BusinessHours = {
+  lun: { closed: true },
+  mar: { closed: false, open: "08:00", close: "20:00" },
+  mer: { closed: false, open: "08:00", close: "20:00" },
+  gio: { closed: false, open: "08:00", close: "20:00" },
+  ven: { closed: false, open: "08:00", close: "20:00" },
+  sab: { closed: false, open: "08:00", close: "20:00" },
+  dom: { closed: false, open: "08:00", close: "14:00" },
+};
+
+export interface FreshLog {
+  id: string;
+  date: string;        // ISO (giorno)
+  productId: string;
+  qtyStart: number;    // disponibile inizio giornata
+  qtySold: number;     // venduto al normale
+  qtyRecovered: number;// recuperato (TGTG / scontato)
+  qtyDiscarded: number;// scarto
+  qtyLeft?: number;    // rimasto fine giornata (calcolato se vuoto)
+  notes?: string;
+}
+
+export type UnsoldDestination = "scontato" | "tgtg" | "consumo_interno" | "scarto" | "altro";
+export const UNSOLD_DESTINATION_LABEL: Record<UnsoldDestination, string> = {
+  scontato: "Venduto scontato",
+  tgtg: "Too Good To Go",
+  consumo_interno: "Consumo interno",
+  scarto: "Scarto",
+  altro: "Altro",
+};
+export interface UnsoldEntry {
+  id: string;
+  date: string;             // ISO
+  productId: string;
+  qty: number;
+  destination: UnsoldDestination;
+  valueLost?: number;       // valore perso (€)
+  valueRecovered?: number;  // valore recuperato (€)
+  tgtgBoxes?: number;       // numero box TGTG vendute
+  notes?: string;
+}
+
+export type SpecialDayImpact = "basso" | "medio" | "alto";
+export interface SpecialDay {
+  id: string;
+  date: string;     // ISO (YYYY-MM-DD)
+  name: string;     // Natale, Pasqua, Ferragosto, ponte, ecc.
+  impact: SpecialDayImpact;
+  multiplier: number; // es. 1.0, 0.7, 1.3, 1.5, 2.0
+  notes?: string;
+}
+
+export const SEED_FRESH_LOGS: FreshLog[] = [
+  { id: "fl1", date: isoDay(-1), productId: "mozzarella-di-bufala-campana-dop", qtyStart: 16, qtySold: 14, qtyRecovered: 1, qtyDiscarded: 0.5, qtyLeft: 0.5, notes: "Buona giornata" },
+  { id: "fl2", date: isoDay(-2), productId: "mozzarella-di-bufala-campana-dop", qtyStart: 18, qtySold: 15, qtyRecovered: 2, qtyDiscarded: 1, qtyLeft: 0 },
+  { id: "fl3", date: isoDay(-1), productId: "ricotta-di-bufala", qtyStart: 10, qtySold: 8, qtyRecovered: 1, qtyDiscarded: 1, qtyLeft: 0 },
+];
+
+export const SEED_UNSOLD_ENTRIES: UnsoldEntry[] = [
+  { id: "un1", date: isoDay(-1), productId: "mozzarella-di-bufala-campana-dop", qty: 1, destination: "tgtg", valueLost: 15, valueRecovered: 6, tgtgBoxes: 2 },
+  { id: "un2", date: isoDay(-1), productId: "ricotta-di-bufala", qty: 1, destination: "scontato", valueLost: 1.6, valueRecovered: 1.0 },
+];
+
+export const SEED_SPECIAL_DAYS: SpecialDay[] = [
+  { id: "sd1", date: "2026-08-15", name: "Ferragosto", impact: "alto", multiplier: 0.5, notes: "Negozio aperto solo mattina" },
+  { id: "sd2", date: "2026-12-24", name: "Vigilia di Natale", impact: "alto", multiplier: 2.0, notes: "Picco mozzarella" },
+];
+
 export const SEED_SUPPLIERS: Supplier[] = [
   { id: "sup1", name: "Tucciarone Salumi", category: "Salumi", phone: "+39 0771 555111", contactName: "Antonio", productIds: ["salsiccia-paesana-sottovuoto-tucciarone"], lastOrderDate: isoDay(-7) },
   { id: "sup2", name: "Casa Marrazzo", category: "Conserve", phone: "+39 081 555222", productIds: ["zucchine-grigliate-casa-marrazzo", "carciofi-grigliati-casa-marrazzo", "melanzane-a-filetti-casa-marrazzo"], lastOrderDate: isoDay(-14) },
