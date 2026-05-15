@@ -379,7 +379,10 @@ const isOpenDay = (d: Date, hours?: BusinessHours, specials?: SpecialDay[]): boo
   const k = d.toISOString().slice(0, 10);
   const sp = specials?.find((s) => s.date.slice(0, 10) === k);
   if (sp && sp.multiplier === 0) return false;
-  const KEYS = ["sun","mon","tue","wed","thu","fri","sat"] as const;
+  const KEYS = ["dom","lun","mar","mer","gio","ven","sab"] as const;
+  const wk = KEYS[d.getDay()];
+  return !hours[wk]?.closed;
+};
   const wk = KEYS[d.getDay()];
   return !hours[wk]?.closed;
 };
