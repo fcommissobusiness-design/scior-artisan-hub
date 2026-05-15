@@ -240,6 +240,9 @@ function ProductSheet({ mode, product, onClose, onSave, onDelete }: {
       stock: stock === "" ? undefined : parseFloat(stock),
       stockMin: stockMin === "" ? undefined : parseFloat(stockMin),
       supplierId: supplierId || undefined,
+      fresh, trackUnsold,
+      shelfLifeDays: shelfLifeDays === "" ? undefined : parseFloat(shelfLifeDays),
+      perishability: fresh ? perishability : undefined,
     });
   };
 
