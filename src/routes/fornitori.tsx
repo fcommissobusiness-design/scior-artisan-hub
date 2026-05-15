@@ -46,6 +46,7 @@ function FornitoriPage() {
         {list.length === 0 && <p className="md:col-span-2 text-center text-sm text-muted-foreground py-8">Nessun fornitore.</p>}
         {list.map(s => {
           const prods = products.filter(p => s.productIds?.includes(p.id));
+          const st = stats.get(s.id);
           return (
             <div key={s.id} className="bg-card rounded-xl p-4 shadow-sm">
               <button onClick={() => setEditId(s.id)} className="w-full text-left">
@@ -54,8 +55,8 @@ function FornitoriPage() {
                     <p className="font-display text-lg text-brand-green">{s.name}</p>
                     <p className="text-xs text-muted-foreground">{s.category}{s.contactName ? ` · ${s.contactName}` : ""}</p>
                   </div>
-                  {s.lastOrderDate && (
-                    <p className="text-[10px] text-muted-foreground">{formatDate(s.lastOrderDate)}</p>
+                  {(st?.lastDate ?? s.lastOrderDate) && (
+                    <p className="text-[10px] text-muted-foreground">{formatDate(st?.lastDate ?? s.lastOrderDate!)}</p>
                   )}
                 </div>
                 {prods.length > 0 && (
@@ -63,16 +64,21 @@ function FornitoriPage() {
                     {prods.map(p => p.name).join(" · ")}
                   </p>
                 )}
+                {st && st.count > 0 && (
+                  <p className="text-[11px] text-brand-green mt-1 font-semibold">
+                    {st.count} consegne · {formatEuro(st.total)} totali
+                  </p>
+                )}
                 {s.notes && <p className="text-xs italic text-muted-foreground mt-1">{s.notes}</p>}
               </button>
-              {s.phone && (
-                <div className="flex gap-1.5 mt-3 flex-wrap">
+              <div className="flex gap-1.5 mt-3 flex-wrap">
+                {s.phone && (
                   <a href={telUrl(s.phone)} className="flex-1 text-center text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 font-semibold">Chiama</a>
-                  <button onClick={() => updateSupplier(s.id, { lastOrderDate: new Date().toISOString() })}
-                    className="flex-1 text-xs bg-brand-gold text-white rounded-lg py-1.5 font-semibold">Ordine fatto</button>
-                  <CopyBtn text={s.phone} label="Copia tel" />
-                </div>
-              )}
+                )}
+                <button onClick={() => navigate({ to: "/entrate-merci" })}
+                  className="flex-1 text-xs bg-brand-gold text-white rounded-lg py-1.5 font-semibold">Nuova consegna</button>
+                {s.phone && <CopyBtn text={s.phone} label="Copia tel" />}
+              </div>
             </div>
           );
         })}
