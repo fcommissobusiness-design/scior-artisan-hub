@@ -172,3 +172,114 @@ export function bundleStatsFromOrders(orders: Order[], _bundles: Bundle[]): Map<
   void orders;
   return new Map();
 }
+
+// ============= NUOVE METRICHE v4 =============
+
+const sameDay = (a: Date | string | number, b: Date | string | number) =>
+  new Date(a).toDateString() === new Date(b).toDateString();
+
+const sameMonth = (a: Date | string | number, b: Date | string | number) => {
+  const da = new Date(a), db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth();
+};
+
+// Magazzino
+export function lowStockProducts(products: Product[]): Product[] {
+  return products.filter((p) => p.stock !== undefined && p.stockMin !== undefined && p.stock <= p.stockMin && p.stock > 0);
+}
+export function outOfStockProducts(products: Product[]): Product[] {
+  return products.filter((p) => p.stock !== undefined && p.stock <= 0);
+}
+
+// Produzione
+export function productionsForDate(productions: Production[], date: Date | string = new Date()): Production[] {
+  return productions.filter((p) => sameDay(p.date, date));
+}
+export function mozzarellaKgForDate(productions: Production[], products: Product[], date: Date | string = new Date()): number {
+  return productionsForDate(productions, date).reduce((s, p) => {
+    const prod = products.find((x) => x.id === p.productId);
+    if (!prod) return s;
+    if (!/mozzarella/i.test(prod.name)) return s;
+    return s + (p.qtyPlanned ?? 0);
+  }, 0);
+}
+
+// Cassa
+export function cashFlowDay(entries: CashEntry[], date: Date | string = new Date()): { in: number; out: number; balance: number } {
+  let inSum = 0, outSum = 0;
+  for (const e of entries) {
+    if (!sameDay(e.date, date)) continue;
+    if (e.type === "entrata") inSum += e.amount; else outSum += e.amount;
+  }
+  return { in: inSum, out: outSum, balance: inSum - outSum };
+}
+export function cashFlowMonth(entries: CashEntry[], date: Date | string = new Date()): { in: number; out: number; balance: number } {
+  let inSum = 0, outSum = 0;
+  for (const e of entries) {
+    if (!sameMonth(e.date, date)) continue;
+    if (e.type === "entrata") inSum += e.amount; else outSum += e.amount;
+  }
+  return { in: inSum, out: outSum, balance: inSum - outSum };
+}
+
+// Pagamenti fornitori
+export function supplierPaymentsDue(payments: SupplierPayment[]): SupplierPayment[] {
+  const now = Date.now();
+  return payments.filter((p) => p.status === "da_pagare" && (!p.dueDate || +new Date(p.dueDate) >= now - DAY * 2));
+}
+export function supplierPaymentsOverdue(payments: SupplierPayment[]): SupplierPayment[] {
+  const now = Date.now();
+  return payments.filter((p) => (p.status === "scaduto") || (p.status === "da_pagare" && p.dueDate && +new Date(p.dueDate) < now));
+}
+export function recurringMonthlyPayments(payments: SupplierPayment[]): SupplierPayment[] {
+  return payments.filter((p) => p.recurrence === "mensile" || p.recurrence === "settimanale");
+}
+export function paymentsTotalMonth(payments: SupplierPayment[], date: Date | string = new Date()): number {
+  return payments.filter((p) => sameMonth(p.date, date) && p.status !== "da_pagare").reduce((s, p) => s + p.amount, 0);
+}
+export function paymentsByType(payments: SupplierPayment[], date: Date | string = new Date()): Record<string, number> {
+  const out: Record<string, number> = { fornitore: 0, consulente: 0, servizio: 0, altro: 0 };
+  for (const p of payments) {
+    if (!sameMonth(p.date, date)) continue;
+    if (p.status === "da_pagare") continue;
+    out[p.beneficiaryType] = (out[p.beneficiaryType] ?? 0) + p.amount;
+  }
+  return out;
+}
+export function topBeneficiaries(payments: SupplierPayment[], limit = 5): { name: string; total: number }[] {
+  const map = new Map<string, number>();
+  for (const p of payments) if (p.status !== "da_pagare") map.set(p.beneficiary, (map.get(p.beneficiary) ?? 0) + p.amount);
+  return [...map.entries()].map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, limit);
+}
+
+// B2B
+export function topB2BByRevenue(b2b: B2BClient[], limit = 5): { client: B2BClient; total: number }[] {
+  return b2b.map((c) => ({ client: c, total: c.history.reduce((s, h) => s + h.total, 0) }))
+    .sort((a, b) => b.total - a.total).slice(0, limit);
+}
+
+// Deliveries
+export function pendingDeliveryRevenue(deliveries: Delivery[], orders: Order[]): number {
+  return deliveries.filter((d) => d.payment === "da_pagare" && d.status !== "annullata")
+    .reduce((s, d) => s + (d.orderId ? (orders.find((o) => o.id === d.orderId)?.total ?? 0) : 0), 0);
+}
+
+// Average ticket
+export function averageReceipt(sales: CasualSale[]): number {
+  if (sales.length === 0) return 0;
+  return sales.reduce((s, x) => s + x.total, 0) / sales.length;
+}
+
+// Margine lordo stimato in periodo (ordini ritirati + scontrini)
+export function grossMargin(orders: Order[], sales: CasualSale[], products: Product[], inPeriod: (iso: string) => boolean): number {
+  let m = 0;
+  const margin = (items: { productId: string; qty: number }[]) =>
+    items.reduce((s, i) => {
+      const p = products.find((x) => x.id === i.productId);
+      if (!p || p.cost == null) return s;
+      return s + (p.price - p.cost) * i.qty;
+    }, 0);
+  for (const o of orders) if (o.status === "ritirato" && inPeriod(o.pickupDate)) m += margin(o.items);
+  for (const s of sales) if (inPeriod(s.date)) m += margin(s.items);
+  return m;
+}
