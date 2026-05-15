@@ -34,6 +34,7 @@ interface Store {
   unsoldEntries: UnsoldEntry[];
   specialDays: SpecialDay[];
   businessHours: BusinessHours;
+  goodsReceipts: GoodsReceipt[];
 }
 
 const SEED: Store = {
@@ -52,6 +53,7 @@ const SEED: Store = {
   unsoldEntries: SEED_UNSOLD_ENTRIES,
   specialDays: SEED_SPECIAL_DAYS,
   businessHours: DEFAULT_BUSINESS_HOURS,
+  goodsReceipts: SEED_GOODS_RECEIPTS,
 };
 
 function migrate(parsed: any): Store {
