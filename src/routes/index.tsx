@@ -1,18 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem } from "@/lib/data";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
+import {
+  pendingPickupsToday, lateOrders, inactiveClients,
+  loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
+} from "@/lib/metrics";
+import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
-  const { orders, products, clients, casualSales, updateOrder, addCasualSale, addClient } = useStore();
+  const { orders, products, clients, casualSales, deliveries, updateOrder, addCasualSale, addClient } = useStore();
   const [tfId, setTfId] = useState<TimeFrameId>("today");
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
   const [openSale, setOpenSale] = useState(false);
+  const [openQuick, setOpenQuick] = useState(false);
+  const [waOpen, setWaOpen] = useState<{ phone: string; clientId?: string } | null>(null);
+  const navigate = useNavigate();
 
   const tf = useMemo(() => {
     if (tfId === "custom") return makeTimeFrame("custom", new Date(customStart), new Date(customEnd));
@@ -21,21 +29,20 @@ function Dashboard() {
 
   const ordersInFrame = orders.filter((o) => inFrame(o.pickupDate, tf));
   const salesInFrame = casualSales.filter((s) => inFrame(s.date, tf));
-  const todayPending = orders.filter((o) => o.status === "in_attesa" && new Date(o.pickupDate).toDateString() === new Date().toDateString());
 
-  const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa").reduce((s, o) => s + o.total, 0);
+  const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa" || o.status === "pronto").reduce((s, o) => s + o.total, 0);
   const fattGenerato =
     ordersInFrame.filter((o) => o.status === "ritirato").reduce((s, o) => s + o.total, 0) +
     salesInFrame.reduce((s, o) => s + o.total, 0);
+  const ticketMedio = salesInFrame.length === 0 ? 0 : salesInFrame.reduce((s, x) => s + x.total, 0) / salesInFrame.length;
 
-  const kgMozza = ordersInFrame.filter((o) => o.status !== "annullato")
-    .reduce((sum, o) => sum + o.items.filter((i) => i.productId.startsWith("mozzarella")).reduce((s, i) => s + i.qty, 0), 0)
-    + salesInFrame.reduce((sum, s) => sum + s.items.filter((i) => i.productId.startsWith("mozzarella")).reduce((a, i) => a + i.qty, 0), 0);
-
-  const sottoCosto = products.filter((p) => {
-    const m = calcMargin(p);
-    return m !== null && m < 0;
-  });
+  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
+  const ritiriOggi = useMemo(() => pendingPickupsToday(orders), [orders]);
+  const ritardi = useMemo(() => lateOrders(orders), [orders]);
+  const inattivi = useMemo(() => inactiveClients(orders, casualSales, clients, 60), [orders, casualSales, clients]);
+  const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
+  const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
+  const sottoCosto = products.filter((p) => { const m = calcMargin(p); return m !== null && m < 0; });
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
@@ -53,54 +60,92 @@ function Dashboard() {
         }
       />
 
-      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="p-4 md:p-6 space-y-5 md:space-y-6">
         {tfId === "custom" && (
           <div className="bg-card rounded-xl p-3 flex flex-col md:flex-row gap-3 items-center">
             <Field label="Dal">
-              <input type="date" min="2026-01-01" max="2026-12-31" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+              <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
                 className="bg-brand-cream border border-border rounded-lg px-3 py-2 text-sm" />
             </Field>
             <Field label="Al">
-              <input type="date" min="2026-01-01" max="2026-12-31" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+              <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
                 className="bg-brand-cream border border-border rounded-lg px-3 py-2 text-sm" />
             </Field>
           </div>
         )}
 
-        {sottoCosto.length > 0 && (
-          <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
-            <strong>Attenzione:</strong> {sottoCosto.length} prodotto/i con margine negativo.
-          </div>
+        {/* ATTENZIONE */}
+        {(ritardi.length > 0 || premi.length > 0 || sottoCosto.length > 0 || consegneAperte.length > 0) && (
+          <section className="bg-warning/10 border border-warning/30 rounded-xl p-4">
+            <h2 className="font-display text-base text-warning mb-2">Attenzione</h2>
+            <ul className="text-sm space-y-1 text-foreground/85">
+              {ritardi.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/ordini", search: { f: "ritardi" } as any })} className="underline underline-offset-2">{ritardi.length} ordine/i in ritardo</button></li>
+              )}
+              {premi.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/clienti", search: { f: "premi" } as any })} className="underline underline-offset-2">{premi.length} cliente/i con premio fedeltà pronto</button></li>
+              )}
+              {sottoCosto.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/prodotti", search: { f: "sottocosto" } as any })} className="underline underline-offset-2">{sottoCosto.length} prodotto/i sotto costo</button></li>
+              )}
+              {consegneAperte.length > 0 && (
+                <li>· <button onClick={() => navigate({ to: "/consegne" })} className="underline underline-offset-2">{consegneAperte.length} consegna/e ancora aperta/e</button></li>
+              )}
+            </ul>
+          </section>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="ordini in attesa" />
-          <Kpi label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
-          <Kpi label="Ordini" value={ordersInFrame.length.toString()} sub={`${ordersInFrame.filter(o=>o.status==='ritirato').length} ritirati`} />
-          <Kpi label="Scontrini" value={salesInFrame.length.toString()} sub="acquisti casuali" />
-          <Kpi label="Kg Mozzarella" value={kgMozza.toFixed(1)} sub="periodo" />
-          <Kpi label="Clienti totali" value={clients.length.toString()} sub="schede" />
-          <Kpi label="Sotto Costo" value={sottoCosto.length.toString()} sub="prodotti" danger={sottoCosto.length > 0} />
-          <Kpi label="In attesa oggi" value={todayPending.length.toString()} sub="da ritirare" />
-        </div>
+        {/* QUICK ACTIONS */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Quick onClick={() => navigate({ to: "/ordini", search: { f: "nuovo" } as any })} label="Nuovo ordine" />
+          <Quick onClick={() => navigate({ to: "/ordini", search: { f: "mozzarella" } as any })} label="Prenotazione mozzarella" />
+          <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
+          <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
+        </section>
 
+        {/* KPI ECONOMICI */}
+        <section>
+          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Economici</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
+            <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
+            <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
+            <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
+          </div>
+        </section>
+
+        {/* KPI OPERATIVI */}
+        <section>
+          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Operativi</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi to={{ to: "/ordini", search: { f: "oggi" } as any }} label="Ritiri oggi" value={ritiriOggi.length.toString()} sub="da gestire" />
+            <Kpi to={{ to: "/consegne" }} label="Consegne aperte" value={consegneAperte.length.toString()} sub={`${deliveries.length} totali`} />
+            <Kpi to={{ to: "/clienti", search: { f: "inattivi" } as any }} label="Clienti inattivi" value={inattivi.length.toString()} sub="oltre 60gg" danger={inattivi.length > 0} />
+            <Kpi to={{ to: "/clienti", search: { f: "premi" } as any }} label="Premi pronti" value={premi.length.toString()} sub="fedeltà completata" />
+          </div>
+        </section>
+
+        {/* RITIRI OGGI */}
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-display text-xl text-brand-green">Ordini in attesa oggi</h2>
+            <h2 className="font-display text-xl text-brand-green">Ritiri di oggi</h2>
+            <Link to="/ordini" className="text-xs text-brand-gold font-semibold">Tutti gli ordini →</Link>
           </div>
-          {todayPending.length === 0 && (
-            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessun ordine in attesa oggi.</div>
+          {ritiriOggi.length === 0 && (
+            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessun ritiro previsto oggi.</div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {todayPending.map((o) => {
+            {ritiriOggi.map((o) => {
               const c = clientById(o.clientId);
+              const m = orderMargin(o, products);
               return (
                 <div key={o.id} className="bg-card rounded-xl p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-2 gap-2">
                     <div>
                       <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground">Ritiro {formatTime(o.pickupDate)} · {formatEuro(o.total)}</p>
+                      <p className="text-xs text-muted-foreground">Ritiro {formatTime(o.pickupDate)} · {formatEuro(o.total)} · margine {formatEuro(m)}</p>
                     </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${o.status === "pronto" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.status === "pronto" ? "Pronto" : "Attesa"}</span>
                   </div>
                   <ul className="text-sm text-foreground/80 mb-3 space-y-0.5">
                     {o.items.map((i, idx) => {
@@ -108,21 +153,28 @@ function Dashboard() {
                       return <li key={idx}>· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
                     })}
                   </ul>
-                  <button
-                    onClick={() => updateOrder(o.id, { status: "ritirato" })}
-                    className="w-full bg-success text-white rounded-lg py-2.5 text-sm font-semibold active:opacity-80"
-                  >
-                    Segna come ritirato
-                  </button>
+                  <div className="flex gap-2">
+                    {o.status === "in_attesa" && (
+                      <button onClick={() => updateOrder(o.id, { status: "pronto" })}
+                        className="flex-1 bg-brand-green text-brand-cream rounded-lg py-2 text-xs font-semibold">Pronto</button>
+                    )}
+                    <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
+                      className="flex-1 bg-success text-white rounded-lg py-2 text-xs font-semibold">Ritirato</button>
+                    {c?.phone && (
+                      <button onClick={() => setWaOpen({ phone: c.phone, clientId: c.id })}
+                        className="px-3 bg-brand-gold text-white rounded-lg py-2 text-xs font-semibold">WhatsApp</button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         </section>
 
+        {/* SCONTRINI */}
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-display text-xl text-brand-green">Acquisti casuali (scontrini)</h2>
+            <h2 className="font-display text-xl text-brand-green">Scontrini ({salesInFrame.length})</h2>
             <button onClick={() => setOpenSale(true)} className="text-xs bg-brand-gold text-white px-3 py-1.5 rounded-full font-semibold">+ Nuovo</button>
           </div>
           {salesInFrame.length === 0 && (
@@ -157,17 +209,69 @@ function Dashboard() {
           setOpenSale(false);
         }}
       />
+
+      {openQuick && (
+        <QuickWhatsAppPicker
+          onClose={() => setOpenQuick(false)}
+          onPick={(c) => { setOpenQuick(false); setWaOpen({ phone: c.phone, clientId: c.id }); }}
+        />
+      )}
+
+      {waOpen && (
+        <WhatsAppDialog
+          open={true}
+          onClose={() => setWaOpen(null)}
+          phone={waOpen.phone}
+          context={{ client: clients.find(c => c.id === waOpen.clientId) }}
+          defaultTemplate="libero"
+        />
+      )}
     </div>
   );
 }
 
-function Kpi({ label, value, sub, danger, highlight }: { label: string; value: string; sub?: string; danger?: boolean; highlight?: boolean }) {
+function Quick({ onClick, label }: { onClick: () => void; label: string }) {
   return (
+    <button onClick={onClick}
+      className="bg-brand-green text-brand-cream rounded-xl px-3 py-3 text-xs md:text-sm font-semibold text-left active:opacity-80">
+      {label}
+    </button>
+  );
+}
+
+function Kpi({ label, value, sub, danger, highlight, to }: { label: string; value: string; sub?: string; danger?: boolean; highlight?: boolean; to?: any }) {
+  const inner = (
     <div className={`rounded-xl p-4 shadow-sm ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
       <p className={`text-[11px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
       <p className={`font-display text-2xl mt-1 ${danger ? "text-danger" : highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
       {sub && <p className={`text-[11px] mt-0.5 ${highlight ? "text-brand-cream/70" : "text-muted-foreground"}`}>{sub}</p>}
     </div>
+  );
+  if (to) return <Link to={to.to} search={to.search} className="block">{inner}</Link>;
+  return inner;
+}
+
+function QuickWhatsAppPicker({ onClose, onPick }: { onClose: () => void; onPick: (c: { id: string; phone: string }) => void }) {
+  const { clients } = useStore();
+  const [q, setQ] = useState("");
+  const filtered = clients.filter((c) => c.phone && c.name.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
+  return (
+    <Sheet open={true} onClose={onClose} title="Scegli cliente">
+      <input autoFocus placeholder="Cerca cliente..." value={q} onChange={(e) => setQ(e.target.value)}
+        className="w-full bg-card border border-border rounded-lg p-3" />
+      <div className="space-y-1 max-h-96 overflow-y-auto">
+        {filtered.map((c) => (
+          <button key={c.id} onClick={() => onPick({ id: c.id, phone: c.phone })}
+            className="w-full text-left bg-card rounded-lg p-3 flex justify-between items-center">
+            <div>
+              <p className="font-semibold text-sm">{c.name}</p>
+              <p className="text-xs text-muted-foreground">{c.phone}</p>
+            </div>
+            <span className="text-brand-gold text-xs font-semibold">→</span>
+          </button>
+        ))}
+      </div>
+    </Sheet>
   );
 }
 
@@ -186,8 +290,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
-    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4)
-    : [];
+    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
 
   const total = items.reduce((s, i) => {
     const p = products.find((p) => p.id === i.productId);
@@ -204,7 +307,6 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-
   const reset = () => { setItems([]); setClientName(""); setSearch(""); };
 
   const save = () => {
@@ -224,8 +326,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   return (
-    <Sheet
-      open={open} onClose={onClose} title="Nuovo scontrino"
+    <Sheet open={open} onClose={onClose} title="Nuovo scontrino"
       footer={
         <div className="flex items-center gap-3">
           <div className="flex-1">

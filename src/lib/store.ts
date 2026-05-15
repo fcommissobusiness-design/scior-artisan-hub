@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import {
-  SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES,
-  type Product, type Client, type Order, type Bundle, type CasualSale,
+  SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
+  type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
+  type OrderEvent, type LoyaltyEvent,
 } from "./data";
 
-const KEY = "sciorio-hq-v2";
+const KEY = "sciorio-hq-v3";
+const LEGACY_KEY = "sciorio-hq-v2";
 const PIN_KEY = "sciorio-hq-auth";
+const PIN_VALUE_KEY = "sciorio-hq-pin";
+const DEFAULT_PIN = "0000";
 
 interface Store {
   products: Product[];
@@ -13,6 +17,7 @@ interface Store {
   orders: Order[];
   bundles: Bundle[];
   casualSales: CasualSale[];
+  deliveries: Delivery[];
 }
 
 const SEED: Store = {
@@ -21,15 +26,42 @@ const SEED: Store = {
   orders: SEED_ORDERS,
   bundles: SEED_BUNDLES,
   casualSales: SEED_CASUAL_SALES,
+  deliveries: SEED_DELIVERIES,
 };
+
+function migrate(parsed: any): Store {
+  const out: Store = {
+    products: (parsed.products ?? SEED.products).map((p: Product) => ({
+      available: true, seasonal: false, magnet: false, ...p,
+    })),
+    clients: (parsed.clients ?? SEED.clients).map((c: Client) => ({
+      ...c,
+      loyaltyHistory: c.loyaltyHistory ?? [],
+      tags: c.tags ?? [],
+      preferredProducts: c.preferredProducts ?? [],
+    })),
+    orders: (parsed.orders ?? SEED.orders).map((o: Order) => ({
+      ...o,
+      source: o.source ?? "negozio",
+      timeline: o.timeline ?? [{ date: o.createdAt, type: "creato" }],
+    })),
+    bundles: parsed.bundles ?? SEED.bundles,
+    casualSales: parsed.casualSales ?? SEED.casualSales,
+    deliveries: parsed.deliveries ?? SEED.deliveries,
+  };
+  return out;
+}
 
 function load(): Store {
   if (typeof window === "undefined") return SEED;
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...SEED, ...parsed, casualSales: parsed.casualSales ?? SEED_CASUAL_SALES };
+    if (raw) return migrate(JSON.parse(raw));
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const m = migrate(JSON.parse(legacy));
+      localStorage.setItem(KEY, JSON.stringify(m));
+      return m;
     }
   } catch {}
   localStorage.setItem(KEY, JSON.stringify(SEED));
@@ -51,6 +83,25 @@ function setStore(next: Store) {
 }
 
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const nowIso = () => new Date().toISOString();
+
+function applyOrderRitirato(store: Store, order: Order): Store {
+  // aggiorna stamps cliente, lastOrder, loyaltyHistory
+  const clients = store.clients.map((c) => {
+    if (c.id !== order.clientId) return c;
+    const newStamps = Math.min(5, (c.stamps ?? 0) + 1);
+    const hist: LoyaltyEvent[] = [...(c.loyaltyHistory ?? []), {
+      date: nowIso(), type: "stamp", delta: 1, note: `Ordine ${order.id}`,
+    }];
+    return {
+      ...c,
+      stamps: newStamps,
+      lastOrder: order.pickupDate,
+      loyaltyHistory: hist,
+    };
+  });
+  return { ...store, clients };
+}
 
 export function useStore() {
   const [, setTick] = useState(0);
@@ -68,19 +119,63 @@ export function useStore() {
       const id = uid("p_");
       setStore({ ...store, products: [{ ...p, id }, ...store.products] });
     },
-    updateProduct: (id: string, patch: Partial<Product>) =>
-      setStore({ ...store, products: store.products.map((p) => p.id === id ? { ...p, ...patch } : p) }),
+    updateProduct: (id: string, patch: Partial<Product>) => {
+      setStore({
+        ...store,
+        products: store.products.map((p) => {
+          if (p.id !== id) return p;
+          // priceHistory automatico
+          let history = p.priceHistory ?? [];
+          if ((patch.price !== undefined && patch.price !== p.price) ||
+              (patch.cost !== undefined && patch.cost !== p.cost)) {
+            history = [...history, { date: nowIso(), cost: p.cost, price: p.price }];
+          }
+          return { ...p, ...patch, priceHistory: history };
+        }),
+      });
+    },
     deleteProduct: (id: string) =>
       setStore({ ...store, products: store.products.filter((p) => p.id !== id) }),
 
     // ORDERS
     addOrder: (o: Omit<Order, "id" | "createdAt">) => {
-      const order: Order = { ...o, id: uid("o_"), createdAt: new Date().toISOString() };
-      setStore({ ...store, orders: [order, ...store.orders] });
+      const order: Order = {
+        ...o, id: uid("o_"), createdAt: nowIso(),
+        timeline: [{ date: nowIso(), type: "creato" }],
+        source: o.source ?? "negozio",
+      };
+      let next: Store = { ...store, orders: [order, ...store.orders] };
+      if (order.status === "ritirato") next = applyOrderRitirato(next, order);
+      setStore(next);
       return order;
     },
-    updateOrder: (id: string, patch: Partial<Order>) =>
-      setStore({ ...store, orders: store.orders.map((o) => o.id === id ? { ...o, ...patch } : o) }),
+    updateOrder: (id: string, patch: Partial<Order>) => {
+      const prev = store.orders.find((o) => o.id === id);
+      if (!prev) return;
+      const willBecomeRitirato = patch.status === "ritirato" && prev.status !== "ritirato";
+      const tl = [...(prev.timeline ?? [])];
+      if (patch.status && patch.status !== prev.status) {
+        tl.push({ date: nowIso(), type: patch.status as OrderEvent["type"] });
+      } else {
+        tl.push({ date: nowIso(), type: "modificato" });
+      }
+      const merged: Order = { ...prev, ...patch, timeline: tl };
+      let next: Store = { ...store, orders: store.orders.map((o) => o.id === id ? merged : o) };
+      if (willBecomeRitirato) next = applyOrderRitirato(next, merged);
+      setStore(next);
+    },
+    duplicateOrder: (id: string) => {
+      const o = store.orders.find((x) => x.id === id);
+      if (!o) return null;
+      const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
+      const dup: Order = {
+        ...o, id: uid("o_"), createdAt: nowIso(),
+        pickupDate: d.toISOString(), status: "in_attesa",
+        timeline: [{ date: nowIso(), type: "creato", note: `Duplicato da ${o.id}` }],
+      };
+      setStore({ ...store, orders: [dup, ...store.orders] });
+      return dup;
+    },
     deleteOrder: (id: string) =>
       setStore({ ...store, orders: store.orders.filter((o) => o.id !== id) }),
 
@@ -95,7 +190,7 @@ export function useStore() {
 
     // CLIENTS
     addClient: (c: Omit<Client, "id">) => {
-      const client: Client = { ...c, id: uid("c_") };
+      const client: Client = { ...c, id: uid("c_"), loyaltyHistory: [] };
       setStore({ ...store, clients: [client, ...store.clients] });
       return client;
     },
@@ -103,6 +198,32 @@ export function useStore() {
       setStore({ ...store, clients: store.clients.map((c) => c.id === id ? { ...c, ...patch } : c) }),
     deleteClient: (id: string) =>
       setStore({ ...store, clients: store.clients.filter((c) => c.id !== id) }),
+
+    // LOYALTY
+    addLoyaltyEvent: (clientId: string, ev: Omit<LoyaltyEvent, "date"> & { date?: string }) => {
+      setStore({
+        ...store,
+        clients: store.clients.map((c) => {
+          if (c.id !== clientId) return c;
+          const event: LoyaltyEvent = { date: ev.date ?? nowIso(), type: ev.type, delta: ev.delta, note: ev.note };
+          let stamps = c.stamps ?? 0;
+          if (ev.type === "stamp") stamps = Math.min(5, stamps + (ev.delta ?? 1));
+          if (ev.type === "reset") stamps = 0;
+          if (ev.type === "reward") stamps = 0;
+          if (ev.type === "manual" && typeof ev.delta === "number") stamps = Math.max(0, Math.min(5, stamps + ev.delta));
+          return { ...c, stamps, loyaltyHistory: [...(c.loyaltyHistory ?? []), event] };
+        }),
+      });
+    },
+    setLoyaltyStamps: (clientId: string, value: number) => {
+      setStore({
+        ...store,
+        clients: store.clients.map((c) => c.id === clientId
+          ? { ...c, stamps: Math.max(0, Math.min(5, value)),
+              loyaltyHistory: [...(c.loyaltyHistory ?? []), { date: nowIso(), type: "manual" as const, note: `Impostato a ${value}` }] }
+          : c),
+      });
+    },
 
     // CASUAL SALES
     addCasualSale: (s: Omit<CasualSale, "id">) => {
@@ -113,12 +234,63 @@ export function useStore() {
     deleteCasualSale: (id: string) =>
       setStore({ ...store, casualSales: store.casualSales.filter((s) => s.id !== id) }),
 
+    // DELIVERIES
+    addDelivery: (d: Omit<Delivery, "id" | "createdAt">) => {
+      const del: Delivery = { ...d, id: uid("d_"), createdAt: nowIso() };
+      setStore({ ...store, deliveries: [del, ...store.deliveries] });
+      return del;
+    },
+    updateDelivery: (id: string, patch: Partial<Delivery>) =>
+      setStore({ ...store, deliveries: store.deliveries.map((d) => d.id === id ? { ...d, ...patch } : d) }),
+    deleteDelivery: (id: string) =>
+      setStore({ ...store, deliveries: store.deliveries.filter((d) => d.id !== id) }),
+
+    // BACKUP
+    exportJson: () => JSON.stringify(store, null, 2),
+    importJson: (text: string) => {
+      const parsed = JSON.parse(text);
+      const next = migrate(parsed);
+      setStore(next);
+    },
+    storageInfo: () => {
+      let bytes = 0;
+      if (typeof window !== "undefined") {
+        bytes = new Blob([localStorage.getItem(KEY) ?? ""]).size;
+      }
+      return {
+        bytes,
+        kb: +(bytes / 1024).toFixed(1),
+        counts: {
+          products: store.products.length,
+          clients: store.clients.length,
+          orders: store.orders.length,
+          bundles: store.bundles.length,
+          casualSales: store.casualSales.length,
+          deliveries: store.deliveries.length,
+        },
+      };
+    },
+
     reset: () => {
-      if (typeof window !== "undefined") localStorage.removeItem(KEY);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(KEY);
+        localStorage.removeItem(LEGACY_KEY);
+      }
       cache = null;
       setStore(load());
     },
   };
+}
+
+export function getPin(): string {
+  if (typeof window === "undefined") return DEFAULT_PIN;
+  return localStorage.getItem(PIN_VALUE_KEY) ?? DEFAULT_PIN;
+}
+
+export function setPin(newPin: string) {
+  if (typeof window === "undefined") return;
+  if (!/^\d{4}$/.test(newPin)) throw new Error("Il PIN deve essere di 4 cifre");
+  localStorage.setItem(PIN_VALUE_KEY, newPin);
 }
 
 export function useAuth() {
@@ -129,7 +301,7 @@ export function useAuth() {
   return {
     authed,
     login: (pin: string) => {
-      if (pin === "0000") {
+      if (pin === getPin()) {
         localStorage.setItem(PIN_KEY, "1");
         setAuthed(true);
         return true;

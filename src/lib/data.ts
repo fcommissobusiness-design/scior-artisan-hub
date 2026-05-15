@@ -11,6 +11,12 @@ export type ProductCategory =
   | "Bevande"
   | "Vini";
 
+export interface PriceChange {
+  date: string; // ISO
+  cost: number | null;
+  price: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -21,6 +27,17 @@ export interface Product {
   active: boolean;
   badge?: "DOP" | "IGP" | "DOC" | "DOCG" | "BIO";
   notes?: string;
+  available?: boolean;     // disponibilità reale a scaffale
+  seasonal?: boolean;
+  magnet?: boolean;        // prodotto magnete / civetta
+  priceHistory?: PriceChange[];
+}
+
+export interface LoyaltyEvent {
+  date: string; // ISO
+  type: "stamp" | "reward" | "reset" | "manual";
+  delta?: number;
+  note?: string;
 }
 
 export interface Client {
@@ -28,10 +45,16 @@ export interface Client {
   name: string;
   phone: string;
   segment: Segment;
+  segmentManual?: boolean;     // se true, non sovrascrivere segmento auto
   lastOrder?: string;
   firstOrder?: string;
   stamps: number;
+  loyaltyHistory?: LoyaltyEvent[];
   notes?: string;
+  preferredProducts?: string[]; // productId
+  preferredTimeSlot?: string;   // es. "Mattina presto"
+  deliveryZone?: string;
+  tags?: string[];
 }
 
 export interface OrderItem {
@@ -39,7 +62,14 @@ export interface OrderItem {
   qty: number;
 }
 
-export type OrderStatus = "in_attesa" | "ritirato" | "annullato";
+export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "annullato";
+export type OrderSource = "negozio" | "whatsapp" | "telefono" | "consegna" | "altro";
+
+export interface OrderEvent {
+  date: string; // ISO
+  type: "creato" | "modificato" | "pronto" | "ritirato" | "annullato" | "consegna";
+  note?: string;
+}
 
 export interface Order {
   id: string;
@@ -51,6 +81,9 @@ export interface Order {
   notes?: string;
   total: number;
   createdAt: string;
+  source?: OrderSource;
+  timeline?: OrderEvent[];
+  deliveryId?: string;
 }
 
 export interface Bundle {
@@ -59,9 +92,14 @@ export interface Bundle {
   ingredients: string[];
   fullPrice: number;
   offerPrice: number | null;
-  estimatedCost?: number; // costo stimato bundle (opzionale, per margine)
+  estimatedCost?: number;
   availability: string;
   active: boolean;
+  startDate?: string;
+  endDate?: string;
+  channel?: string;          // es. "WhatsApp broadcast", "Vetrina"
+  targetSegment?: Segment;
+  goal?: string;             // es. "Riattivare inattivi"
 }
 
 export interface CasualSale {
@@ -69,9 +107,25 @@ export interface CasualSale {
   date: string; // ISO datetime
   items: OrderItem[];
   total: number;
-  clientId?: string; // se collegato
-  clientNameInput?: string; // ciò che ha digitato l'utente
+  clientId?: string;
+  clientNameInput?: string;
   notes?: string;
+}
+
+export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";
+export type DeliveryPayment = "da_pagare" | "pagato_anticipo" | "pagato_consegna";
+
+export interface Delivery {
+  id: string;
+  clientId: string;
+  address: string;
+  timeSlot: string; // es. "10:00-12:00"
+  date: string;     // ISO date
+  status: DeliveryStatus;
+  payment: DeliveryPayment;
+  orderId?: string;
+  notes?: string;
+  createdAt: string;
 }
 
 export const SEGMENT_META: Record<Segment, { label: string; mode: string; color: string }> = {
@@ -93,6 +147,7 @@ const p = (
 ): Product => ({
   id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
   name, category, cost, price, unit, active, badge,
+  available: true, seasonal: false, magnet: false,
 });
 
 export const SEED_PRODUCTS: Product[] = [
@@ -154,7 +209,7 @@ export const SEED_PRODUCTS: Product[] = [
 ];
 
 export const SEED_CLIENTS: Client[] = [
-  { id: "c1", name: "Maria Rossi", phone: "+39 333 1112233", segment: "top", stamps: 4, lastOrder: "2026-05-12", firstOrder: "2018-04-10", notes: "Preferisce mozzarella mattina presto" },
+  { id: "c1", name: "Maria Rossi", phone: "+39 333 1112233", segment: "top", stamps: 4, lastOrder: "2026-05-12", firstOrder: "2018-04-10", notes: "Preferisce mozzarella mattina presto", preferredTimeSlot: "08:30-10:00" },
   { id: "c2", name: "Giuseppe Bianchi", phone: "+39 333 2223344", segment: "top", stamps: 3, lastOrder: "2026-05-13", firstOrder: "2019-09-21" },
   { id: "c3", name: "Anna Esposito", phone: "+39 333 3334455", segment: "top", stamps: 5, lastOrder: "2026-05-11", firstOrder: "2010-01-15", notes: "Cliente storica dal 2010" },
   { id: "c4", name: "Luca Ferrara", phone: "+39 333 4445566", segment: "abituali", stamps: 2, lastOrder: "2026-05-10", firstOrder: "2022-03-08" },
@@ -165,11 +220,11 @@ export const SEED_CLIENTS: Client[] = [
 ];
 
 export const SEED_BUNDLES: Bundle[] = [
-  { id: "b1",  name: "I Monti Bianchi",        ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 7.40, availability: "Sempre attivo", active: true },
-  { id: "b2",  name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.00, availability: "Sempre attivo", active: true },
+  { id: "b1",  name: "I Monti Bianchi",        ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 7.40, availability: "Sempre attivo", active: true, channel: "Vetrina", targetSegment: "abituali" },
+  { id: "b2",  name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.00, availability: "Sempre attivo", active: true, channel: "Banco + WhatsApp", targetSegment: "top" },
   { id: "b3",  name: "La Tavola da Pranzo",    ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 250g"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.20, availability: "Venerdì e Sabato", active: true },
   { id: "b4",  name: "Freschi Senza Lattosio", ingredients: ["Mozzarella s/lattosio 500g", "Ricotta pecora 2pz", "Marzolina pecora bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.50, availability: "Sempre attivo", active: true },
-  { id: "b5",  name: "Il Panino dello Chef",   ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.10, availability: "Martedì e Giovedì", active: true },
+  { id: "b5",  name: "Il Panino dello Chef",   ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.10, availability: "Martedì e Giovedì", active: true, channel: "Banco pranzo", targetSegment: "occasionali" },
   { id: "b6",  name: "Il Banco dello Chef",    ingredients: ["Ricotta bufala 250g", "Pasta di Gragnano 2 formati", "Marzolina condita 1pz"], fullPrice: 12.60, offerPrice: 9.90, estimatedCost: 8.00, availability: "Venerdì e Sabato", active: true },
   { id: "b7",  name: "La Bufala Pontina",      ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 250g", "Taralli 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 10.00, availability: "Weekend", active: true },
   { id: "b8",  name: "La Merenda di Sciorio",  ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli 1pz", "Chianti 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: 11.00, availability: "Martedì e Giovedì", active: true },
@@ -187,11 +242,11 @@ const isoToday = (h: number, m: number, dayOffset = 0) => {
 };
 
 export const SEED_ORDERS: Order[] = [
-  { id: "o1", clientId: "c1", label: "Ordine settimanale", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1 }, { productId: "ricotta-di-bufala", qty: 2 }], pickupDate: isoToday(10, 30), status: "in_attesa", total: 18.20, createdAt: new Date().toISOString(), notes: "Confezione regalo" },
-  { id: "o2", clientId: "c3", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.5 }, { productId: "pane-casareccio-d-alise", qty: 0.5 }], pickupDate: isoToday(11, 0), status: "in_attesa", total: 9.0, createdAt: new Date().toISOString() },
-  { id: "o3", clientId: "c4", items: [{ productId: "provolone-del-monaco-dop", qty: 0.3 }, { productId: "salame-napoli", qty: 0.2 }], pickupDate: isoToday(17, 30), status: "in_attesa", total: 13.6, createdAt: new Date().toISOString() },
-  { id: "o4", clientId: "c2", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1.5 }], pickupDate: isoToday(9, 0), status: "ritirato", total: 22.5, createdAt: new Date().toISOString() },
-  { id: "o5", clientId: "c5", items: [{ productId: "ricotta-di-bufala", qty: 3 }, { productId: "mortadella", qty: 0.3 }], pickupDate: isoToday(12, 0, -2), status: "ritirato", total: 9.15, createdAt: new Date().toISOString() },
+  { id: "o1", clientId: "c1", label: "Ordine settimanale", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1 }, { productId: "ricotta-di-bufala", qty: 2 }], pickupDate: isoToday(10, 30), status: "in_attesa", total: 18.20, createdAt: new Date().toISOString(), notes: "Confezione regalo", source: "whatsapp" },
+  { id: "o2", clientId: "c3", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.5 }, { productId: "pane-casareccio-d-alise", qty: 0.5 }], pickupDate: isoToday(11, 0), status: "in_attesa", total: 9.0, createdAt: new Date().toISOString(), source: "negozio" },
+  { id: "o3", clientId: "c4", items: [{ productId: "provolone-del-monaco-dop", qty: 0.3 }, { productId: "salame-napoli", qty: 0.2 }], pickupDate: isoToday(17, 30), status: "pronto", total: 13.6, createdAt: new Date().toISOString(), source: "telefono" },
+  { id: "o4", clientId: "c2", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1.5 }], pickupDate: isoToday(9, 0), status: "ritirato", total: 22.5, createdAt: new Date().toISOString(), source: "negozio" },
+  { id: "o5", clientId: "c5", items: [{ productId: "ricotta-di-bufala", qty: 3 }, { productId: "mortadella", qty: 0.3 }], pickupDate: isoToday(12, 0, -2), status: "ritirato", total: 9.15, createdAt: new Date().toISOString(), source: "negozio" },
 ];
 
 export const SEED_CASUAL_SALES: CasualSale[] = [
@@ -199,9 +254,18 @@ export const SEED_CASUAL_SALES: CasualSale[] = [
   { id: "s2", date: isoToday(11, 15), items: [{ productId: "ricotta-di-bufala", qty: 1 }, { productId: "tarallini-classici-all-olio-di-costanzo", qty: 1 }], total: 4.8 },
 ];
 
+export const SEED_DELIVERIES: Delivery[] = [
+  { id: "d1", clientId: "c1", address: "Via Roma 12, Santi Cosma e Damiano", timeSlot: "10:00-12:00", date: isoToday(10, 0), status: "da_preparare", payment: "da_pagare", orderId: "o1", createdAt: new Date().toISOString() },
+];
+
 export function calcMargin(p: Product): number | null {
   if (p.cost == null || p.price === 0) return null;
   return ((p.price - p.cost) / p.price) * 100;
+}
+
+export function calcMarginEur(p: Product): number | null {
+  if (p.cost == null) return null;
+  return p.price - p.cost;
 }
 
 export function bundleMargin(b: Bundle): { pct: number | null; eur: number | null } {
