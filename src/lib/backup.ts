@@ -145,6 +145,31 @@ export function exportPayments(payments: SupplierPayment[], suppliers: Supplier[
   })));
 }
 
+export function exportFreshLogs(logs: FreshLog[], products: Product[]) {
+  downloadCsv("freschi-giornaliero", logs.map((l) => ({
+    id: l.id, data: l.date, prodotto: productName(products, l.productId),
+    inizio: l.qtyStart, vendute: l.qtySold, recuperato: l.qtyRecovered,
+    scarto: l.qtyDiscarded, rimasto: l.qtyLeft ?? "", note: l.notes ?? "",
+  })));
+}
+
+export function exportUnsold(entries: UnsoldEntry[], products: Product[]) {
+  downloadCsv("invenduto", entries.map((e) => ({
+    id: e.id, data: e.date, prodotto: productName(products, e.productId),
+    quantita: e.qty, destinazione: UNSOLD_DESTINATION_LABEL[e.destination],
+    valorePerso: (e.valueLost ?? 0).toFixed(2),
+    valoreRecuperato: (e.valueRecovered ?? 0).toFixed(2),
+    boxTgtg: e.tgtgBoxes ?? "", note: e.notes ?? "",
+  })));
+}
+
+export function exportSpecialDays(days: SpecialDay[]) {
+  downloadCsv("giorni-speciali", days.map((s) => ({
+    id: s.id, data: s.date, nome: s.name, impatto: s.impact,
+    moltiplicatore: s.multiplier, note: s.notes ?? "",
+  })));
+}
+
 // ============ JSON BACKUP COMPLETO ============
 
 export interface FullBackup {
