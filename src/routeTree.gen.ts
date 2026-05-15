@@ -20,6 +20,7 @@ import { Route as IncassiRouteImport } from './routes/incassi'
 import { Route as FornitoriRouteImport } from './routes/fornitori'
 import { Route as FiscaleRouteImport } from './routes/fiscale'
 import { Route as FinanzaRouteImport } from './routes/finanza'
+import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as B2bRouteImport } from './routes/b2b'
@@ -81,6 +82,11 @@ const FinanzaRoute = FinanzaRouteImport.update({
   path: '/finanza',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EntrateMerciRoute = EntrateMerciRouteImport.update({
+  id: '/entrate-merci',
+  path: '/entrate-merci',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConsegneRoute = ConsegneRouteImport.update({
   id: '/consegne',
   path: '/consegne',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/fornitori': typeof FornitoriRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/fornitori': typeof FornitoriRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/b2b': typeof B2bRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/fornitori': typeof FornitoriRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
     | '/fornitori'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
     | '/fornitori'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/b2b'
     | '/clienti'
     | '/consegne'
+    | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
     | '/fornitori'
@@ -225,6 +237,7 @@ export interface RootRouteChildren {
   B2bRoute: typeof B2bRoute
   ClientiRoute: typeof ClientiRoute
   ConsegneRoute: typeof ConsegneRoute
+  EntrateMerciRoute: typeof EntrateMerciRoute
   FinanzaRoute: typeof FinanzaRoute
   FiscaleRoute: typeof FiscaleRoute
   FornitoriRoute: typeof FornitoriRoute
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanzaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/entrate-merci': {
+      id: '/entrate-merci'
+      path: '/entrate-merci'
+      fullPath: '/entrate-merci'
+      preLoaderRoute: typeof EntrateMerciRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/consegne': {
       id: '/consegne'
       path: '/consegne'
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   B2bRoute: B2bRoute,
   ClientiRoute: ClientiRoute,
   ConsegneRoute: ConsegneRoute,
+  EntrateMerciRoute: EntrateMerciRoute,
   FinanzaRoute: FinanzaRoute,
   FiscaleRoute: FiscaleRoute,
   FornitoriRoute: FornitoriRoute,
