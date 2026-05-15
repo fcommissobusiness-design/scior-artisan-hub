@@ -3,12 +3,12 @@ import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
-  SEED_GOODS_RECEIPTS,
+  SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
-  type GoodsReceipt,
+  type GoodsReceipt, type FixedCost,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -35,6 +35,7 @@ interface Store {
   specialDays: SpecialDay[];
   businessHours: BusinessHours;
   goodsReceipts: GoodsReceipt[];
+  fixedCosts: FixedCost[];
 }
 
 const SEED: Store = {
@@ -54,6 +55,7 @@ const SEED: Store = {
   specialDays: SEED_SPECIAL_DAYS,
   businessHours: DEFAULT_BUSINESS_HOURS,
   goodsReceipts: SEED_GOODS_RECEIPTS,
+  fixedCosts: SEED_FIXED_COSTS,
 };
 
 function migrate(parsed: any): Store {
@@ -85,6 +87,7 @@ function migrate(parsed: any): Store {
     specialDays: parsed.specialDays ?? SEED.specialDays,
     businessHours: parsed.businessHours ?? SEED.businessHours,
     goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
+    fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
   };
   return out;
 }
@@ -463,7 +466,17 @@ export function useStore() {
       setStore(next);
     },
 
-    // BACKUP
+    // FIXED COSTS
+    addFixedCost: (f: Omit<FixedCost, "id">) => {
+      const fc: FixedCost = { ...f, id: uid("fc_") };
+      setStore({ ...store, fixedCosts: [fc, ...store.fixedCosts] });
+      return fc;
+    },
+    updateFixedCost: (id: string, patch: Partial<FixedCost>) =>
+      setStore({ ...store, fixedCosts: store.fixedCosts.map((f) => f.id === id ? { ...f, ...patch } : f) }),
+    deleteFixedCost: (id: string) =>
+      setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
+
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
