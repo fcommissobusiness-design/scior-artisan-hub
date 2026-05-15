@@ -65,6 +65,18 @@ function Dashboard() {
   );
   const saldoNetto = marginM - payM + (cashM.in - cashM.out);
 
+  // CRM mese
+  const crmSettings = useMemo(() => loadCrmSettings(), []);
+  const inMonthIso = (iso: string) => {
+    const d = new Date(iso), n = new Date();
+    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
+  };
+  const nuoviMese = useMemo(() => newClientsInPeriod(clients, inMonthIso), [clients]);
+  const recuperabili = useMemo(() => recoverableClients(orders, casualSales, clients, crmSettings), [orders, casualSales, clients, crmSettings]);
+  const upgradeMese = useMemo(() => segmentChangesInPeriod(clients, inMonthIso), [clients]);
+  const topSp = useMemo(() => topSpenders(orders, casualSales, clients, 5), [orders, casualSales, clients]);
+  const viciniPremio = useMemo(() => nearLoyaltyClients(clients), [clients]);
+
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
 
