@@ -10,10 +10,24 @@ import { CopyBtn } from "@/components/QuickActions";
 export const Route = createFileRoute("/fornitori")({ component: FornitoriPage });
 
 function FornitoriPage() {
-  const { suppliers, products, addSupplier, updateSupplier, deleteSupplier } = useStore();
+  const { suppliers, products, goodsReceipts, addSupplier, updateSupplier, deleteSupplier } = useStore();
+  const navigate = useNavigate();
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [q, setQ] = useState("");
+
+  // Stats derivate per fornitore dalle entrate merci
+  const stats = useMemo(() => {
+    const map = new Map<string, { total: number; lastDate: string | undefined; count: number }>();
+    for (const r of goodsReceipts) {
+      const cur = map.get(r.supplierId) ?? { total: 0, lastDate: undefined, count: 0 };
+      cur.total += r.documentTotal ?? calcReceiptTotal(r);
+      cur.count += 1;
+      if (!cur.lastDate || r.date > cur.lastDate) cur.lastDate = r.date;
+      map.set(r.supplierId, cur);
+    }
+    return map;
+  }, [goodsReceipts]);
 
   const list = suppliers
     .filter(s => !q.trim() || s.name.toLowerCase().includes(q.toLowerCase()) || s.category.toLowerCase().includes(q.toLowerCase()))
