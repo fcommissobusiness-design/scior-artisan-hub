@@ -110,7 +110,7 @@ function ConsegnePage() {
 
       <Fab onClick={() => setOpenNew(true)} />
 
-      {openNew && <DeliverySheet mode="new" onClose={() => setOpenNew(false)} onSave={(d) => { addDelivery(d); setOpenNew(false); }} />}
+      {openNew && <DeliverySheet mode="new" onClose={() => setOpenNew(false)} onSave={(d) => { addDelivery(d as Omit<Delivery,"id"|"createdAt">); setOpenNew(false); }} />}
       {editId && (() => {
         const d = deliveries.find(x => x.id === editId);
         if (!d) return null;
