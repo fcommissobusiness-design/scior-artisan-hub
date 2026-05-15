@@ -2,9 +2,9 @@
 import type {
   Product, Client, Order, Delivery, Supplier, CashEntry,
   Production, SupplierPayment, B2BClient, CasualSale, Bundle,
-  FreshLog, UnsoldEntry, SpecialDay,
+  FreshLog, UnsoldEntry, SpecialDay, GoodsReceipt,
 } from "./data";
-import { UNSOLD_DESTINATION_LABEL } from "./data";
+import { UNSOLD_DESTINATION_LABEL, GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal } from "./data";
 
 const SEP = ";"; // Italian Excel-friendly separator
 const BOM = "\uFEFF"; // UTF-8 BOM for Excel compatibility
@@ -167,6 +167,28 @@ export function exportSpecialDays(days: SpecialDay[]) {
   downloadCsv("giorni-speciali", days.map((s) => ({
     id: s.id, data: s.date, nome: s.name, impatto: s.impact,
     moltiplicatore: s.multiplier, note: s.notes ?? "",
+  })));
+}
+
+export function exportGoodsReceipts(receipts: GoodsReceipt[], suppliers: Supplier[], products: Product[]) {
+  downloadCsv("entrate-merci", receipts.map((r) => ({
+    id: r.id, data: r.date, fornitore: supplierName(suppliers, r.supplierId),
+    stato: GOODS_RECEIPT_STATUS_LABEL[r.status],
+    articoli: r.items.map((i) => `${productName(products, i.productId)} x${i.qty}`).join(" | "),
+    nArticoli: r.items.length,
+    totale: calcReceiptTotal(r).toFixed(2),
+    corriere: r.carrier ?? "",
+    metodoPagamento: r.paymentMethod ?? "",
+    nFattura: r.invoiceNumber ?? "",
+    dataFattura: r.invoiceDate ?? "",
+    nDDT: r.ddtNumber ?? "",
+    imponibile: r.taxableAmount?.toFixed(2) ?? "",
+    iva: r.vatAmount?.toFixed(2) ?? "",
+    totaleDocumento: r.documentTotal?.toFixed(2) ?? "",
+    scadenzaPagamento: r.paymentDueDate ?? "",
+    statoPagamento: r.paymentStatus ? INVOICE_STATUS_LABEL[r.paymentStatus] : "",
+    nAllegati: (r.attachments ?? []).length,
+    note: r.notes ?? "",
   })));
 }
 

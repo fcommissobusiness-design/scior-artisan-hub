@@ -3,10 +3,12 @@ import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
+  SEED_GOODS_RECEIPTS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
+  type GoodsReceipt,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -32,6 +34,7 @@ interface Store {
   unsoldEntries: UnsoldEntry[];
   specialDays: SpecialDay[];
   businessHours: BusinessHours;
+  goodsReceipts: GoodsReceipt[];
 }
 
 const SEED: Store = {
@@ -50,6 +53,7 @@ const SEED: Store = {
   unsoldEntries: SEED_UNSOLD_ENTRIES,
   specialDays: SEED_SPECIAL_DAYS,
   businessHours: DEFAULT_BUSINESS_HOURS,
+  goodsReceipts: SEED_GOODS_RECEIPTS,
 };
 
 function migrate(parsed: any): Store {
@@ -80,6 +84,7 @@ function migrate(parsed: any): Store {
     unsoldEntries: parsed.unsoldEntries ?? [],
     specialDays: parsed.specialDays ?? SEED.specialDays,
     businessHours: parsed.businessHours ?? SEED.businessHours,
+    goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
   };
   return out;
 }
@@ -141,6 +146,28 @@ function applyOrderRitirato(store: Store, order: Order): Store {
     };
   });
   return { ...store, clients };
+}
+
+function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store {
+  const deltaBy = new Map<string, number>();
+  for (const it of rec.items) {
+    deltaBy.set(it.productId, (deltaBy.get(it.productId) ?? 0) + sign * it.qty);
+  }
+  return {
+    ...store,
+    products: store.products.map((p) => {
+      const d = deltaBy.get(p.id);
+      if (!d) return p;
+      const cur = p.stock ?? 0;
+      const nextStock = Math.max(0, +(cur + d).toFixed(3));
+      return {
+        ...p,
+        stock: nextStock,
+        supplierId: sign > 0 ? rec.supplierId : p.supplierId,
+        lastRestock: sign > 0 ? rec.date : p.lastRestock,
+      };
+    }),
+  };
 }
 
 export function useStore() {
@@ -402,6 +429,40 @@ export function useStore() {
     // BUSINESS HOURS
     setBusinessHours: (h: BusinessHours) => setStore({ ...store, businessHours: h }),
 
+    // GOODS RECEIPTS
+    addGoodsReceipt: (r: Omit<GoodsReceipt, "id" | "createdAt">) => {
+      const rec: GoodsReceipt = { ...r, id: uid("gr_"), createdAt: nowIso() };
+      let next: Store = { ...store, goodsReceipts: [rec, ...store.goodsReceipts] };
+      // Aggiorna stock prodotti se ricevuta/verificata/archiviata
+      if (rec.status !== "attesa") next = applyReceiptStock(next, rec, +1);
+      // Aggiorna lastOrderDate fornitore
+      next = {
+        ...next,
+        suppliers: next.suppliers.map((s) =>
+          s.id === rec.supplierId ? { ...s, lastOrderDate: rec.date } : s),
+      };
+      setStore(next);
+      return rec;
+    },
+    updateGoodsReceipt: (id: string, patch: Partial<GoodsReceipt>) => {
+      const prev = store.goodsReceipts.find((g) => g.id === id);
+      if (!prev) return;
+      const merged: GoodsReceipt = { ...prev, ...patch };
+      let next: Store = { ...store, goodsReceipts: store.goodsReceipts.map((g) => g.id === id ? merged : g) };
+      const wasReceived = prev.status !== "attesa";
+      const isReceived = merged.status !== "attesa";
+      if (!wasReceived && isReceived) next = applyReceiptStock(next, merged, +1);
+      else if (wasReceived && !isReceived) next = applyReceiptStock(next, prev, -1);
+      setStore(next);
+    },
+    deleteGoodsReceipt: (id: string) => {
+      const prev = store.goodsReceipts.find((g) => g.id === id);
+      if (!prev) return;
+      let next: Store = { ...store, goodsReceipts: store.goodsReceipts.filter((g) => g.id !== id) };
+      if (prev.status !== "attesa") next = applyReceiptStock(next, prev, -1);
+      setStore(next);
+    },
+
     // BACKUP
     exportJson: () => JSON.stringify(store, null, 2),
     importJson: (text: string) => {
@@ -429,6 +490,7 @@ export function useStore() {
           cashEntries: store.cashEntries.length,
           b2bClients: store.b2bClients.length,
           supplierPayments: store.supplierPayments.length,
+          goodsReceipts: store.goodsReceipts.length,
         },
       };
     },

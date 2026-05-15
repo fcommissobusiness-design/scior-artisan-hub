@@ -481,6 +481,102 @@ export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [
   { id: "sp5", date: isoDay(-30), beneficiary: "Marketing Web Srl", beneficiaryType: "consulente", category: "Consulenza marketing", amount: 350.0, method: "bonifico", status: "scaduto", dueDate: isoDay(-5), recurrence: "una_tantum", document: "fattura" },
 ];
 
+// ============= GOODS RECEIPTS / ENTRATE MERCI =============
+
+export type GoodsReceiptStatus = "attesa" | "ricevuta" | "verificata" | "archiviata";
+export type InvoicePaymentStatus = "da_pagare" | "pagato" | "scaduto" | "non_applicabile";
+export type DocumentKind = "fattura" | "ddt" | "ricevuta" | "preventivo" | "altro";
+
+export interface GoodsReceiptItem {
+  productId: string;
+  qty: number;
+  unitCost?: number;
+  notes?: string;
+}
+
+export interface GoodsReceiptAttachment {
+  id: string;       // IndexedDB key
+  name: string;
+  type: string;     // mime
+  size: number;
+  kind?: DocumentKind;
+  addedAt: string;
+}
+
+export interface GoodsReceipt {
+  id: string;
+  date: string;            // ISO datetime ricezione
+  supplierId: string;
+  status: GoodsReceiptStatus;
+  items: GoodsReceiptItem[];
+  totalCost?: number;      // se vuoto, calcolato da items
+  carrier?: string;
+  paymentMethod?: PaymentMethod;
+  notes?: string;
+  // Documento
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  ddtNumber?: string;
+  taxableAmount?: number;  // imponibile
+  vatAmount?: number;      // IVA
+  documentTotal?: number;  // totale documento
+  paymentDueDate?: string;
+  paymentStatus?: InvoicePaymentStatus;
+  attachments?: GoodsReceiptAttachment[];
+  createdAt: string;
+}
+
+export const GOODS_RECEIPT_STATUS_LABEL: Record<GoodsReceiptStatus, string> = {
+  attesa: "In attesa",
+  ricevuta: "Ricevuta",
+  verificata: "Verificata",
+  archiviata: "Archiviata",
+};
+
+export const INVOICE_STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
+  da_pagare: "Da pagare",
+  pagato: "Pagato",
+  scaduto: "Scaduto",
+  non_applicabile: "N/A",
+};
+
+export const SEED_GOODS_RECEIPTS: GoodsReceipt[] = [
+  {
+    id: "gr1", date: isoDay(-1), supplierId: "sup3", status: "verificata",
+    items: [
+      { productId: "pane-casareccio-d-alise", qty: 8, unitCost: 2.0 },
+      { productId: "panini-d-alise", qty: 6, unitCost: 2.5 },
+    ],
+    totalCost: 31.0, carrier: "Consegna diretta", paymentMethod: "contanti",
+    invoiceNumber: "DDT-2026-184", invoiceDate: isoDay(-1),
+    taxableAmount: 28.18, vatAmount: 2.82, documentTotal: 31.0,
+    paymentStatus: "pagato", createdAt: isoDay(-1),
+  },
+  {
+    id: "gr2", date: isoDay(-7), supplierId: "sup1", status: "archiviata",
+    items: [{ productId: "salsiccia-paesana-sottovuoto-tucciarone", qty: 5, unitCost: 16.0 }],
+    totalCost: 145.0, paymentMethod: "bonifico",
+    invoiceNumber: "F-2026-0098", invoiceDate: isoDay(-7),
+    taxableAmount: 131.82, vatAmount: 13.18, documentTotal: 145.0,
+    paymentDueDate: isoDay(23), paymentStatus: "pagato", createdAt: isoDay(-7),
+  },
+  {
+    id: "gr3", date: isoDay(-3), supplierId: "sup4", status: "ricevuta",
+    items: [
+      { productId: "latte-intero-latte-sano", qty: 24, unitCost: 1.91 },
+      { productId: "latte-alta-digeribilita-latte-sano", qty: 12, unitCost: 1.91 },
+    ],
+    totalCost: 68.76, paymentMethod: "bonifico",
+    invoiceNumber: "F-LS-2026-412", invoiceDate: isoDay(-3),
+    taxableAmount: 62.51, vatAmount: 6.25, documentTotal: 68.76,
+    paymentDueDate: isoDay(27), paymentStatus: "da_pagare", createdAt: isoDay(-3),
+  },
+];
+
+export function calcReceiptTotal(r: GoodsReceipt): number {
+  if (typeof r.totalCost === "number") return r.totalCost;
+  return r.items.reduce((s, it) => s + (it.unitCost ?? 0) * it.qty, 0);
+}
 
 export function calcMargin(p: Product): number | null {
   if (p.cost == null || p.price === 0) return null;

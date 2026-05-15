@@ -7,7 +7,7 @@ import { makeTimeFrame, inFrame } from "@/lib/timeframe";
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
-  exportFreshLogs, exportUnsold, exportSpecialDays,
+  exportFreshLogs, exportUnsold, exportSpecialDays, exportGoodsReceipts,
   downloadFullBackup, validateBackup, applyBackup,
   maybeAutoBackup, getAutoBackupInfo, downloadAutoBackup, deleteAutoBackup,
   getStorageStats,
@@ -25,6 +25,7 @@ function AdminPage() {
   const {
     orders, casualSales, products, clients, deliveries, suppliers,
     cashEntries, productions, supplierPayments, freshLogs, unsoldEntries, specialDays,
+    goodsReceipts,
     importJson, reset, storageInfo,
   } = store;
   const [openPin, setOpenPin] = useState(false);
@@ -164,6 +165,7 @@ function AdminPage() {
             <CsvBtn label="Freschi giorn." n={freshLogs.length} onClick={() => exportFreshLogs(freshLogs, products)} />
             <CsvBtn label="Invenduto" n={unsoldEntries.length} onClick={() => exportUnsold(unsoldEntries, products)} />
             <CsvBtn label="Giorni speciali" n={specialDays.length} onClick={() => exportSpecialDays(specialDays)} />
+            <CsvBtn label="Entrate merci" n={goodsReceipts.length} onClick={() => exportGoodsReceipts(goodsReceipts, suppliers, products)} />
           </div>
         </section>
 
