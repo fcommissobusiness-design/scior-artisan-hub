@@ -37,6 +37,10 @@ function ClientiPage() {
   useEffect(() => {
     if (search.f === "premi") setFilter("premi");
     if (search.f === "inattivi") setFilter("inattivi");
+    if (search.f === "recuperabili") setFilter("recuperabili");
+    if (search.f === "vicini") setFilter("vicini");
+    if (search.f === "alto") setFilter("alto");
+    if (search.f === "nuovi") setFilter("nuovi");
   }, [search.f]);
 
   const counts = useMemo(() => {
@@ -52,17 +56,24 @@ function ClientiPage() {
       if (!(c.name.toLowerCase().includes(t) || c.phone.includes(q) || (c.tags ?? []).some(x => x.toLowerCase().includes(t)))) return false;
     }
     if (filter === "premi" && (c.stamps ?? 0) < 5) return false;
+    if (filter === "vicini" && (c.stamps ?? 0) !== 4) return false;
     if (filter === "inattivi") {
       const d = daysInactive(orders, casualSales, c);
-      if (d === null || d <= 60) return false;
+      if (d === null || d <= crmSettings.inactiveOccDays) return false;
     }
     if (filter === "caldi") {
       const d = daysInactive(orders, casualSales, c);
       if (d === null || d > 7) return false;
     }
     if (filter === "alto" && clientLTV(orders, casualSales, c.id) < 500) return false;
+    if (filter === "recuperabili" && !recuperabiliSet.has(c.id)) return false;
+    if (filter === "nuovi") {
+      if (!c.firstOrder) return false;
+      const days = (Date.now() - +new Date(c.firstOrder)) / 86400000;
+      if (days > crmSettings.newDays) return false;
+    }
     return true;
-  }), [clients, tab, q, filter, orders, casualSales]);
+  }), [clients, tab, q, filter, orders, casualSales, crmSettings, recuperabiliSet]);
 
   return (
     <div>
