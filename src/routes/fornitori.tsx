@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, Sheet, Field, Fab, formatDate } from "@/components/AppShell";
+import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/AppShell";
 import type { Supplier } from "@/lib/data";
+import { calcReceiptTotal } from "@/lib/data";
 import { telUrl } from "@/lib/whatsapp";
 import { CopyBtn } from "@/components/QuickActions";
 
