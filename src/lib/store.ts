@@ -3,12 +3,12 @@ import {
   SEED_PRODUCTS, SEED_CLIENTS, SEED_ORDERS, SEED_BUNDLES, SEED_CASUAL_SALES, SEED_DELIVERIES,
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
-  SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS,
+  SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
-  type GoodsReceipt, type FixedCost,
+  type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -36,6 +36,8 @@ interface Store {
   businessHours: BusinessHours;
   goodsReceipts: GoodsReceipt[];
   fixedCosts: FixedCost[];
+  onlineOrders: OnlineOrder[];
+  shipments: Shipment[];
 }
 
 const SEED: Store = {
@@ -56,6 +58,8 @@ const SEED: Store = {
   businessHours: DEFAULT_BUSINESS_HOURS,
   goodsReceipts: SEED_GOODS_RECEIPTS,
   fixedCosts: SEED_FIXED_COSTS,
+  onlineOrders: SEED_ONLINE_ORDERS,
+  shipments: SEED_SHIPMENTS,
 };
 
 function migrate(parsed: any): Store {
@@ -88,6 +92,8 @@ function migrate(parsed: any): Store {
     businessHours: parsed.businessHours ?? SEED.businessHours,
     goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
     fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
+    onlineOrders: parsed.onlineOrders ?? SEED.onlineOrders,
+    shipments: parsed.shipments ?? SEED.shipments,
   };
   return out;
 }
@@ -169,6 +175,23 @@ function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store
         supplierId: sign > 0 ? rec.supplierId : p.supplierId,
         lastRestock: sign > 0 ? rec.date : p.lastRestock,
       };
+    }),
+  };
+}
+
+function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Store {
+  const deltaBy = new Map<string, number>();
+  for (const it of o.items) {
+    if (!it.productId) continue;
+    deltaBy.set(it.productId, (deltaBy.get(it.productId) ?? 0) + sign * it.qty);
+  }
+  if (deltaBy.size === 0) return store;
+  return {
+    ...store,
+    products: store.products.map((p) => {
+      const d = deltaBy.get(p.id);
+      if (!d || p.stock === undefined) return p;
+      return { ...p, stock: Math.max(0, +(p.stock + d).toFixed(3)) };
     }),
   };
 }
@@ -477,7 +500,61 @@ export function useStore() {
     deleteFixedCost: (id: string) =>
       setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
 
-    exportJson: () => JSON.stringify(store, null, 2),
+    // ONLINE ORDERS
+    addOnlineOrder: (o: Omit<OnlineOrder, "id" | "createdAt">) => {
+      const order: OnlineOrder = { ...o, id: uid("eo_"), createdAt: nowIso() };
+      let next: Store = { ...store, onlineOrders: [order, ...store.onlineOrders] };
+      if (order.status === "spedito" || order.status === "consegnato") {
+        next = applyOnlineOrderStock(next, order, -1);
+      }
+      setStore(next);
+      return order;
+    },
+    addOnlineOrders: (orders: Omit<OnlineOrder, "id" | "createdAt">[]) => {
+      const made: OnlineOrder[] = orders.map((o) => ({ ...o, id: uid("eo_"), createdAt: nowIso() }));
+      let next: Store = { ...store, onlineOrders: [...made, ...store.onlineOrders] };
+      for (const o of made) {
+        if (o.status === "spedito" || o.status === "consegnato") next = applyOnlineOrderStock(next, o, -1);
+      }
+      setStore(next);
+      return made;
+    },
+    updateOnlineOrder: (id: string, patch: Partial<OnlineOrder>) => {
+      const prev = store.onlineOrders.find((o) => o.id === id);
+      if (!prev) return;
+      const merged: OnlineOrder = { ...prev, ...patch };
+      let next: Store = { ...store, onlineOrders: store.onlineOrders.map((o) => o.id === id ? merged : o) };
+      const wasOut = prev.status === "spedito" || prev.status === "consegnato";
+      const isOut = merged.status === "spedito" || merged.status === "consegnato";
+      if (!wasOut && isOut) next = applyOnlineOrderStock(next, merged, -1);
+      else if (wasOut && !isOut) next = applyOnlineOrderStock(next, prev, +1);
+      setStore(next);
+    },
+    deleteOnlineOrder: (id: string) => {
+      const prev = store.onlineOrders.find((o) => o.id === id);
+      if (!prev) return;
+      let next: Store = {
+        ...store,
+        onlineOrders: store.onlineOrders.filter((o) => o.id !== id),
+        shipments: store.shipments.filter((sh) => sh.orderId !== id),
+      };
+      if (prev.status === "spedito" || prev.status === "consegnato") {
+        next = applyOnlineOrderStock(next, prev, +1);
+      }
+      setStore(next);
+    },
+
+    // SHIPMENTS
+    addShipment: (sh: Omit<Shipment, "id" | "createdAt">) => {
+      const s: Shipment = { ...sh, id: uid("sh_"), createdAt: nowIso() };
+      setStore({ ...store, shipments: [s, ...store.shipments] });
+      return s;
+    },
+    updateShipment: (id: string, patch: Partial<Shipment>) =>
+      setStore({ ...store, shipments: store.shipments.map((s) => s.id === id ? { ...s, ...patch } : s) }),
+    deleteShipment: (id: string) =>
+      setStore({ ...store, shipments: store.shipments.filter((s) => s.id !== id) }),
+
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
       const next = migrate(parsed);

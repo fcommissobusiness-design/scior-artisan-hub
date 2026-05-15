@@ -8,6 +8,7 @@ import {
   monthlyFixedCostsTotal, fixedCostsByCategory, topFixedCosts,
   variableCostsMonth, goodsReceiptsMonth, paymentsPaidMonth, dueSoonPayments,
   forecastMonth, marginByCategoryMonth, topSuppliersByCost, topConsultantsByCost,
+  ecomRevenueMonth, ecomMarginMonth, ecomShippingCostMonth, ecomCogsMonth,
 } from "@/lib/metrics";
 import {
   FIXED_COST_CATEGORIES, type FixedCost, type FixedCostCategory,
@@ -33,11 +34,15 @@ function FinanzaPage() {
 
   const revOrdersMonth = s.orders.filter(o => o.status === "ritirato" && inMonth(o.pickupDate)).reduce((a, o) => a + o.total, 0);
   const revSalesMonth = s.casualSales.filter(x => inMonth(x.date)).reduce((a, x) => a + x.total, 0);
-  const monthRevenue = revOrdersMonth + revSalesMonth;
+  const ecomRev = ecomRevenueMonth(s.onlineOrders, today);
+  const ecomMargin = ecomMarginMonth(s.onlineOrders, s.products, today);
+  const ecomShipping = ecomShippingCostMonth(s.onlineOrders, today);
+  const ecomCogs = ecomCogsMonth(s.onlineOrders, s.products, today);
+  const monthRevenue = revOrdersMonth + revSalesMonth + ecomRev;
   const b2bMonth = s.b2bClients.flatMap(c => c.history).filter(h => inMonth(h.date)).reduce((a, h) => a + h.total, 0);
 
-  // Margine lordo
-  const margin = grossMargin(s.orders, s.casualSales, s.products, inMonth);
+  // Margine lordo (negozio + scontrini + online)
+  const margin = grossMargin(s.orders, s.casualSales, s.products, inMonth) + ecomMargin;
 
   // Cassa
   const monthCash = cashFlowMonth(s.cashEntries, today);
@@ -50,15 +55,16 @@ function FinanzaPage() {
   const dueSoon = dueSoonPayments(s.supplierPayments, 7);
   const byType = paymentsByType(s.supplierPayments, today);
 
-  // Costi fissi & variabili
+  // Costi fissi & variabili (include COGS online + spedizioni)
   const fixedMonth = monthlyFixedCostsTotal(s.fixedCosts);
   const fixedByCat = fixedCostsByCategory(s.fixedCosts);
   const topFixed = topFixedCosts(s.fixedCosts, 5);
-  const varMonth = variableCostsMonth(s.orders, s.casualSales, s.products, s.unsoldEntries, today);
+  const varBase = variableCostsMonth(s.orders, s.casualSales, s.products, s.unsoldEntries, today);
+  const varMonth = { ...varBase, total: varBase.total + ecomCogs + ecomShipping };
   const receiptsMonth = goodsReceiptsMonth(s.goodsReceipts, today);
 
   // Utile stimato
-  const netEstimate = margin - fixedMonth - varMonth.unsoldLoss;
+  const netEstimate = margin - fixedMonth - varBase.unsoldLoss;
 
   // Previsione
   const forecast = forecastMonth({

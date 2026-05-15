@@ -622,3 +622,126 @@ export function bundleMargin(b: Bundle): { pct: number | null; eur: number | nul
   const eur = price - b.estimatedCost;
   return { pct: (eur / price) * 100, eur };
 }
+
+// ============= E-COMMERCE =============
+
+export type EcomPlatform = "shopify" | "woocommerce" | "altro";
+export type EcomOrderStatus = "ricevuto" | "in_preparazione" | "spedito" | "consegnato" | "annullato";
+export type EcomPaymentStatus = "pagato" | "da_pagare" | "rimborsato";
+
+export interface OnlineOrderItem { productId: string; qty: number; unitPrice?: number; nameRaw?: string; }
+
+export interface OnlineOrder {
+  id: string;
+  date: string;                 // ISO
+  platform: EcomPlatform;
+  externalNumber: string;       // numero ordine piattaforma
+  customerName: string;
+  email?: string;
+  phone?: string;
+  shippingAddress?: string;
+  items: OnlineOrderItem[];
+  total: number;
+  estimatedCost?: number;       // costo prodotti stimato
+  status: EcomOrderStatus;
+  paymentStatus: EcomPaymentStatus;
+  shippingCost?: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export type ShipmentStatus = "da_preparare" | "affidata" | "in_transito" | "consegnata" | "problema";
+
+export interface Shipment {
+  id: string;
+  orderId: string;              // OnlineOrder.id
+  customerName: string;
+  address: string;
+  carrier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  shippingCost?: number;
+  status: ShipmentStatus;
+  shippedDate?: string;
+  expectedDelivery?: string;
+  deliveredDate?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export const ECOM_ORDER_STATUS_LABEL: Record<EcomOrderStatus, string> = {
+  ricevuto: "Ricevuto",
+  in_preparazione: "In preparazione",
+  spedito: "Spedito",
+  consegnato: "Consegnato",
+  annullato: "Annullato",
+};
+
+export const ECOM_PAYMENT_STATUS_LABEL: Record<EcomPaymentStatus, string> = {
+  pagato: "Pagato",
+  da_pagare: "Da pagare",
+  rimborsato: "Rimborsato",
+};
+
+export const SHIPMENT_STATUS_LABEL: Record<ShipmentStatus, string> = {
+  da_preparare: "Da preparare",
+  affidata: "Affidata corriere",
+  in_transito: "In transito",
+  consegnata: "Consegnata",
+  problema: "Problema",
+};
+
+export const ECOM_PLATFORM_LABEL: Record<EcomPlatform, string> = {
+  shopify: "Shopify",
+  woocommerce: "WooCommerce",
+  altro: "Altro",
+};
+
+export const SEED_ONLINE_ORDERS: OnlineOrder[] = [
+  {
+    id: "eo1", date: isoDay(-2), platform: "shopify", externalNumber: "#1042",
+    customerName: "Giulia Romano", email: "giulia.r@email.it", phone: "+39 333 1234567",
+    shippingAddress: "Via Verdi 12, 00100 Roma RM",
+    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 2, unitPrice: 15 }],
+    total: 38.5, estimatedCost: 21, shippingCost: 8.5,
+    status: "spedito", paymentStatus: "pagato", createdAt: isoDay(-2),
+  },
+  {
+    id: "eo2", date: isoDay(-1), platform: "woocommerce", externalNumber: "WC-2587",
+    customerName: "Marco Bianchi", email: "m.bianchi@email.it", phone: "+39 339 7654321",
+    shippingAddress: "Via Roma 5, 80100 Napoli NA",
+    items: [
+      { productId: "ricotta-di-bufala", qty: 4, unitPrice: 1.6 },
+      { productId: "mozzarella-di-bufala-campana-dop", qty: 1, unitPrice: 15 },
+    ],
+    total: 28.4, estimatedCost: 14.5, shippingCost: 7,
+    status: "in_preparazione", paymentStatus: "pagato", createdAt: isoDay(-1),
+  },
+  {
+    id: "eo3", date: isoDay(0), platform: "shopify", externalNumber: "#1043",
+    customerName: "Anna Ferrari", email: "anna.f@email.it",
+    shippingAddress: "Corso Italia 88, 20100 Milano MI",
+    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1, unitPrice: 15 }],
+    total: 22, estimatedCost: 10.5, shippingCost: 7,
+    status: "ricevuto", paymentStatus: "pagato", createdAt: isoDay(0),
+  },
+];
+
+export const SEED_SHIPMENTS: Shipment[] = [
+  {
+    id: "sh1", orderId: "eo1", customerName: "Giulia Romano",
+    address: "Via Verdi 12, 00100 Roma RM",
+    carrier: "BRT", trackingNumber: "BRT12345678",
+    trackingUrl: "https://vas.brt.it/vas/sped_det_show.htm?Nspediz=BRT12345678",
+    shippingCost: 8.5, status: "in_transito",
+    shippedDate: isoDay(-2), expectedDelivery: isoDay(1), createdAt: isoDay(-2),
+  },
+];
+
+export function calcOnlineOrderCost(o: OnlineOrder, products: Product[]): number {
+  if (typeof o.estimatedCost === "number") return o.estimatedCost;
+  return o.items.reduce((s, it) => {
+    const p = products.find((x) => x.id === it.productId);
+    return s + (p?.cost ?? 0) * it.qty;
+  }, 0);
+}
