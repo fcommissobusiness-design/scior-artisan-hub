@@ -68,7 +68,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "annullato";
-export type OrderSource = "negozio" | "whatsapp" | "telefono" | "consegna" | "altro";
+export type OrderSource = "negozio" | "whatsapp" | "telefono" | "consegna" | "sito" | "b2b" | "altro";
 
 export interface OrderEvent {
   date: string; // ISO
