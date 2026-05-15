@@ -109,6 +109,8 @@ function setStore(next: Store) {
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const nowIso = () => new Date().toISOString();
 
+let crmAutoRan = false;
+
 function applyOrderRitirato(store: Store, order: Order): Store {
   // aggiorna stamps cliente, lastOrder, loyaltyHistory
   const clients = store.clients.map((c) => {
