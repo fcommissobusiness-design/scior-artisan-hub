@@ -185,7 +185,23 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* RITIRI OGGI */}
+        {/* CRM */}
+        <section>
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground">CRM mese</h2>
+            <Link to="/clienti" className="text-xs text-brand-gold font-semibold">Tutti i clienti →</Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi to={{ to: "/clienti" }} label="Nuovi mese" value={nuoviMese.length.toString()} sub="primo ordine" />
+            <Kpi to={{ to: "/clienti", search: { f: "recuperabili" } as any }} label="Da recuperare" value={recuperabili.length.toString()} sub="inattivi recenti" danger={recuperabili.length > 0} />
+            <Kpi to={{ to: "/clienti", search: { f: "inattivi" } as any }} label="Inattivi" value={inattivi.length.toString()} sub="oltre soglia" />
+            <Kpi label="Cambi segmento" value={upgradeMese.length.toString()} sub="auto questo mese" />
+            <Kpi to={{ to: "/clienti", search: { f: "premi" } as any }} label="Premi pronti" value={premi.length.toString()} sub="fedeltà completa" highlight={premi.length > 0} />
+            <Kpi to={{ to: "/clienti", search: { f: "vicini" } as any }} label="Vicini al premio" value={viciniPremio.length.toString()} sub="4/5 timbri" />
+            <Kpi to={{ to: "/clienti", search: { f: "alto" } as any }} label="Top spender" value={topSp.length.toString()} sub={topSp[0] ? topSp[0].client.name : "—"} />
+          </div>
+        </section>
+
         <section>
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-display text-xl text-brand-green">Ritiri di oggi</h2>
