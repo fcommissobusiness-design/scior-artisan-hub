@@ -136,6 +136,32 @@ export function useStore() {
     listeners.add(l);
     return () => { listeners.delete(l); };
   }, []);
+  // Auto CRM (segmentazione automatica) — gira una volta per sessione, dopo il caricamento.
+  useEffect(() => {
+    if (crmAutoRan) return;
+    crmAutoRan = true;
+    // Lazy import per evitare cicli
+    Promise.resolve().then(async () => {
+      const { recomputeSegments } = await import("./metrics");
+      const { loadCrmSettings } = await import("./crm-settings");
+      const cur = getStore();
+      const changes = recomputeSegments(cur.clients, cur.orders, cur.casualSales, loadCrmSettings());
+      if (changes.length === 0) return;
+      const byId = new Map(changes.map((c) => [c.clientId, c] as const));
+      setStore({
+        ...cur,
+        clients: cur.clients.map((c) => {
+          const ch = byId.get(c.id);
+          if (!ch) return c;
+          return {
+            ...c,
+            segment: ch.to,
+            loyaltyHistory: [...(c.loyaltyHistory ?? []), ch.event],
+          };
+        }),
+      });
+    });
+  }, []);
   const store = getStore();
   return {
     ...store,
