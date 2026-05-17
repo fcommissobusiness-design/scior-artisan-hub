@@ -102,6 +102,9 @@ function migrate(parsed: any): Store {
     fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
     onlineOrders: parsed.onlineOrders ?? SEED.onlineOrders,
     shipments: parsed.shipments ?? SEED.shipments,
+    lots: parsed.lots ?? SEED.lots,
+    haccpReadings: parsed.haccpReadings ?? SEED.haccpReadings,
+    cleaningTasks: parsed.cleaningTasks ?? SEED.cleaningTasks,
   };
   return out;
 }
