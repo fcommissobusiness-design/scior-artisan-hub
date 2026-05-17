@@ -4,11 +4,13 @@ import {
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
+  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
   type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
+  type Lot, type HaccpReading, type CleaningTask,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -38,6 +40,9 @@ interface Store {
   fixedCosts: FixedCost[];
   onlineOrders: OnlineOrder[];
   shipments: Shipment[];
+  lots: Lot[];
+  haccpReadings: HaccpReading[];
+  cleaningTasks: CleaningTask[];
 }
 
 const SEED: Store = {
@@ -60,6 +65,9 @@ const SEED: Store = {
   fixedCosts: SEED_FIXED_COSTS,
   onlineOrders: SEED_ONLINE_ORDERS,
   shipments: SEED_SHIPMENTS,
+  lots: SEED_LOTS,
+  haccpReadings: SEED_HACCP_READINGS,
+  cleaningTasks: SEED_CLEANING_TASKS,
 };
 
 function migrate(parsed: any): Store {
@@ -94,6 +102,9 @@ function migrate(parsed: any): Store {
     fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
     onlineOrders: parsed.onlineOrders ?? SEED.onlineOrders,
     shipments: parsed.shipments ?? SEED.shipments,
+    lots: parsed.lots ?? SEED.lots,
+    haccpReadings: parsed.haccpReadings ?? SEED.haccpReadings,
+    cleaningTasks: parsed.cleaningTasks ?? SEED.cleaningTasks,
   };
   return out;
 }
@@ -554,6 +565,42 @@ export function useStore() {
       setStore({ ...store, shipments: store.shipments.map((s) => s.id === id ? { ...s, ...patch } : s) }),
     deleteShipment: (id: string) =>
       setStore({ ...store, shipments: store.shipments.filter((s) => s.id !== id) }),
+
+    // LOTS
+    addLot: (l: Omit<Lot, "id" | "createdAt">) => {
+      const lot: Lot = { ...l, id: uid("lt_"), createdAt: nowIso() };
+      setStore({ ...store, lots: [lot, ...store.lots] });
+      return lot;
+    },
+    updateLot: (id: string, patch: Partial<Lot>) =>
+      setStore({ ...store, lots: store.lots.map((l) => l.id === id ? { ...l, ...patch } : l) }),
+    deleteLot: (id: string) =>
+      setStore({ ...store, lots: store.lots.filter((l) => l.id !== id) }),
+    consumeLot: (id: string, qty: number) =>
+      setStore({ ...store, lots: store.lots.map((l) =>
+        l.id === id ? { ...l, qtyRemaining: Math.max(0, +(l.qtyRemaining - qty).toFixed(3)) } : l) }),
+
+    // HACCP READINGS
+    addHaccpReading: (r: Omit<HaccpReading, "id">) => {
+      const reading: HaccpReading = { ...r, id: uid("hr_") };
+      setStore({ ...store, haccpReadings: [reading, ...store.haccpReadings] });
+      return reading;
+    },
+    updateHaccpReading: (id: string, patch: Partial<HaccpReading>) =>
+      setStore({ ...store, haccpReadings: store.haccpReadings.map((r) => r.id === id ? { ...r, ...patch } : r) }),
+    deleteHaccpReading: (id: string) =>
+      setStore({ ...store, haccpReadings: store.haccpReadings.filter((r) => r.id !== id) }),
+
+    // CLEANING TASKS
+    addCleaningTask: (t: Omit<CleaningTask, "id">) => {
+      const task: CleaningTask = { ...t, id: uid("cl_") };
+      setStore({ ...store, cleaningTasks: [task, ...store.cleaningTasks] });
+      return task;
+    },
+    updateCleaningTask: (id: string, patch: Partial<CleaningTask>) =>
+      setStore({ ...store, cleaningTasks: store.cleaningTasks.map((t) => t.id === id ? { ...t, ...patch } : t) }),
+    deleteCleaningTask: (id: string) =>
+      setStore({ ...store, cleaningTasks: store.cleaningTasks.filter((t) => t.id !== id) }),
 
     importJson: (text: string) => {
       const parsed = JSON.parse(text);

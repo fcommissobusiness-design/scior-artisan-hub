@@ -17,6 +17,19 @@ export interface PriceChange {
   price: number;
 }
 
+export type Allergen =
+  | "latte" | "glutine" | "uova" | "frutta_a_guscio" | "soia"
+  | "pesce" | "crostacei" | "molluschi" | "sedano" | "senape"
+  | "sesamo" | "solfiti" | "lupini" | "arachidi";
+
+export const ALLERGEN_LABEL: Record<Allergen, string> = {
+  latte: "Latte", glutine: "Glutine", uova: "Uova",
+  frutta_a_guscio: "Frutta a guscio", soia: "Soia",
+  pesce: "Pesce", crostacei: "Crostacei", molluschi: "Molluschi",
+  sedano: "Sedano", senape: "Senape", sesamo: "Sesamo",
+  solfiti: "Solfiti", lupini: "Lupini", arachidi: "Arachidi",
+};
+
 export interface Product {
   id: string;
   name: string;
@@ -41,6 +54,12 @@ export interface Product {
   shelfLifeDays?: number;                  // durata stimata in giorni
   perishability?: "bassa" | "media" | "alta";
   trackUnsold?: boolean;                   // gestire invenduto sì/no
+  // scheda food (EU 1169/2011 light)
+  allergens?: Allergen[];
+  ingredients?: string;
+  origin?: string;          // es. "Latte di bufala Campania"
+  conservation?: string;    // es. "Conservare a 0-4 °C"
+  avgWeightKg?: number;     // peso medio per prodotti a peso
 }
 
 export interface LoyaltyEvent {
@@ -70,6 +89,11 @@ export interface Client {
 export interface OrderItem {
   productId: string;
   qty: number;
+  // Peso variabile (kg) per prodotti venduti a peso. Se presente, qty = numero pezzi/colli.
+  // Se assente per prodotti kg, si interpreta qty stesso come kg (retrocompatibile).
+  weightKg?: number;
+  unitPriceOverride?: number; // override €/unità per sfridi/sconti spot
+  lotId?: string;             // lotto usato per tracciabilità leggera
 }
 
 export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "annullato";
@@ -745,3 +769,143 @@ export function calcOnlineOrderCost(o: OnlineOrder, products: Product[]): number
     return s + (p?.cost ?? 0) * it.qty;
   }, 0);
 }
+
+// ============= LOTTI / TRACCIABILITÀ LEGGERA =============
+
+export interface Lot {
+  id: string;
+  code: string;            // AAAAMMGG-NN
+  productId: string;
+  productionDate: string;  // ISO date
+  expiryDate: string;      // ISO date (scadenza / TMC)
+  qtyInitial: number;      // quantità ricevuta/prodotta
+  qtyRemaining: number;    // quantità residua
+  supplierId?: string;
+  receiptId?: string;      // GoodsReceipt collegata
+  productionId?: string;   // se prodotto internamente
+  notes?: string;
+  createdAt: string;
+}
+
+export function generateLotCode(productionDate: string, existing: Lot[]): string {
+  const d = new Date(productionDate);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const prefix = `${y}${m}${day}`;
+  const sameDay = existing.filter(l => l.code.startsWith(prefix));
+  const next = String(sameDay.length + 1).padStart(2, "0");
+  return `${prefix}-${next}`;
+}
+
+export function daysUntil(iso: string): number {
+  const ms = new Date(iso).setHours(0,0,0,0) - new Date().setHours(0,0,0,0);
+  return Math.round(ms / 86400000);
+}
+
+export function expiryStatus(iso: string): "scaduto" | "oggi" | "domani" | "presto" | "ok" {
+  const d = daysUntil(iso);
+  if (d < 0) return "scaduto";
+  if (d === 0) return "oggi";
+  if (d === 1) return "domani";
+  if (d <= 2) return "presto";
+  return "ok";
+}
+
+// FEFO: primo lotto attivo con scadenza più vicina
+export function fefoLot(lots: Lot[], productId: string): Lot | null {
+  const active = lots
+    .filter(l => l.productId === productId && l.qtyRemaining > 0)
+    .sort((a, b) => +new Date(a.expiryDate) - +new Date(b.expiryDate));
+  return active[0] ?? null;
+}
+
+// ============= HACCP / TEMPERATURE =============
+
+export type HaccpArea = "banco" | "frigo" | "trasporto" | "laboratorio";
+export const HACCP_AREAS: HaccpArea[] = ["banco", "frigo", "trasporto", "laboratorio"];
+export const HACCP_AREA_LABEL: Record<HaccpArea, string> = {
+  banco: "Banco", frigo: "Frigo", trasporto: "Trasporto", laboratorio: "Laboratorio",
+};
+// Soglie indicative (°C): [min, max]
+export const HACCP_THRESHOLDS: Record<HaccpArea, [number, number]> = {
+  banco: [0, 6],
+  frigo: [0, 4],
+  trasporto: [0, 6],
+  laboratorio: [0, 8],
+};
+
+export interface HaccpReading {
+  id: string;
+  date: string;           // ISO datetime
+  area: HaccpArea;
+  temperature: number;    // °C
+  operator?: string;
+  notes?: string;
+  outOfRange?: boolean;   // calcolato al salvataggio
+}
+
+export function isOutOfRange(area: HaccpArea, temp: number): boolean {
+  const [mn, mx] = HACCP_THRESHOLDS[area];
+  return temp < mn || temp > mx;
+}
+
+// ============= PULIZIE / SANIFICAZIONI =============
+
+export interface CleaningTask {
+  id: string;
+  date: string;           // ISO
+  area: string;           // es. "Banco vendita", "Frigo bufala"
+  operation: string;      // es. "Sanificazione superfici"
+  operator?: string;
+  completed: boolean;
+  notes?: string;
+}
+
+// ============= SEED minimi =============
+
+export const SEED_LOTS: Lot[] = [
+  {
+    id: "lt1", code: "20260516-01",
+    productId: "mozzarella-di-bufala-campana-dop",
+    productionDate: isoDay(-1), expiryDate: isoDay(1),
+    qtyInitial: 12, qtyRemaining: 6,
+    supplierId: undefined, productionId: "pr1",
+    notes: "Produzione mattutina", createdAt: isoDay(-1),
+  },
+  {
+    id: "lt2", code: "20260515-01",
+    productId: "mozzarella-di-bufala-campana-dop",
+    productionDate: isoDay(-2), expiryDate: isoDay(0),
+    qtyInitial: 10, qtyRemaining: 1.5,
+    createdAt: isoDay(-2),
+  },
+  {
+    id: "lt3", code: "20260516-02",
+    productId: "ricotta-di-bufala",
+    productionDate: isoDay(-1), expiryDate: isoDay(2),
+    qtyInitial: 8, qtyRemaining: 5,
+    createdAt: isoDay(-1),
+  },
+  {
+    id: "lt4", code: "20260514-01",
+    productId: "pane-casareccio-d-alise",
+    productionDate: isoDay(-3), expiryDate: isoDay(-1),
+    qtyInitial: 8, qtyRemaining: 2,
+    supplierId: "sup3", receiptId: "gr1",
+    createdAt: isoDay(-3),
+  },
+];
+
+export const SEED_HACCP_READINGS: HaccpReading[] = [
+  { id: "hr1", date: isoToday(8, 0), area: "frigo", temperature: 3.2, operator: "Daniele", outOfRange: false },
+  { id: "hr2", date: isoToday(8, 5), area: "banco", temperature: 4.5, operator: "Daniele", outOfRange: false },
+  { id: "hr3", date: isoToday(14, 0), area: "frigo", temperature: 5.8, operator: "Daniele", outOfRange: true, notes: "Verificato chiusura porta" },
+  { id: "hr4", date: isoToday(9, 0, -1), area: "trasporto", temperature: 4.0, operator: "Mario", outOfRange: false },
+];
+
+export const SEED_CLEANING_TASKS: CleaningTask[] = [
+  { id: "cl1", date: isoToday(20, 0, -1), area: "Banco vendita", operation: "Sanificazione fine giornata", operator: "Daniele", completed: true },
+  { id: "cl2", date: isoToday(7, 30), area: "Frigo bufala", operation: "Controllo e pulizia", operator: "Daniele", completed: true },
+  { id: "cl3", date: isoToday(20, 0), area: "Laboratorio", operation: "Lavaggio attrezzature", completed: false },
+];
