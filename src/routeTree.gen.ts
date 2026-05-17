@@ -94,11 +94,6 @@ const EntrateMerciRoute = EntrateMerciRouteImport.update({
   path: '/entrate-merci',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FoodSafetyRoute = FoodSafetyRouteImport.update({
-  id: '/food-safety',
-  path: '/food-safety',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EcommerceRoute = EcommerceRouteImport.update({
   id: '/ecommerce',
   path: '/ecommerce',
@@ -138,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
+  '/food-safety': typeof FoodSafetyRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
