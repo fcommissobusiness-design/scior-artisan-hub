@@ -18,9 +18,11 @@ import { Route as OfferteRouteImport } from './routes/offerte'
 import { Route as MagazzinoRouteImport } from './routes/magazzino'
 import { Route as IncassiRouteImport } from './routes/incassi'
 import { Route as FornitoriRouteImport } from './routes/fornitori'
+import { Route as FoodSafetyRouteImport } from './routes/food-safety'
 import { Route as FiscaleRouteImport } from './routes/fiscale'
 import { Route as FinanzaRouteImport } from './routes/finanza'
 import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
+import { Route as FoodSafetyRouteImport } from './routes/food-safety'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
@@ -71,6 +73,11 @@ const IncassiRoute = IncassiRouteImport.update({
 const FornitoriRoute = FornitoriRouteImport.update({
   id: '/fornitori',
   path: '/fornitori',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FoodSafetyRoute = FoodSafetyRouteImport.update({
+  id: '/food-safety',
+  path: '/food-safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FiscaleRoute = FiscaleRouteImport.update({
@@ -129,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
+  '/food-safety': typeof FoodSafetyRoute
   '/fornitori': typeof FornitoriRoute
   '/incassi': typeof IncassiRoute
   '/magazzino': typeof MagazzinoRoute
@@ -149,6 +157,7 @@ export interface FileRoutesByTo {
   '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
+  '/food-safety': typeof FoodSafetyRoute
   '/fornitori': typeof FornitoriRoute
   '/incassi': typeof IncassiRoute
   '/magazzino': typeof MagazzinoRoute
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/entrate-merci': typeof EntrateMerciRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
+  '/food-safety': typeof FoodSafetyRoute
   '/fornitori': typeof FornitoriRoute
   '/incassi': typeof IncassiRoute
   '/magazzino': typeof MagazzinoRoute
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
+    | '/food-safety'
     | '/fornitori'
     | '/incassi'
     | '/magazzino'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
+    | '/food-safety'
     | '/fornitori'
     | '/incassi'
     | '/magazzino'
@@ -232,6 +244,7 @@ export interface FileRouteTypes {
     | '/entrate-merci'
     | '/finanza'
     | '/fiscale'
+    | '/food-safety'
     | '/fornitori'
     | '/incassi'
     | '/magazzino'
@@ -253,6 +266,7 @@ export interface RootRouteChildren {
   EntrateMerciRoute: typeof EntrateMerciRoute
   FinanzaRoute: typeof FinanzaRoute
   FiscaleRoute: typeof FiscaleRoute
+  FoodSafetyRoute: typeof FoodSafetyRoute
   FornitoriRoute: typeof FornitoriRoute
   IncassiRoute: typeof IncassiRoute
   MagazzinoRoute: typeof MagazzinoRoute
@@ -327,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/fornitori'
       fullPath: '/fornitori'
       preLoaderRoute: typeof FornitoriRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/food-safety': {
+      id: '/food-safety'
+      path: '/food-safety'
+      fullPath: '/food-safety'
+      preLoaderRoute: typeof FoodSafetyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fiscale': {
@@ -405,6 +426,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntrateMerciRoute: EntrateMerciRoute,
   FinanzaRoute: FinanzaRoute,
   FiscaleRoute: FiscaleRoute,
+  FoodSafetyRoute: FoodSafetyRoute,
   FornitoriRoute: FornitoriRoute,
   IncassiRoute: IncassiRoute,
   MagazzinoRoute: MagazzinoRoute,
