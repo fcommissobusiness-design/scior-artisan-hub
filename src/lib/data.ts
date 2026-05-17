@@ -17,6 +17,19 @@ export interface PriceChange {
   price: number;
 }
 
+export type Allergen =
+  | "latte" | "glutine" | "uova" | "frutta_a_guscio" | "soia"
+  | "pesce" | "crostacei" | "molluschi" | "sedano" | "senape"
+  | "sesamo" | "solfiti" | "lupini" | "arachidi";
+
+export const ALLERGEN_LABEL: Record<Allergen, string> = {
+  latte: "Latte", glutine: "Glutine", uova: "Uova",
+  frutta_a_guscio: "Frutta a guscio", soia: "Soia",
+  pesce: "Pesce", crostacei: "Crostacei", molluschi: "Molluschi",
+  sedano: "Sedano", senape: "Senape", sesamo: "Sesamo",
+  solfiti: "Solfiti", lupini: "Lupini", arachidi: "Arachidi",
+};
+
 export interface Product {
   id: string;
   name: string;
@@ -41,6 +54,12 @@ export interface Product {
   shelfLifeDays?: number;                  // durata stimata in giorni
   perishability?: "bassa" | "media" | "alta";
   trackUnsold?: boolean;                   // gestire invenduto sì/no
+  // scheda food (EU 1169/2011 light)
+  allergens?: Allergen[];
+  ingredients?: string;
+  origin?: string;          // es. "Latte di bufala Campania"
+  conservation?: string;    // es. "Conservare a 0-4 °C"
+  avgWeightKg?: number;     // peso medio per prodotti a peso
 }
 
 export interface LoyaltyEvent {
