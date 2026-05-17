@@ -22,7 +22,6 @@ import { Route as FoodSafetyRouteImport } from './routes/food-safety'
 import { Route as FiscaleRouteImport } from './routes/fiscale'
 import { Route as FinanzaRouteImport } from './routes/finanza'
 import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
-import { Route as FoodSafetyRouteImport } from './routes/food-safety'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
@@ -93,6 +92,11 @@ const FinanzaRoute = FinanzaRouteImport.update({
 const EntrateMerciRoute = EntrateMerciRouteImport.update({
   id: '/entrate-merci',
   path: '/entrate-merci',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FoodSafetyRoute = FoodSafetyRouteImport.update({
+  id: '/food-safety',
+  path: '/food-safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EcommerceRoute = EcommerceRouteImport.update({
