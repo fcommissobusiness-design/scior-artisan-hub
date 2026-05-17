@@ -133,7 +133,6 @@ export interface FileRoutesByFullPath {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
-  '/food-safety': typeof FoodSafetyRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
