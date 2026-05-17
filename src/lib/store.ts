@@ -40,6 +40,9 @@ interface Store {
   fixedCosts: FixedCost[];
   onlineOrders: OnlineOrder[];
   shipments: Shipment[];
+  lots: Lot[];
+  haccpReadings: HaccpReading[];
+  cleaningTasks: CleaningTask[];
 }
 
 const SEED: Store = {
@@ -62,6 +65,9 @@ const SEED: Store = {
   fixedCosts: SEED_FIXED_COSTS,
   onlineOrders: SEED_ONLINE_ORDERS,
   shipments: SEED_SHIPMENTS,
+  lots: SEED_LOTS,
+  haccpReadings: SEED_HACCP_READINGS,
+  cleaningTasks: SEED_CLEANING_TASKS,
 };
 
 function migrate(parsed: any): Store {
