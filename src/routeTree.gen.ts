@@ -154,7 +154,6 @@ export interface FileRoutesByTo {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
-  '/food-safety': typeof FoodSafetyRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
@@ -177,7 +176,6 @@ export interface FileRoutesById {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
-  '/food-safety': typeof FoodSafetyRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
@@ -201,7 +199,6 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
-    | '/food-safety'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -223,7 +220,6 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
-    | '/food-safety'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -245,7 +241,6 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
-    | '/food-safety'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -268,7 +263,6 @@ export interface RootRouteChildren {
   ConsegneRoute: typeof ConsegneRoute
   EcommerceRoute: typeof EcommerceRoute
   EntrateMerciRoute: typeof EntrateMerciRoute
-  FoodSafetyRoute: typeof FoodSafetyRoute
   FinanzaRoute: typeof FinanzaRoute
   FiscaleRoute: typeof FiscaleRoute
   FoodSafetyRoute: typeof FoodSafetyRoute
@@ -376,13 +370,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EntrateMerciRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/food-safety': {
-      id: '/food-safety'
-      path: '/food-safety'
-      fullPath: '/food-safety'
-      preLoaderRoute: typeof FoodSafetyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/ecommerce': {
       id: '/ecommerce'
       path: '/ecommerce'
@@ -436,7 +423,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConsegneRoute: ConsegneRoute,
   EcommerceRoute: EcommerceRoute,
   EntrateMerciRoute: EntrateMerciRoute,
-  FoodSafetyRoute: FoodSafetyRoute,
   FinanzaRoute: FinanzaRoute,
   FiscaleRoute: FiscaleRoute,
   FoodSafetyRoute: FoodSafetyRoute,
