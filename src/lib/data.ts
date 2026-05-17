@@ -70,6 +70,11 @@ export interface Client {
 export interface OrderItem {
   productId: string;
   qty: number;
+  // Peso variabile (kg) per prodotti venduti a peso. Se presente, qty = numero pezzi/colli.
+  // Se assente per prodotti kg, si interpreta qty stesso come kg (retrocompatibile).
+  weightKg?: number;
+  unitPriceOverride?: number; // override €/unità per sfridi/sconti spot
+  lotId?: string;             // lotto usato per tracciabilità leggera
 }
 
 export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "annullato";
