@@ -566,6 +566,42 @@ export function useStore() {
     deleteShipment: (id: string) =>
       setStore({ ...store, shipments: store.shipments.filter((s) => s.id !== id) }),
 
+    // LOTS
+    addLot: (l: Omit<Lot, "id" | "createdAt">) => {
+      const lot: Lot = { ...l, id: uid("lt_"), createdAt: nowIso() };
+      setStore({ ...store, lots: [lot, ...store.lots] });
+      return lot;
+    },
+    updateLot: (id: string, patch: Partial<Lot>) =>
+      setStore({ ...store, lots: store.lots.map((l) => l.id === id ? { ...l, ...patch } : l) }),
+    deleteLot: (id: string) =>
+      setStore({ ...store, lots: store.lots.filter((l) => l.id !== id) }),
+    consumeLot: (id: string, qty: number) =>
+      setStore({ ...store, lots: store.lots.map((l) =>
+        l.id === id ? { ...l, qtyRemaining: Math.max(0, +(l.qtyRemaining - qty).toFixed(3)) } : l) }),
+
+    // HACCP READINGS
+    addHaccpReading: (r: Omit<HaccpReading, "id">) => {
+      const reading: HaccpReading = { ...r, id: uid("hr_") };
+      setStore({ ...store, haccpReadings: [reading, ...store.haccpReadings] });
+      return reading;
+    },
+    updateHaccpReading: (id: string, patch: Partial<HaccpReading>) =>
+      setStore({ ...store, haccpReadings: store.haccpReadings.map((r) => r.id === id ? { ...r, ...patch } : r) }),
+    deleteHaccpReading: (id: string) =>
+      setStore({ ...store, haccpReadings: store.haccpReadings.filter((r) => r.id !== id) }),
+
+    // CLEANING TASKS
+    addCleaningTask: (t: Omit<CleaningTask, "id">) => {
+      const task: CleaningTask = { ...t, id: uid("cl_") };
+      setStore({ ...store, cleaningTasks: [task, ...store.cleaningTasks] });
+      return task;
+    },
+    updateCleaningTask: (id: string, patch: Partial<CleaningTask>) =>
+      setStore({ ...store, cleaningTasks: store.cleaningTasks.map((t) => t.id === id ? { ...t, ...patch } : t) }),
+    deleteCleaningTask: (id: string) =>
+      setStore({ ...store, cleaningTasks: store.cleaningTasks.filter((t) => t.id !== id) }),
+
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
       const next = migrate(parsed);
