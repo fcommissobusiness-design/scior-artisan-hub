@@ -9,28 +9,26 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "Operativo", items: [
     { to: "/", label: "Dashboard", short: "Home" },
     { to: "/ordini", label: "Ordini", short: "Ordini" },
-    { to: "/produzione", label: "Produzione", short: "Prod." },
     { to: "/consegne", label: "Consegne", short: "Conseg." },
-    { to: "/food-safety", label: "Food Safety", short: "Food" },
+    { to: "/clienti", label: "Clienti", short: "Clienti" },
+    { to: "/produzione", label: "Produzione", short: "Prod." },
   ]},
-  { label: "Catalogo", items: [
-    { to: "/prodotti", label: "Prodotti", short: "Prod." },
+  { label: "Magazzino & Qualità", items: [
     { to: "/magazzino", label: "Magazzino", short: "Mag." },
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/food-safety", label: "Food Safety", short: "Food" },
     { to: "/entrate-merci", label: "Entrate Merci", short: "Entr." },
+    { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
   ]},
-  { label: "E-commerce", items: [
+  { label: "Vendite", items: [
     { to: "/ecommerce", label: "E-commerce", short: "Ecom" },
-  ]},
-  { label: "Clienti", items: [
-    { to: "/clienti", label: "Clienti", short: "Clienti" },
     { to: "/b2b", label: "B2B", short: "B2B" },
   ]},
   { label: "Finanza", items: [
     { to: "/finanza", label: "Finanza", short: "Fin." },
     { to: "/incassi", label: "Cassa & Incassi", short: "Cassa" },
     { to: "/pagamenti", label: "Pagamenti", short: "Pag." },
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
     { to: "/fiscale", label: "Riepilogo fiscale", short: "Fisc." },
     { to: "/report", label: "Report", short: "Report" },
   ]},
@@ -42,9 +40,9 @@ const NAV_GROUPS: NavGroup[] = [
 const MOBILE_PRIMARY: NavItem[] = [
   { to: "/", label: "Dashboard", short: "Home" },
   { to: "/ordini", label: "Ordini", short: "Ordini" },
-  { to: "/produzione", label: "Produzione", short: "Prod." },
   { to: "/consegne", label: "Consegne", short: "Conseg." },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
+  { to: "/food-safety", label: "Food Safety", short: "Food" },
 ];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
