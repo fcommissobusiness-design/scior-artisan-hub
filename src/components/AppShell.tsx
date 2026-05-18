@@ -9,28 +9,26 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "Operativo", items: [
     { to: "/", label: "Dashboard", short: "Home" },
     { to: "/ordini", label: "Ordini", short: "Ordini" },
-    { to: "/produzione", label: "Produzione", short: "Prod." },
     { to: "/consegne", label: "Consegne", short: "Conseg." },
-    { to: "/food-safety", label: "Food Safety", short: "Food" },
+    { to: "/clienti", label: "Clienti", short: "Clienti" },
+    { to: "/produzione", label: "Produzione", short: "Prod." },
   ]},
-  { label: "Catalogo", items: [
-    { to: "/prodotti", label: "Prodotti", short: "Prod." },
+  { label: "Magazzino & Qualità", items: [
     { to: "/magazzino", label: "Magazzino", short: "Mag." },
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/food-safety", label: "Food Safety", short: "Food" },
     { to: "/entrate-merci", label: "Entrate Merci", short: "Entr." },
+    { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
   ]},
-  { label: "E-commerce", items: [
+  { label: "Vendite", items: [
     { to: "/ecommerce", label: "E-commerce", short: "Ecom" },
-  ]},
-  { label: "Clienti", items: [
-    { to: "/clienti", label: "Clienti", short: "Clienti" },
     { to: "/b2b", label: "B2B", short: "B2B" },
   ]},
   { label: "Finanza", items: [
     { to: "/finanza", label: "Finanza", short: "Fin." },
     { to: "/incassi", label: "Cassa & Incassi", short: "Cassa" },
     { to: "/pagamenti", label: "Pagamenti", short: "Pag." },
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
     { to: "/fiscale", label: "Riepilogo fiscale", short: "Fisc." },
     { to: "/report", label: "Report", short: "Report" },
   ]},
@@ -42,9 +40,9 @@ const NAV_GROUPS: NavGroup[] = [
 const MOBILE_PRIMARY: NavItem[] = [
   { to: "/", label: "Dashboard", short: "Home" },
   { to: "/ordini", label: "Ordini", short: "Ordini" },
-  { to: "/produzione", label: "Produzione", short: "Prod." },
   { to: "/consegne", label: "Consegne", short: "Conseg." },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
+  { to: "/food-safety", label: "Food Safety", short: "Food" },
 ];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
@@ -118,23 +116,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Contenuto */}
-      <main className="flex-1 pb-20 md:pb-8 md:max-w-6xl md:mx-auto w-full">
+      <main className="flex-1 pb-24 md:pb-8 md:max-w-6xl md:mx-auto w-full">
         {children}
       </main>
 
       {/* Bottom nav mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50 pb-[env(safe-area-inset-bottom)]">
         {MOBILE_PRIMARY.map((n) => {
           const active = isActive(n.to);
           return (
-            <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${active ? "text-brand-gold" : "text-brand-cream/70"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full mb-1 ${active ? "bg-brand-gold" : "bg-transparent"}`} />
+            <Link key={n.to} to={n.to} className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide transition-colors ${active ? "text-brand-gold" : "text-brand-cream/70 active:text-brand-cream"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full mb-1 transition-colors ${active ? "bg-brand-gold" : "bg-transparent"}`} />
               {n.short}
             </Link>
           );
         })}
         <button onClick={() => setMoreOpen(true)}
-          className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide ${moreOpen ? "text-brand-gold" : "text-brand-cream/70"}`}>
+          className={`flex flex-col items-center justify-center py-2.5 text-[10px] font-medium tracking-wide transition-colors ${moreOpen ? "text-brand-gold" : "text-brand-cream/70 active:text-brand-cream"}`}>
           <span className="w-1.5 h-1.5 rounded-full mb-1 bg-transparent" />
           Più
         </button>
@@ -238,7 +236,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export function Fab({ onClick, label = "+" }: { onClick: () => void; label?: string }) {
   return (
     <button onClick={onClick}
-      className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light hover:scale-105 transition-transform">
+      style={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}
+      className="fixed md:!bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light hover:scale-105 active:scale-95 transition-transform">
       {label}
     </button>
   );
