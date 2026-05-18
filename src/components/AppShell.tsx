@@ -236,7 +236,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export function Fab({ onClick, label = "+" }: { onClick: () => void; label?: string }) {
   return (
     <button onClick={onClick}
-      className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light hover:scale-105 transition-transform">
+      style={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}
+      className="fixed md:!bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-brand-gold text-white text-3xl shadow-lg z-40 flex items-center justify-center font-light hover:scale-105 active:scale-95 transition-transform">
       {label}
     </button>
   );
