@@ -5,7 +5,7 @@ import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode } from "@/lib/data";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
-  pendingPickupsToday, lateOrders, inactiveClients,
+  lateOrders,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
   productionsForDate,
