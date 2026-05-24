@@ -2,29 +2,31 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
-import { calcMargin, type CasualSale, type OrderItem } from "@/lib/data";
+import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode } from "@/lib/data";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
-  pendingPickupsToday, lateOrders, inactiveClients,
+  lateOrders,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
-  cashFlowMonth, paymentsTotalMonth, grossMargin, productionsForDate,
-  recoverableClients, topSpenders, newClientsInPeriod, segmentChangesInPeriod,
-  nearLoyaltyClients,
+  productionsForDate,
 } from "@/lib/metrics";
-import { loadCrmSettings } from "@/lib/crm-settings";
+
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
+import { OrderSheet } from "@/routes/ordini";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
-  const { orders, products, clients, casualSales, deliveries, cashEntries, supplierPayments, productions, updateOrder, addCasualSale, addClient } = useStore();
+  const { orders, products, clients, casualSales, deliveries, supplierPayments, productions, updateOrder, addCasualSale, addClient, addOrder } = useStore();
   const [tfId, setTfId] = useState<TimeFrameId>("today");
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
   const [openSale, setOpenSale] = useState(false);
+  const [openOrder, setOpenOrder] = useState(false);
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [openQuick, setOpenQuick] = useState(false);
-  const [waOpen, setWaOpen] = useState<{ phone: string; clientId?: string } | null>(null);
+  const [pickAction, setPickAction] = useState(false);
+  const [waOpen, setWaOpen] = useState<{ phone: string; clientId?: string; orderId?: string } | null>(null);
   const navigate = useNavigate();
 
   const tf = useMemo(() => {
@@ -35,16 +37,14 @@ function Dashboard() {
   const ordersInFrame = orders.filter((o) => inFrame(o.pickupDate, tf));
   const salesInFrame = casualSales.filter((s) => inFrame(s.date, tf));
 
-  const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa" || o.status === "pronto").reduce((s, o) => s + o.total, 0);
+  const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa" || o.status === "pronto" || o.status === "da_consegnare").reduce((s, o) => s + o.total, 0);
   const fattGenerato =
-    ordersInFrame.filter((o) => o.status === "ritirato").reduce((s, o) => s + o.total, 0) +
+    ordersInFrame.filter((o) => o.status === "ritirato" || o.status === "consegnato").reduce((s, o) => s + o.total, 0) +
     salesInFrame.reduce((s, o) => s + o.total, 0);
   const ticketMedio = salesInFrame.length === 0 ? 0 : salesInFrame.reduce((s, x) => s + x.total, 0) / salesInFrame.length;
 
   const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
-  const ritiriOggi = useMemo(() => pendingPickupsToday(orders), [orders]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
-  const inattivi = useMemo(() => inactiveClients(orders, casualSales, clients, loadCrmSettings().inactiveOccDays), [orders, casualSales, clients]);
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
   const sottoCosto = products.filter((p) => { const m = calcMargin(p); return m !== null && m < 0; });
@@ -53,29 +53,10 @@ function Dashboard() {
   const overduePay = useMemo(() => supplierPaymentsOverdue(supplierPayments), [supplierPayments]);
   const prodOggi = useMemo(() => productionsForDate(productions), [productions]);
 
-  // Finanza mese
-  const cashM = useMemo(() => cashFlowMonth(cashEntries), [cashEntries]);
-  const payM = useMemo(() => paymentsTotalMonth(supplierPayments), [supplierPayments]);
-  const marginM = useMemo(
-    () => grossMargin(orders, casualSales, products, (iso) => {
-      const d = new Date(iso), n = new Date();
-      return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
-    }),
-    [orders, casualSales, products],
-  );
-  const saldoNetto = marginM - payM + (cashM.in - cashM.out);
-
-  // CRM mese
-  const crmSettings = useMemo(() => loadCrmSettings(), []);
-  const inMonthIso = (iso: string) => {
-    const d = new Date(iso), n = new Date();
-    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
-  };
-  const nuoviMese = useMemo(() => newClientsInPeriod(clients, inMonthIso), [clients]);
-  const recuperabili = useMemo(() => recoverableClients(orders, casualSales, clients, crmSettings), [orders, casualSales, clients, crmSettings]);
-  const upgradeMese = useMemo(() => segmentChangesInPeriod(clients, inMonthIso), [clients]);
-  const topSp = useMemo(() => topSpenders(orders, casualSales, clients, 5), [orders, casualSales, clients]);
-  const viciniPremio = useMemo(() => nearLoyaltyClients(clients), [clients]);
+  // "Ritiri" rispetta il timeframe + esclude finalizzati/annullati
+  const ritiriFrame = ordersInFrame
+    .filter((o) => o.status === "in_attesa" || o.status === "pronto" || o.status === "da_consegnare")
+    .sort((a, b) => +new Date(a.pickupDate) - +new Date(b.pickupDate));
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
@@ -141,16 +122,15 @@ function Dashboard() {
         )}
 
         {/* QUICK ACTIONS */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Quick onClick={() => navigate({ to: "/ordini", search: { f: "nuovo" } as any })} label="Nuovo ordine" />
-          <Quick onClick={() => navigate({ to: "/ordini", search: { f: "mozzarella" } as any })} label="Prenotazione mozzarella" />
-          <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
+        <section className="grid grid-cols-3 gap-2">
+          <Quick onClick={() => setOpenOrder(true)} label="Nuovo ordine" />
           <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
+          <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
         </section>
 
-        {/* KPI ECONOMICI */}
+        {/* KPI CASSA */}
         <section>
-          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Economici</h2>
+          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Cassa</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
             <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
@@ -159,86 +139,56 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* FINANZA MESE */}
-        <section>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground">Finanza mese</h2>
-            <Link to="/finanza" className="text-xs text-brand-gold font-semibold">Dettaglio →</Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi to={{ to: "/finanza" }} label="Margine lordo" value={formatEuro(marginM)} sub="ordini+scontrini" />
-            <Kpi to={{ to: "/pagamenti" }} label="Uscite pagate" value={formatEuro(payM)} sub="fornitori+servizi" danger={payM > marginM} />
-            <Kpi to={{ to: "/incassi" }} label="Cassa netta" value={formatEuro(cashM.in - cashM.out)} sub={`+${formatEuro(cashM.in)} / -${formatEuro(cashM.out)}`} />
-            <Kpi to={{ to: "/finanza" }} label="Saldo stimato" value={formatEuro(saldoNetto)} sub="margine - uscite" highlight={saldoNetto >= 0} danger={saldoNetto < 0} />
-          </div>
-        </section>
-
-        {/* KPI OPERATIVI */}
-        <section>
-          <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Operativi</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi to={{ to: "/ordini", search: { f: "oggi" } as any }} label="Ritiri oggi" value={ritiriOggi.length.toString()} sub="da gestire" />
-            <Kpi to={{ to: "/produzione" }} label="Preparazioni oggi" value={prodOggi.length.toString()} sub={`${prodOggi.filter(p => p.status === "da_preparare").length} da fare`} />
-            <Kpi to={{ to: "/consegne" }} label="Consegne aperte" value={consegneAperte.length.toString()} sub={`${deliveries.length} totali`} />
-            <Kpi to={{ to: "/clienti", search: { f: "inattivi" } as any }} label="Clienti inattivi" value={inattivi.length.toString()} sub="oltre 60gg" danger={inattivi.length > 0} />
-            <Kpi to={{ to: "/clienti", search: { f: "premi" } as any }} label="Premi pronti" value={premi.length.toString()} sub="fedeltà completata" />
-          </div>
-        </section>
-
-        {/* CRM */}
-        <section>
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground">CRM mese</h2>
-            <Link to="/clienti" className="text-xs text-brand-gold font-semibold">Tutti i clienti →</Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi to={{ to: "/clienti" }} label="Nuovi mese" value={nuoviMese.length.toString()} sub="primo ordine" />
-            <Kpi to={{ to: "/clienti", search: { f: "recuperabili" } as any }} label="Da recuperare" value={recuperabili.length.toString()} sub="inattivi recenti" danger={recuperabili.length > 0} />
-            <Kpi to={{ to: "/clienti", search: { f: "inattivi" } as any }} label="Inattivi" value={inattivi.length.toString()} sub="oltre soglia" />
-            <Kpi label="Cambi segmento" value={upgradeMese.length.toString()} sub="auto questo mese" />
-            <Kpi to={{ to: "/clienti", search: { f: "premi" } as any }} label="Premi pronti" value={premi.length.toString()} sub="fedeltà completa" highlight={premi.length > 0} />
-            <Kpi to={{ to: "/clienti", search: { f: "vicini" } as any }} label="Vicini al premio" value={viciniPremio.length.toString()} sub="4/5 timbri" />
-            <Kpi to={{ to: "/clienti", search: { f: "alto" } as any }} label="Top spender" value={topSp.length.toString()} sub={topSp[0] ? topSp[0].client.name : "—"} />
-          </div>
-        </section>
-
+        {/* RITIRI */}
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-display text-xl text-brand-green">Ritiri di oggi</h2>
+            <h2 className="font-display text-xl text-brand-green">Ritiri ({ritiriFrame.length})</h2>
             <Link to="/ordini" className="text-xs text-brand-gold font-semibold">Tutti gli ordini →</Link>
           </div>
-          {ritiriOggi.length === 0 && (
-            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessun ritiro previsto oggi.</div>
+          {ritiriFrame.length === 0 && (
+            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessun ritiro nel periodo.</div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {ritiriOggi.map((o) => {
+            {ritiriFrame.map((o) => {
               const c = clientById(o.clientId);
               const m = orderMargin(o, products);
               return (
                 <div key={o.id} className="bg-card rounded-xl p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2 gap-2">
-                    <div>
-                      <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground">Ritiro {formatTime(o.pickupDate)} · {formatEuro(o.total)} · margine {formatEuro(m)}</p>
+                  <button onClick={() => setEditOrderId(o.id)} className="w-full text-left">
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                      <div>
+                        <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground">{o.delivery === "domicilio" ? "Consegna" : "Ritiro"} {formatTime(o.pickupDate)} · {formatEuro(o.total)} · margine {formatEuro(m)}</p>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${o.status === "pronto" ? "bg-blue-600/15 text-blue-700" : o.status === "da_consegnare" ? "bg-purple-600/15 text-purple-700" : "bg-warning/15 text-warning"}`}>
+                        {o.status === "pronto" ? "Pronto" : o.status === "da_consegnare" ? "Da Consegnare" : "Attesa"}
+                      </span>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${o.status === "pronto" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.status === "pronto" ? "Pronto" : "Attesa"}</span>
-                  </div>
-                  <ul className="text-sm text-foreground/80 mb-3 space-y-0.5">
-                    {o.items.map((i, idx) => {
-                      const p = productById(i.productId);
-                      return <li key={idx}>· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
-                    })}
-                  </ul>
-                  <div className="flex gap-2">
+                    <ul className="text-sm text-foreground/80 mb-3 space-y-0.5">
+                      {o.items.slice(0, 4).map((i, idx) => {
+                        const p = productById(i.productId);
+                        return <li key={idx}>· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
+                      })}
+                      {o.items.length > 4 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 4}</li>}
+                    </ul>
+                  </button>
+                  <div className="flex flex-wrap gap-1.5">
                     {o.status === "in_attesa" && (
                       <button onClick={() => updateOrder(o.id, { status: "pronto" })}
-                        className="flex-1 bg-brand-green text-brand-cream rounded-lg py-2 text-xs font-semibold">Pronto</button>
+                        className="flex-1 bg-brand-green text-brand-cream rounded-lg py-1.5 text-xs font-semibold">Pronto</button>
                     )}
-                    <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
-                      className="flex-1 bg-success text-white rounded-lg py-2 text-xs font-semibold">Ritirato</button>
+                    {o.delivery === "domicilio" ? (
+                      <button onClick={() => updateOrder(o.id, { status: "consegnato" })}
+                        className="flex-1 bg-success text-white rounded-lg py-1.5 text-xs font-semibold">Consegnato</button>
+                    ) : (
+                      <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
+                        className="flex-1 bg-success text-white rounded-lg py-1.5 text-xs font-semibold">Ritirato</button>
+                    )}
+                    <button onClick={() => { if (confirm("Annullare l'ordine?")) updateOrder(o.id, { status: "annullato" }); }}
+                      className="bg-card border border-danger/40 text-danger rounded-lg px-2 py-1.5 text-xs font-semibold">Annulla</button>
                     {c?.phone && (
-                      <button onClick={() => setWaOpen({ phone: c.phone, clientId: c.id })}
-                        className="px-3 bg-brand-gold text-white rounded-lg py-2 text-xs font-semibold">WhatsApp</button>
+                      <button onClick={() => setWaOpen({ phone: c.phone, clientId: c.id, orderId: o.id })}
+                        className="bg-brand-gold text-white rounded-lg px-2 py-1.5 text-xs font-semibold">WA</button>
                     )}
                   </div>
                 </div>
@@ -251,7 +201,6 @@ function Dashboard() {
         <section>
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-display text-xl text-brand-green">Scontrini ({salesInFrame.length})</h2>
-            <button onClick={() => setOpenSale(true)} className="text-xs bg-brand-gold text-white px-3 py-1.5 rounded-full font-semibold">+ Nuovo</button>
           </div>
           {salesInFrame.length === 0 && (
             <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessuno scontrino nel periodo.</div>
@@ -274,7 +223,27 @@ function Dashboard() {
         </section>
       </div>
 
-      <Fab onClick={() => setOpenSale(true)} />
+      <Fab onClick={() => setPickAction(true)} />
+
+      {pickAction && (
+        <Sheet open={true} onClose={() => setPickAction(false)} title="Cosa vuoi creare?">
+          <div className="grid grid-cols-1 gap-2">
+            <button onClick={() => { setPickAction(false); setOpenOrder(true); }}
+              className="bg-brand-green text-brand-cream rounded-xl py-4 font-semibold">Nuovo ordine</button>
+            <button onClick={() => { setPickAction(false); setOpenSale(true); }}
+              className="bg-brand-gold text-white rounded-xl py-4 font-semibold">Nuovo scontrino</button>
+          </div>
+        </Sheet>
+      )}
+
+      {openOrder && (
+        <OrderSheet mode="new" onClose={() => setOpenOrder(false)}
+          onSave={(payload) => { addOrder(payload); setOpenOrder(false); }} />
+      )}
+
+      {editOrderId && (
+        <OrderSheet mode="edit" orderId={editOrderId} onClose={() => setEditOrderId(null)} />
+      )}
 
       <NewSaleSheet
         open={openSale}
@@ -298,8 +267,12 @@ function Dashboard() {
           open={true}
           onClose={() => setWaOpen(null)}
           phone={waOpen.phone}
-          context={{ client: clients.find(c => c.id === waOpen.clientId) }}
-          defaultTemplate="libero"
+          context={{
+            client: clients.find(c => c.id === waOpen.clientId),
+            order: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId) : undefined,
+            productNames: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId)?.items.map(i => products.find(p => p.id === i.productId)?.name ?? "") : undefined,
+          }}
+          defaultTemplate={waOpen.orderId ? "promemoria_ritiro" : "libero"}
         />
       )}
     </div>
@@ -351,9 +324,18 @@ function QuickWhatsAppPicker({ onClose, onPick }: { onClose: () => void; onPick:
   );
 }
 
+const SALE_SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
+const SALE_SOURCE_LABEL: Record<OrderSource, string> = {
+  negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
+  sito: "Sito", altro: "Altro", consegna: "Negozio", b2b: "Negozio",
+};
+const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
+  ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
+};
+
 function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
-  onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "occasionali"; stamps: 0 }) => void;
+  onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
   const { clients, products } = useStore();
   const [date, setDate] = useState(() => {
@@ -363,6 +345,8 @@ function NewSaleSheet({ open, onClose, onSave }: {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [clientName, setClientName] = useState("");
   const [search, setSearch] = useState("");
+  const [source, setSource] = useState<OrderSource>("negozio");
+  const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -383,7 +367,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -392,10 +376,11 @@ function NewSaleSheet({ open, onClose, onSave }: {
       items, total,
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
+      source, delivery,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
-      newClient = { name: clientName.trim(), phone: "", segment: "occasionali" as const, stamps: 0 };
+      newClient = { name: clientName.trim(), phone: "", segment: "nuovi" as const, stamps: 0 };
     }
     reset();
     onSave(sale, newClient);
@@ -416,17 +401,31 @@ function NewSaleSheet({ open, onClose, onSave }: {
         </div>
       }
     >
-      <Field label="Data e ora">
-        <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-3" />
-      </Field>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Data e ora">
+          <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Origine">
+          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {SALE_SOURCE_OPTIONS.map(s => <option key={s} value={s}>{SALE_SOURCE_LABEL[s]}</option>)}
+          </select>
+        </Field>
+        <Field label="Delivery">
+          <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryMode)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {(Object.keys(SALE_DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{SALE_DELIVERY_LABEL[d]}</option>)}
+          </select>
+        </Field>
+      </div>
 
       <Field label="Cliente (facoltativo)">
         <input placeholder="Nome cliente o lascia vuoto" value={clientName} onChange={(e) => setClientName(e.target.value)}
           className="w-full bg-card border border-border rounded-lg p-3" />
         {matched && <p className="text-xs text-success mt-1">Cliente esistente: si aggiungerà allo storico di {matched.name}.</p>}
         {!matched && clientName.trim().length >= 2 && (
-          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda "Occasionale".</p>
+          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda "Nuovo".</p>
         )}
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">

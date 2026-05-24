@@ -2,7 +2,7 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { CallBtn, CopyBtn } from "@/components/QuickActions";
@@ -17,17 +17,29 @@ export const Route = createFileRoute("/ordini")({
 const STATUS_STYLE: Record<OrderStatus, string> = {
   in_attesa: "bg-warning/15 text-warning",
   pronto: "bg-blue-600/15 text-blue-700",
+  da_consegnare: "bg-purple-600/15 text-purple-700",
   ritirato: "bg-success/15 text-success",
+  consegnato: "bg-success/15 text-success",
   annullato: "bg-danger/15 text-danger",
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  in_attesa: "In Attesa", pronto: "Pronto", ritirato: "Ritirato", annullato: "Annullato",
+  in_attesa: "In Attesa", pronto: "Pronto",
+  da_consegnare: "Da Consegnare", consegnato: "Consegnato",
+  ritirato: "Ritirato", annullato: "Annullato",
 };
 
+// Etichette per dato esistente (display); il select offre solo le opzioni "operative".
 const SOURCE_LABEL: Record<OrderSource, string> = {
   negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
-  consegna: "Consegna", sito: "Sito", b2b: "B2B", altro: "Altro",
+  sito: "Sito", altro: "Altro",
+  consegna: "Negozio", b2b: "Negozio",
+};
+const SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
+
+const DELIVERY_LABEL: Record<DeliveryMode, string> = {
+  ritiro: "Ritiro in negozio",
+  domicilio: "Consegna a domicilio",
 };
 
 type Filter = "all" | "oggi" | "domani" | "ritardi" | "consegne" | "mozzarella" | "alto" | "attesa" | "pronti" | "ritirati" | "annullati";
@@ -146,6 +158,10 @@ function OrdiniPage() {
                   <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
                     className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Ritirato</button>
                 )}
+                {o.status === "da_consegnare" && (
+                  <button onClick={() => updateOrder(o.id, { status: "consegnato" })}
+                    className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Consegnato</button>
+                )}
                 <button onClick={() => duplicateOrder(o.id)}
                   className="text-xs bg-card border border-border rounded-lg px-2 py-1.5 font-semibold">Duplica</button>
                 {c?.phone && <CallBtn phone={c.phone} />}
@@ -195,7 +211,7 @@ function OrdiniPage() {
   );
 }
 
-function OrderSheet({ mode, orderId, onClose, onSave }: {
+export function OrderSheet({ mode, orderId, onClose, onSave }: {
   mode: "new" | "edit";
   orderId?: string;
   onClose: () => void;
@@ -216,7 +232,12 @@ function OrderSheet({ mode, orderId, onClose, onSave }: {
   });
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [status, setStatus] = useState<OrderStatus>(existing?.status ?? "in_attesa");
-  const [source, setSource] = useState<OrderSource>(existing?.source ?? "negozio");
+  const initialSource: OrderSource = (() => {
+    const s = existing?.source ?? "negozio";
+    return (SOURCE_OPTIONS as OrderSource[]).includes(s) ? s : "negozio";
+  })();
+  const [source, setSource] = useState<OrderSource>(initialSource);
+  const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [search, setSearch] = useState("");
 
   const total = items.reduce((s, i) => {
@@ -244,7 +265,7 @@ function OrderSheet({ mode, orderId, onClose, onSave }: {
     const payload: Omit<Order, "id" | "createdAt"> = {
       clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
-      status, total, notes: notes.trim() || undefined, source,
+      status, total, notes: notes.trim() || undefined, source, delivery,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
@@ -299,23 +320,31 @@ function OrderSheet({ mode, orderId, onClose, onSave }: {
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="es. Festa compleanno"
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Data e ora ritiro">
+        <Field label="Data e ora ritiro/consegna">
           <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Origine">
+          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
+          </select>
+        </Field>
+        <Field label="Delivery">
+          <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryMode)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {(Object.keys(DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{DELIVERY_LABEL[d]}</option>)}
+          </select>
         </Field>
         <Field label="Status">
           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
             <option value="in_attesa">In Attesa</option>
             <option value="pronto">Pronto</option>
+            <option value="da_consegnare">Da Consegnare</option>
+            <option value="consegnato">Consegnato</option>
             <option value="ritirato">Ritirato</option>
             <option value="annullato">Annullato</option>
-          </select>
-        </Field>
-        <Field label="Origine">
-          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            {(Object.keys(SOURCE_LABEL) as OrderSource[]).map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
           </select>
         </Field>
       </div>
