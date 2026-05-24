@@ -102,22 +102,26 @@ export interface MessageContext {
 
 export function buildMessage(template: TemplateId, ctx: MessageContext): string {
   const nome = ctx.client?.name?.split(" ")[0] ?? "";
-  const items = ctx.productNames?.length ? `\n\n• ${ctx.productNames.join("\n• ")}` : "";
+  const prodList = ctx.productNames?.length ? ctx.productNames.join(", ") : "[PRODOTTI]";
+  const isDomicilio = ctx.order?.delivery === "domicilio";
+  const modo = isDomicilio ? "che le consegneremo a domicilio" : "da ritirare in negozio";
   switch (template) {
     case "conferma_ordine":
-      return `Buongiorno ${nome},\nle confermiamo il suo ordine per ${ctx.order ? formatDateLong(ctx.order.pickupDate) + " alle " + formatTime(ctx.order.pickupDate) : "la data concordata"}.${items}${ctx.order ? `\n\nTotale: ${eur(ctx.order.total)}` : ""}\n\nGrazie,\nCaseificio Sciorio dal 1947`;
-    case "promemoria_ritiro":
-      return `Ciao ${nome}, le ricordiamo il ritiro del suo ordine ${ctx.order ? "oggi alle " + formatTime(ctx.order.pickupDate) : "in giornata"}.\nA presto in caseificio!`;
+      return `Buongiorno${nome ? " " + nome : ""},\nle confermiamo il suo ordine di ${prodList} ${modo} il giorno ${ctx.order ? formatDateLong(ctx.order.pickupDate) : "[X]"} alle ore ${ctx.order ? formatTime(ctx.order.pickupDate) : "[Y]"}.${ctx.order ? `\n\nTotale: ${eur(ctx.order.total)}` : ""}\n\nGrazie,\nCaseificio Sciorio dal 1947`;
+    case "promemoria_ritiro": {
+      const ora = ctx.order ? formatTime(ctx.order.pickupDate) : "[X]";
+      return `Buongiorno ${nome || "[NOME]"}, le ricordiamo il ritiro del suo ordine di ${prodList} dalla fascia oraria ${ora} di oggi.\n\nA presto in caseificio,\nCaseificio Sciorio`;
+    }
     case "ordine_pronto":
-      return `${nome ? nome + ", il" : "Il"} suo ordine è pronto e l'aspetta in caseificio${ctx.order ? " (ritiro previsto " + formatTime(ctx.order.pickupDate) + ")" : ""}. A presto!\nCaseificio Sciorio`;
+      return `Buongiorno${nome ? " " + nome : ""},\nil suo ordine di ${prodList} è pronto e l'aspetta in caseificio${ctx.order ? ` (ritiro previsto ${formatTime(ctx.order.pickupDate)})` : ""}.\n\nA presto,\nCaseificio Sciorio`;
     case "consegna_in_arrivo":
-      return `${nome ? nome + ", la" : "La"} consegna è in arrivo${ctx.delivery ? " nella fascia " + ctx.delivery.timeSlot : ""}. Ci vediamo a breve!`;
+      return `Buongiorno${nome ? " " + nome : ""},\nla sua consegna di ${prodList} è in arrivo${ctx.delivery ? ` nella fascia ${ctx.delivery.timeSlot}` : ""}.\n\nCi vediamo a breve!\nCaseificio Sciorio`;
     case "promo_bundle":
       return ctx.bundle
-        ? `Buongiorno${nome ? " " + nome : ""},\nquesta settimana proponiamo "${ctx.bundle.name}":\n\n• ${ctx.bundle.ingredients.join("\n• ")}\n\nPrezzo offerta: ${eur(ctx.bundle.offerPrice ?? ctx.bundle.fullPrice)} (anziché ${eur(ctx.bundle.fullPrice)})\nDisponibilità: ${ctx.bundle.availability}\n\nCaseificio Sciorio dal 1947`
-        : `Buongiorno${nome ? " " + nome : ""}, abbiamo una nuova proposta per lei. Le interessa saperne di più?`;
+        ? `Buongiorno${nome ? " " + nome : ""}, abbiamo una proposta / box in offerta.\n\n${ctx.bundle.name}\n• ${ctx.bundle.ingredients.join("\n• ")}\nPrezzo: ${eur(ctx.bundle.offerPrice ?? ctx.bundle.fullPrice)}${ctx.bundle.offerPrice ? ` (anziché ${eur(ctx.bundle.fullPrice)})` : ""}\n\nSe ne vuole uno anche lei ci scriva pure, glielo mettiamo da parte.\n\nCaseificio Sciorio dal 1947`
+        : `Buongiorno${nome ? " " + nome : ""}, abbiamo una proposta / box in offerta.\n\n[DETTAGLI BUNDLE]\n\nSe ne vuole uno anche lei ci scriva pure, glielo mettiamo da parte.\n\nCaseificio Sciorio dal 1947`;
     case "cliente_inattivo":
-      return `Buongiorno ${nome},\nci manca! Per il suo ritorno in caseificio le riserviamo una piccola sorpresa: ricotta di bufala in omaggio sul prossimo ordine.\nA presto,\nCaseificio Sciorio`;
+      return `Buongiorno ${nome || "[NOME]"}, è da un po' che non ci vediamo.\n\nSe passa a trovarci le riserviamo una piccola sorpresa.\n\n[DETTAGLI OFFERTA]\n\nA presto,\nCaseificio Sciorio`;
     case "premio_disponibile":
       return `${nome ? nome + ", complimenti" : "Complimenti"}! Ha completato la cartolina fedeltà: 1kg di mozzarella di bufala in omaggio sul suo prossimo ritiro.\nLa aspettiamo,\nCaseificio Sciorio`;
     case "ringraziamento":
