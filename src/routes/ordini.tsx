@@ -207,7 +207,7 @@ function OrdiniPage() {
   );
 }
 
-function OrderSheet({ mode, orderId, onClose, onSave }: {
+export function OrderSheet({ mode, orderId, onClose, onSave }: {
   mode: "new" | "edit";
   orderId?: string;
   onClose: () => void;
@@ -228,7 +228,12 @@ function OrderSheet({ mode, orderId, onClose, onSave }: {
   });
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [status, setStatus] = useState<OrderStatus>(existing?.status ?? "in_attesa");
-  const [source, setSource] = useState<OrderSource>(existing?.source ?? "negozio");
+  const initialSource: OrderSource = (() => {
+    const s = existing?.source ?? "negozio";
+    return (SOURCE_OPTIONS as OrderSource[]).includes(s) ? s : "negozio";
+  })();
+  const [source, setSource] = useState<OrderSource>(initialSource);
+  const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [search, setSearch] = useState("");
 
   const total = items.reduce((s, i) => {
