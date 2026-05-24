@@ -261,7 +261,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     const payload: Omit<Order, "id" | "createdAt"> = {
       clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
-      status, total, notes: notes.trim() || undefined, source,
+      status, total, notes: notes.trim() || undefined, source, delivery,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
