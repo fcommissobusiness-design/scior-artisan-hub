@@ -96,8 +96,9 @@ export interface OrderItem {
   lotId?: string;             // lotto usato per tracciabilità leggera
 }
 
-export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "annullato";
+export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "da_consegnare" | "consegnato" | "annullato";
 export type OrderSource = "negozio" | "whatsapp" | "telefono" | "consegna" | "sito" | "b2b" | "altro";
+export type DeliveryMode = "ritiro" | "domicilio";
 
 export interface OrderEvent {
   date: string; // ISO
@@ -116,6 +117,7 @@ export interface Order {
   total: number;
   createdAt: string;
   source?: OrderSource;
+  delivery?: DeliveryMode;
   timeline?: OrderEvent[];
   deliveryId?: string;
 }
