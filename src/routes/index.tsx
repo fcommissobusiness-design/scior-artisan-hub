@@ -45,7 +45,6 @@ function Dashboard() {
 
   const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
-  void loadCrmSettings;
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
   const sottoCosto = products.filter((p) => { const m = calcMargin(p); return m !== null && m < 0; });
