@@ -158,6 +158,10 @@ function OrdiniPage() {
                   <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
                     className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Ritirato</button>
                 )}
+                {o.status === "da_consegnare" && (
+                  <button onClick={() => updateOrder(o.id, { status: "consegnato" })}
+                    className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Consegnato</button>
+                )}
                 <button onClick={() => duplicateOrder(o.id)}
                   className="text-xs bg-card border border-border rounded-lg px-2 py-1.5 font-semibold">Duplica</button>
                 {c?.phone && <CallBtn phone={c.phone} />}
