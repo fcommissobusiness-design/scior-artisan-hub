@@ -325,9 +325,18 @@ function QuickWhatsAppPicker({ onClose, onPick }: { onClose: () => void; onPick:
   );
 }
 
+const SALE_SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
+const SALE_SOURCE_LABEL: Record<OrderSource, string> = {
+  negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
+  sito: "Sito", altro: "Altro", consegna: "Negozio", b2b: "Negozio",
+};
+const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
+  ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
+};
+
 function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
-  onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "occasionali"; stamps: 0 }) => void;
+  onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
   const { clients, products } = useStore();
   const [date, setDate] = useState(() => {
@@ -337,6 +346,8 @@ function NewSaleSheet({ open, onClose, onSave }: {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [clientName, setClientName] = useState("");
   const [search, setSearch] = useState("");
+  const [source, setSource] = useState<OrderSource>("negozio");
+  const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -357,7 +368,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -366,10 +377,11 @@ function NewSaleSheet({ open, onClose, onSave }: {
       items, total,
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
+      source, delivery,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
-      newClient = { name: clientName.trim(), phone: "", segment: "occasionali" as const, stamps: 0 };
+      newClient = { name: clientName.trim(), phone: "", segment: "nuovi" as const, stamps: 0 };
     }
     reset();
     onSave(sale, newClient);
@@ -390,17 +402,31 @@ function NewSaleSheet({ open, onClose, onSave }: {
         </div>
       }
     >
-      <Field label="Data e ora">
-        <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-3" />
-      </Field>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Data e ora">
+          <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Origine">
+          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {SALE_SOURCE_OPTIONS.map(s => <option key={s} value={s}>{SALE_SOURCE_LABEL[s]}</option>)}
+          </select>
+        </Field>
+        <Field label="Delivery">
+          <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryMode)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {(Object.keys(SALE_DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{SALE_DELIVERY_LABEL[d]}</option>)}
+          </select>
+        </Field>
+      </div>
 
       <Field label="Cliente (facoltativo)">
         <input placeholder="Nome cliente o lascia vuoto" value={clientName} onChange={(e) => setClientName(e.target.value)}
           className="w-full bg-card border border-border rounded-lg p-3" />
         {matched && <p className="text-xs text-success mt-1">Cliente esistente: si aggiungerà allo storico di {matched.name}.</p>}
         {!matched && clientName.trim().length >= 2 && (
-          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda "Occasionale".</p>
+          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda "Nuovo".</p>
         )}
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
