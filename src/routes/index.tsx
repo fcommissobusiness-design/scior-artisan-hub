@@ -10,7 +10,7 @@ import {
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
   productionsForDate,
 } from "@/lib/metrics";
-import { loadCrmSettings } from "@/lib/crm-settings";
+
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 
