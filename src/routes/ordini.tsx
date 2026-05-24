@@ -316,23 +316,31 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="es. Festa compleanno"
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Data e ora ritiro">
+        <Field label="Data e ora ritiro/consegna">
           <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Origine">
+          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {SOURCE_OPTIONS.map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
+          </select>
+        </Field>
+        <Field label="Delivery">
+          <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryMode)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {(Object.keys(DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{DELIVERY_LABEL[d]}</option>)}
+          </select>
         </Field>
         <Field label="Status">
           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
             <option value="in_attesa">In Attesa</option>
             <option value="pronto">Pronto</option>
+            <option value="da_consegnare">Da Consegnare</option>
+            <option value="consegnato">Consegnato</option>
             <option value="ritirato">Ritirato</option>
             <option value="annullato">Annullato</option>
-          </select>
-        </Field>
-        <Field label="Origine">
-          <select value={source} onChange={(e) => setSource(e.target.value as OrderSource)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            {(Object.keys(SOURCE_LABEL) as OrderSource[]).map(s => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}
           </select>
         </Field>
       </div>
