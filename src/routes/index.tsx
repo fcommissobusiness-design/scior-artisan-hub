@@ -2,18 +2,17 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
-import { calcMargin, type CasualSale, type OrderItem } from "@/lib/data";
+import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode } from "@/lib/data";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
   pendingPickupsToday, lateOrders, inactiveClients,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
-  cashFlowMonth, paymentsTotalMonth, grossMargin, productionsForDate,
-  recoverableClients, topSpenders, newClientsInPeriod, segmentChangesInPeriod,
-  nearLoyaltyClients,
+  productionsForDate,
 } from "@/lib/metrics";
 import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
+import { OrderSheet } from "@/routes/ordini";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
