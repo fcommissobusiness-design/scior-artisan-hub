@@ -2,7 +2,7 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { CallBtn, CopyBtn } from "@/components/QuickActions";
@@ -17,17 +17,29 @@ export const Route = createFileRoute("/ordini")({
 const STATUS_STYLE: Record<OrderStatus, string> = {
   in_attesa: "bg-warning/15 text-warning",
   pronto: "bg-blue-600/15 text-blue-700",
+  da_consegnare: "bg-purple-600/15 text-purple-700",
   ritirato: "bg-success/15 text-success",
+  consegnato: "bg-success/15 text-success",
   annullato: "bg-danger/15 text-danger",
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  in_attesa: "In Attesa", pronto: "Pronto", ritirato: "Ritirato", annullato: "Annullato",
+  in_attesa: "In Attesa", pronto: "Pronto",
+  da_consegnare: "Da Consegnare", consegnato: "Consegnato",
+  ritirato: "Ritirato", annullato: "Annullato",
 };
 
+// Etichette per dato esistente (display); il select offre solo le opzioni "operative".
 const SOURCE_LABEL: Record<OrderSource, string> = {
   negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
-  consegna: "Consegna", sito: "Sito", b2b: "B2B", altro: "Altro",
+  sito: "Sito", altro: "Altro",
+  consegna: "Negozio", b2b: "Negozio",
+};
+const SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
+
+const DELIVERY_LABEL: Record<DeliveryMode, string> = {
+  ritiro: "Ritiro in negozio",
+  domicilio: "Consegna a domicilio",
 };
 
 type Filter = "all" | "oggi" | "domani" | "ritardi" | "consegne" | "mozzarella" | "alto" | "attesa" | "pronti" | "ritirati" | "annullati";
