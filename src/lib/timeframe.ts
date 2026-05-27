@@ -47,6 +47,7 @@ export function inFrame(iso: string, f: TimeFrame): boolean {
 export const TIME_FRAME_OPTIONS: { id: TimeFrameId; label: string }[] = [
   { id: "today", label: "Oggi" },
   { id: "yesterday", label: "Ieri" },
+  { id: "tomorrow", label: "Domani" },
   { id: "thisWeek", label: "Sett. corrente" },
   { id: "lastWeek", label: "Sett. precedente" },
   { id: "thisMonth", label: "Mese corrente" },
