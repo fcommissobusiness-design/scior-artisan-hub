@@ -1,5 +1,5 @@
 export type TimeFrameId =
-  | "today" | "yesterday"
+  | "today" | "yesterday" | "tomorrow"
   | "thisWeek" | "lastWeek"
   | "thisMonth" | "lastMonth"
   | "custom";
