@@ -221,8 +221,9 @@ function OrdiniPage() {
                 )}
                 {c?.phone && (
                   <button onClick={() => setWaOpen(o.id)}
-                    className="text-xs bg-[#25D366] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
+                    className="text-xs bg-[#1FA855] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
                 )}
+
                 <button onClick={() => setConfirmDel(o.id)} aria-label="Elimina"
                   className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
