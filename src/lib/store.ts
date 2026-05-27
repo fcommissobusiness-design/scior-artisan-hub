@@ -269,12 +269,34 @@ export function useStore() {
 
     // ORDERS
     addOrder: (o: Omit<Order, "id" | "createdAt">) => {
+      const orderId = uid("o_");
+      let deliveryId: string | undefined = o.deliveryId;
+      let nextDeliveries = store.deliveries;
+      // Sync: ordine con consegna a domicilio → crea anche Delivery
+      if (o.delivery === "domicilio" && !deliveryId) {
+        deliveryId = uid("d_");
+        const client = store.clients.find(c => c.id === o.clientId);
+        const del: Delivery = {
+          id: deliveryId, clientId: o.clientId,
+          address: o.address || client?.deliveryZone || "",
+          date: o.pickupDate,
+          timeSlot: "—",
+          status: o.status === "consegnato" ? "consegnata"
+                : o.status === "annullato" ? "annullata"
+                : o.status === "da_consegnare" ? "in_consegna"
+                : "da_preparare",
+          payment: o.payment ?? "da_pagare",
+          orderId, notes: o.notes,
+          createdAt: nowIso(),
+        };
+        nextDeliveries = [del, ...store.deliveries];
+      }
       const order: Order = {
-        ...o, id: uid("o_"), createdAt: nowIso(),
+        ...o, id: orderId, createdAt: nowIso(), deliveryId,
         timeline: [{ date: nowIso(), type: "creato" }],
         source: o.source ?? "negozio",
       };
-      let next: Store = { ...store, orders: [order, ...store.orders] };
+      let next: Store = { ...store, orders: [order, ...store.orders], deliveries: nextDeliveries };
       if (order.status === "ritirato") next = applyOrderRitirato(next, order);
       setStore(next);
       return order;
@@ -290,7 +312,26 @@ export function useStore() {
         tl.push({ date: nowIso(), type: "modificato" });
       }
       const merged: Order = { ...prev, ...patch, timeline: tl };
-      let next: Store = { ...store, orders: store.orders.map((o) => o.id === id ? merged : o) };
+      let nextDeliveries = store.deliveries;
+      // Sync verso Delivery collegata
+      if (merged.deliveryId) {
+        nextDeliveries = nextDeliveries.map(d => {
+          if (d.id !== merged.deliveryId) return d;
+          const dPatch: Partial<Delivery> = {};
+          if (patch.status) {
+            dPatch.status = merged.status === "consegnato" ? "consegnata"
+              : merged.status === "annullato" ? "annullata"
+              : merged.status === "da_consegnare" ? "in_consegna"
+              : "da_preparare";
+          }
+          if (patch.address !== undefined) dPatch.address = merged.address || d.address;
+          if (patch.payment !== undefined && merged.payment) dPatch.payment = merged.payment;
+          if (patch.pickupDate) dPatch.date = merged.pickupDate;
+          if (patch.notes !== undefined) dPatch.notes = merged.notes;
+          return { ...d, ...dPatch };
+        });
+      }
+      let next: Store = { ...store, orders: store.orders.map((o) => o.id === id ? merged : o), deliveries: nextDeliveries };
       if (willBecomeRitirato) next = applyOrderRitirato(next, merged);
       setStore(next);
     },
@@ -301,13 +342,20 @@ export function useStore() {
       const dup: Order = {
         ...o, id: uid("o_"), createdAt: nowIso(),
         pickupDate: d.toISOString(), status: "in_attesa",
+        deliveryId: undefined,
         timeline: [{ date: nowIso(), type: "creato", note: `Duplicato da ${o.id}` }],
       };
       setStore({ ...store, orders: [dup, ...store.orders] });
       return dup;
     },
-    deleteOrder: (id: string) =>
-      setStore({ ...store, orders: store.orders.filter((o) => o.id !== id) }),
+    deleteOrder: (id: string) => {
+      const o = store.orders.find(x => x.id === id);
+      const nextDeliveries = o?.deliveryId
+        ? store.deliveries.filter(d => d.id !== o.deliveryId)
+        : store.deliveries;
+      setStore({ ...store, orders: store.orders.filter((x) => x.id !== id), deliveries: nextDeliveries });
+    },
+
 
     // BUNDLES
     addBundle: (b: Omit<Bundle, "id">) => {
