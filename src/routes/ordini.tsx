@@ -377,23 +377,37 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (!selectedClient) return;
     const trimmed = phone.trim();
     if (!trimmed || trimmed === selectedClient.phone) return;
-    // Promuovi il nuovo numero come principale, sposta il vecchio in `phones`.
     const others = (selectedClient.phones ?? []).filter(p => p && p !== trimmed && p !== selectedClient.phone);
     const newPhones = [selectedClient.phone, ...others].filter(Boolean);
     updateClient(selectedClient.id, { phone: trimmed, phones: newPhones });
+  };
+  const persistAddressIfChanged = () => {
+    if (!selectedClient || delivery !== "domicilio") return;
+    const trimmed = address.trim();
+    if (!trimmed) return;
+    const existing = [selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[];
+    if (existing.includes(trimmed)) return;
+    const newAddresses = Array.from(new Set([...(selectedClient.addresses ?? []), trimmed]));
+    const patch: Partial<typeof selectedClient> = { addresses: newAddresses };
+    if (!selectedClient.deliveryZone) patch.deliveryZone = trimmed;
+    updateClient(selectedClient.id, patch);
   };
 
   const handleSave = () => {
     if (!clientId || items.length === 0) return;
     persistPhoneIfChanged();
+    persistAddressIfChanged();
     const payload: Omit<Order, "id" | "createdAt"> = {
       clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
+      address: delivery === "domicilio" ? address.trim() || undefined : undefined,
+      payment: delivery === "domicilio" ? payment : undefined,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
   };
+
 
   const handleDelete = () => {
     if (!existing) return;
