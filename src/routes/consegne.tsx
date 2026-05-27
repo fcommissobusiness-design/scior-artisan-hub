@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
+import { TopBar, formatEuro, formatDate, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Delivery, DeliveryStatus, DeliveryPayment } from "@/lib/data";
-import { openDeliveries } from "@/lib/metrics";
-import { telUrl } from "@/lib/whatsapp";
-import { CopyBtn, MapsBtn } from "@/components/QuickActions";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
+import { MapsBtn } from "@/components/QuickActions";
+import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 
 export const Route = createFileRoute("/consegne")({ component: ConsegnePage });
 
@@ -24,50 +23,74 @@ const PAY_LABEL: Record<DeliveryPayment, string> = {
   da_pagare: "Da pagare", pagato_anticipo: "Pagato (anticipo)", pagato_consegna: "Pagato alla consegna",
 };
 
+function toDateInput(d: Date) {
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(+d - tz).toISOString().slice(0, 10);
+}
+
 function ConsegnePage() {
   const { deliveries, clients, orders, addDelivery, updateDelivery, deleteDelivery } = useStore();
-  const [tab, setTab] = useState<DeliveryStatus | "all">("all");
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [waId, setWaId] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  const list = useMemo(() => deliveries
-    .filter(d => tab === "all" || d.status === tab)
-    .sort((a, b) => +new Date(b.date) - +new Date(a.date)),
-    [deliveries, tab]);
+  // Timeframe
+  const [tfId, setTfId] = useState<TimeFrameId>("today");
+  const today = new Date();
+  const [customStart, setCustomStart] = useState(toDateInput(today));
+  const [customEnd, setCustomEnd] = useState(toDateInput(today));
+  const tf = useMemo(() => {
+    if (tfId === "custom") return makeTimeFrame("custom", new Date(customStart), new Date(customEnd));
+    return makeTimeFrame(tfId);
+  }, [tfId, customStart, customEnd]);
 
-  const aperte = openDeliveries(deliveries);
-  const completate = deliveries.filter(d => d.status === "consegnata");
-  const ritardo = deliveries.filter(d => (d.status === "da_preparare" || d.status === "in_consegna") && +new Date(d.date) < Date.now() - 86400000);
-  const valore = completate.reduce((s, d) => {
+  const inPeriod = useMemo(() => deliveries.filter(d => inFrame(d.date, tf)), [deliveries, tf]);
+  const list = useMemo(() => [...inPeriod].sort((a, b) => +new Date(b.date) - +new Date(a.date)), [inPeriod]);
+
+  const aperte = inPeriod.filter(d => d.status === "da_preparare" || d.status === "in_consegna");
+  const completate = inPeriod.filter(d => d.status === "consegnata");
+  const fattGenerato = completate.reduce((s, d) => {
     const o = d.orderId ? orders.find(o => o.id === d.orderId) : null;
     return s + (o?.total ?? 0);
   }, 0);
+  const valoreTotale = inPeriod
+    .filter(d => d.status !== "annullata")
+    .reduce((s, d) => {
+      const o = d.orderId ? orders.find(o => o.id === d.orderId) : null;
+      return s + (o?.total ?? 0);
+    }, 0);
 
   const clientById = (id: string) => clients.find(c => c.id === id);
 
   return (
     <div>
-      <TopBar title="Consegne" subtitle={`${deliveries.length} totali · ${aperte.length} aperte`} />
+      <TopBar title="Consegne" subtitle={`${list.length} totali · ${tf.label}`} />
+
+      <div className="px-4 md:px-6 pt-3 flex justify-end gap-1.5 items-center">
+        <select value={tfId} onChange={(e) => setTfId(e.target.value as TimeFrameId)}
+          className="bg-card border border-border rounded-lg p-2.5 text-sm font-semibold text-brand-green">
+          {TIME_FRAME_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        {tfId === "custom" && (
+          <>
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+              className="bg-card border border-border rounded-lg p-2 text-xs" />
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+              className="bg-card border border-border rounded-lg p-2 text-xs" />
+          </>
+        )}
+      </div>
 
       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Aperte" value={aperte.length.toString()} />
         <Kpi label="Completate" value={completate.length.toString()} />
-        <Kpi label="Valore totale" value={formatEuro(valore)} highlight />
-        <Kpi label="In ritardo" value={ritardo.length.toString()} danger={ritardo.length > 0} />
+        <Kpi label="Fatturato generato" value={formatEuro(fattGenerato)} highlight />
+        <Kpi label="Valore totale" value={formatEuro(valoreTotale)} />
       </div>
 
-      <div className="px-4 md:px-6 flex gap-1.5 overflow-x-auto pb-1">
-        {(["all", "da_preparare", "in_consegna", "consegnata", "annullata"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t as any)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === t ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
-            {t === "all" ? "Tutte" : STATUS_LABEL[t]}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-        {list.length === 0 && <p className="md:col-span-2 text-center text-sm text-muted-foreground py-8">Nessuna consegna.</p>}
+      <div className="p-4 md:p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+        {list.length === 0 && <p className="md:col-span-2 text-center text-sm text-muted-foreground py-8">Nessuna consegna in questo periodo.</p>}
         {list.map(d => {
           const c = clientById(d.clientId);
           const o = d.orderId ? orders.find(o => o.id === d.orderId) : null;
@@ -75,37 +98,37 @@ function ConsegnePage() {
             <div key={d.id} className="bg-card rounded-xl p-4 shadow-sm">
               <button onClick={() => setEditId(d.id)} className="w-full text-left">
                 <div className="flex justify-between items-start mb-1 gap-2">
-                  <div>
-                    <p className="font-display text-lg text-brand-green leading-tight">{c?.name ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">{c?.phone ?? "—"}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c?.phone ?? "—"}</p>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${STATUS_STYLE[d.status]}`}>{STATUS_LABEL[d.status]}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${STATUS_STYLE[d.status]}`}>{STATUS_LABEL[d.status]}</span>
                 </div>
                 <p className="text-sm text-foreground/85 mt-1">{d.address}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatDate(d.date)} · {d.timeSlot} · {PAY_LABEL[d.payment]}
+                  {o ? <> · <span className="font-semibold text-brand-green">{formatEuro(o.total)}</span></> : null}
                 </p>
-                {o && <p className="text-xs mt-1 text-brand-green">Ordine collegato: {formatEuro(o.total)}</p>}
                 {d.notes && <p className="text-xs italic text-muted-foreground mt-1">{d.notes}</p>}
               </button>
-              <div className="flex gap-1.5 mt-3 flex-wrap">
-                {d.status === "da_preparare" && (
-                  <button onClick={() => updateDelivery(d.id, { status: "in_consegna" })}
-                    className="flex-1 text-xs bg-blue-600 text-white rounded-lg py-1.5 font-semibold">Parti</button>
-                )}
+              <div className="flex flex-wrap gap-1.5 mt-3 items-center">
+                <button onClick={() => setEditId(d.id)}
+                  className="flex-1 min-w-[80px] text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 px-3 font-semibold">Modifica</button>
                 {d.status !== "consegnata" && d.status !== "annullata" && (
                   <button onClick={() => updateDelivery(d.id, { status: "consegnata" })}
-                    className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Consegnata</button>
+                    className="text-xs bg-success text-white rounded-lg px-3 py-1.5 font-semibold">Consegnata</button>
                 )}
                 {c?.phone && (
-                  <>
-                    <a href={telUrl(c.phone)} className="text-xs bg-brand-green text-brand-cream rounded-lg px-2 py-1.5 font-semibold">Chiama</a>
-                    <button onClick={() => setWaId(d.id)} className="text-xs bg-brand-gold text-white rounded-lg px-2 py-1.5 font-semibold">WA</button>
-                  </>
+                  <a href={`tel:${c.phone.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()}
+                    className="text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 font-semibold">Chiama</a>
+                )}
+                {c?.phone && (
+                  <button onClick={() => setWaId(d.id)}
+                    className="text-xs bg-[#1FA855] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
                 )}
                 <MapsBtn address={d.address} />
-                <CopyBtn text={d.address} label="Copia indirizzo" />
-                {c?.phone && <CopyBtn text={c.phone} label="Copia tel" />}
+                <button onClick={() => setConfirmDel(d.id)} aria-label="Elimina"
+                  className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
             </div>
           );
@@ -120,8 +143,7 @@ function ConsegnePage() {
         if (!d) return null;
         return (
           <DeliverySheet mode="edit" delivery={d} onClose={() => setEditId(null)}
-            onSave={(patch) => { updateDelivery(d.id, patch); setEditId(null); }}
-            onDelete={() => { if (confirm("Eliminare consegna?")) { deleteDelivery(d.id); setEditId(null); } }} />
+            onSave={(patch) => { updateDelivery(d.id, patch); setEditId(null); }} />
         );
       })()}
       {waId && (() => {
@@ -134,25 +156,37 @@ function ConsegnePage() {
             defaultTemplate="consegna_in_arrivo" templates={["consegna_in_arrivo", "libero"]} />
         );
       })()}
+      {confirmDel && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={() => setConfirmDel(null)}>
+          <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-xl text-brand-green mb-2">Elimina consegna</h3>
+            <p className="text-sm text-foreground/80 mb-4">Sei sicuro di voler eliminare questa consegna?</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDel(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold">Annulla</button>
+              <button onClick={() => { deleteDelivery(confirmDel); setConfirmDel(null); }}
+                className="px-4 py-2 rounded-lg bg-danger text-white text-sm font-semibold">Elimina</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Kpi({ label, value, highlight, danger }: { label: string; value: string; highlight?: boolean; danger?: boolean }) {
+function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className={`rounded-xl p-3 ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
       <p className={`text-[10px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
-      <p className={`font-display text-2xl mt-1 ${danger ? "text-danger" : highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
+      <p className={`font-display text-2xl mt-1 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
     </div>
   );
 }
 
-function DeliverySheet({ mode, delivery, onClose, onSave, onDelete }: {
+function DeliverySheet({ mode, delivery, onClose, onSave }: {
   mode: "new" | "edit"; delivery?: Delivery;
   onClose: () => void; onSave: (d: Omit<Delivery, "id" | "createdAt"> | Partial<Delivery>) => void;
-  onDelete?: () => void;
 }) {
-  const { clients, orders } = useStore();
+  const { clients, updateClient } = useStore();
   const [clientQ, setClientQ] = useState("");
   const [clientId, setClientId] = useState(delivery?.clientId ?? clients[0]?.id ?? "");
   const [address, setAddress] = useState(delivery?.address ?? "");
@@ -165,21 +199,54 @@ function DeliverySheet({ mode, delivery, onClose, onSave, onDelete }: {
   const [slot, setSlot] = useState(delivery?.timeSlot ?? "10:00-12:00");
   const [status, setStatus] = useState<DeliveryStatus>(delivery?.status ?? "da_preparare");
   const [payment, setPayment] = useState<DeliveryPayment>(delivery?.payment ?? "da_pagare");
-  const [orderId, setOrderId] = useState(delivery?.orderId ?? "");
   const [notes, setNotes] = useState(delivery?.notes ?? "");
 
   const selectedClient = clients.find(c => c.id === clientId);
-  const clientOrders = orders.filter(o => o.clientId === clientId);
+  const [phone, setPhone] = useState(selectedClient?.phone ?? "");
+
+  useEffect(() => {
+    setPhone(selectedClient?.phone ?? "");
+    if (!delivery && selectedClient?.deliveryZone && !address) setAddress(selectedClient.deliveryZone);
+  }, [clientId, selectedClient?.phone]);
+
+  const allPhones = useMemo(() => {
+    if (!selectedClient) return [] as string[];
+    return Array.from(new Set([selectedClient.phone, ...(selectedClient.phones ?? [])].filter(Boolean)));
+  }, [selectedClient]);
+  const allAddresses = useMemo(() => {
+    if (!selectedClient) return [] as string[];
+    return Array.from(new Set([selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[]));
+  }, [selectedClient]);
+
   const clientSugg = clientQ.length >= 1
-    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase())).slice(0, 6) : [];
+    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6) : [];
+
+  const persistContactsIfChanged = () => {
+    if (!selectedClient) return;
+    const patch: Partial<typeof selectedClient> = {};
+    const trimmedP = phone.trim();
+    if (trimmedP && trimmedP !== selectedClient.phone) {
+      const others = (selectedClient.phones ?? []).filter(p => p && p !== trimmedP && p !== selectedClient.phone);
+      patch.phone = trimmedP;
+      patch.phones = [selectedClient.phone, ...others].filter(Boolean);
+    }
+    const trimmedA = address.trim();
+    const exA = [selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[];
+    if (trimmedA && !exA.includes(trimmedA)) {
+      patch.addresses = Array.from(new Set([...(selectedClient.addresses ?? []), trimmedA]));
+      if (!selectedClient.deliveryZone) patch.deliveryZone = trimmedA;
+    }
+    if (Object.keys(patch).length) updateClient(selectedClient.id, patch);
+  };
 
   const save = () => {
     if (!clientId || !address.trim()) return;
+    persistContactsIfChanged();
     const payload: Omit<Delivery, "id" | "createdAt"> = {
       clientId, address: address.trim(),
       date: new Date(date).toISOString(),
       timeSlot: slot, status, payment,
-      orderId: orderId || undefined,
+      orderId: delivery?.orderId,
       notes: notes.trim() || undefined,
     };
     onSave(payload);
@@ -190,9 +257,6 @@ function DeliverySheet({ mode, delivery, onClose, onSave, onDelete }: {
       title={mode === "new" ? "Nuova consegna" : "Modifica consegna"}
       footer={
         <div className="flex gap-3">
-          {mode === "edit" && onDelete && (
-            <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
-          )}
           <button onClick={save} disabled={!clientId || !address.trim()}
             className="flex-1 bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">Conferma</button>
         </div>
@@ -214,9 +278,29 @@ function DeliverySheet({ mode, delivery, onClose, onSave, onDelete }: {
             </div>
           )}
         </Field>
+        <Field label="Telefono">
+          <div className="flex gap-1">
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 ..."
+              className="flex-1 bg-card border border-border rounded-lg p-3" />
+            {allPhones.length > 1 && (
+              <select value={phone} onChange={(e) => setPhone(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli numero">
+                {allPhones.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+          </div>
+        </Field>
         <Field label="Indirizzo">
-          <input value={address} onChange={(e) => setAddress(e.target.value)}
-            placeholder="Via, civico, città" className="w-full bg-card border border-border rounded-lg p-3" />
+          <div className="flex gap-1">
+            <input value={address} onChange={(e) => setAddress(e.target.value)}
+              placeholder="Via, civico, città" className="flex-1 bg-card border border-border rounded-lg p-3" />
+            {allAddresses.length > 1 && (
+              <select value={address} onChange={(e) => setAddress(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli indirizzo">
+                {allAddresses.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            )}
+          </div>
         </Field>
         <Field label="Data">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
@@ -235,18 +319,11 @@ function DeliverySheet({ mode, delivery, onClose, onSave, onDelete }: {
         <Field label="Pagamento">
           <select value={payment} onChange={(e) => setPayment(e.target.value as DeliveryPayment)}
             className="w-full bg-card border border-border rounded-lg p-3">
-            {(Object.keys(PAY_LABEL) as DeliveryPayment[]).map(s => <option key={s} value={s}>{PAY_LABEL[s]}</option>)}
+            <option value="pagato_anticipo">Pagato in anticipo</option>
+            <option value="da_pagare">Ancora da pagare</option>
+            <option value="pagato_consegna">Pagato alla consegna</option>
           </select>
         </Field>
-        {clientOrders.length > 0 && (
-          <Field label="Ordine collegato">
-            <select value={orderId} onChange={(e) => setOrderId(e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-3">
-              <option value="">— Nessuno —</option>
-              {clientOrders.map(o => <option key={o.id} value={o.id}>{formatDate(o.pickupDate)} {formatTime(o.pickupDate)} — {formatEuro(o.total)}</option>)}
-            </select>
-          </Field>
-        )}
       </div>
       <Field label="Note">
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
