@@ -1,5 +1,5 @@
 export type TimeFrameId =
-  | "today" | "yesterday"
+  | "today" | "yesterday" | "tomorrow"
   | "thisWeek" | "lastWeek"
   | "thisMonth" | "lastMonth"
   | "custom";
@@ -26,6 +26,7 @@ export function makeTimeFrame(id: TimeFrameId, customStart?: Date, customEnd?: D
   switch (id) {
     case "today":     return { id, label: "Oggi",                  start: startOfDay(now),                end: addDays(startOfDay(now), 1) };
     case "yesterday": return { id, label: "Ieri",                  start: addDays(startOfDay(now), -1),   end: startOfDay(now) };
+    case "tomorrow":  return { id, label: "Domani",                start: addDays(startOfDay(now), 1),    end: addDays(startOfDay(now), 2) };
     case "thisWeek":  return { id, label: "Settimana corrente",    start: startOfWeek(now),               end: addDays(startOfWeek(now), 7) };
     case "lastWeek":  return { id, label: "Settimana precedente",  start: addDays(startOfWeek(now), -7),  end: startOfWeek(now) };
     case "thisMonth": return { id, label: "Mese corrente",         start: startOfMonth(now),              end: addMonths(startOfMonth(now), 1) };
@@ -46,6 +47,7 @@ export function inFrame(iso: string, f: TimeFrame): boolean {
 export const TIME_FRAME_OPTIONS: { id: TimeFrameId; label: string }[] = [
   { id: "today", label: "Oggi" },
   { id: "yesterday", label: "Ieri" },
+  { id: "tomorrow", label: "Domani" },
   { id: "thisWeek", label: "Sett. corrente" },
   { id: "lastWeek", label: "Sett. precedente" },
   { id: "thisMonth", label: "Mese corrente" },

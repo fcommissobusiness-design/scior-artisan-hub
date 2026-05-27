@@ -73,6 +73,7 @@ export interface Client {
   id: string;
   name: string;
   phone: string;
+  phones?: string[]; // numeri aggiuntivi opzionali
   segment: Segment;
   segmentManual?: boolean;     // se true, non sovrascrivere segmento auto
   lastOrder?: string;
