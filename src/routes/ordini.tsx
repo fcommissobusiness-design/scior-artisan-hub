@@ -1,11 +1,11 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
-import { CallBtn, CopyBtn } from "@/components/QuickActions";
+import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 
 interface Search { f?: string }
 
@@ -15,12 +15,12 @@ export const Route = createFileRoute("/ordini")({
 });
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
-  in_attesa: "bg-warning/15 text-warning",
-  pronto: "bg-blue-600/15 text-blue-700",
-  da_consegnare: "bg-purple-600/15 text-purple-700",
-  ritirato: "bg-success/15 text-success",
-  consegnato: "bg-success/15 text-success",
-  annullato: "bg-danger/15 text-danger",
+  in_attesa: "bg-warning/15 text-warning border-warning/30",
+  pronto: "bg-blue-600/15 text-blue-700 border-blue-600/30",
+  da_consegnare: "bg-purple-600/15 text-purple-700 border-purple-600/30",
+  ritirato: "bg-success/15 text-success border-success/30",
+  consegnato: "bg-success/15 text-success border-success/30",
+  annullato: "bg-danger/15 text-danger border-danger/30",
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -29,7 +29,8 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   ritirato: "Ritirato", annullato: "Annullato",
 };
 
-// Etichette per dato esistente (display); il select offre solo le opzioni "operative".
+const STATUS_ORDER: OrderStatus[] = ["in_attesa", "pronto", "da_consegnare", "consegnato", "ritirato", "annullato"];
+
 const SOURCE_LABEL: Record<OrderSource, string> = {
   negozio: "Negozio", whatsapp: "WhatsApp", telefono: "Telefono",
   sito: "Sito", altro: "Altro",
@@ -42,103 +43,144 @@ const DELIVERY_LABEL: Record<DeliveryMode, string> = {
   domicilio: "Consegna a domicilio",
 };
 
-type Filter = "all" | "oggi" | "domani" | "ritardi" | "consegne" | "mozzarella" | "alto" | "attesa" | "pronti" | "ritirati" | "annullati";
-
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "all", label: "Tutti" },
-  { id: "oggi", label: "Oggi" },
-  { id: "domani", label: "Domani" },
-  { id: "ritardi", label: "Ritardi" },
-  { id: "attesa", label: "In attesa" },
-  { id: "pronti", label: "Pronti" },
-  { id: "consegne", label: "Consegne" },
-  { id: "mozzarella", label: "Mozzarella" },
-  { id: "alto", label: "Alto valore" },
-  { id: "ritirati", label: "Ritirati" },
-  { id: "annullati", label: "Annullati" },
-];
+function toDateInput(d: Date) {
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(+d - tz).toISOString().slice(0, 10);
+}
 
 function OrdiniPage() {
   const search = useSearch({ from: "/ordini" }) as Search;
-  const { orders, clients, products, addOrder, updateOrder, deleteOrder, duplicateOrder } = useStore();
-  const [filter, setFilter] = useState<Filter>("all");
+  const { orders, clients, products, addOrder } = useStore();
+  const [statusSel, setStatusSel] = useState<Set<OrderStatus>>(new Set());
+  const [deliverySel, setDeliverySel] = useState<Set<DeliveryMode>>(new Set());
   const [q, setQ] = useState("");
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [waOpen, setWaOpen] = useState<string | null>(null); // orderId
+  const [waOpen, setWaOpen] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
-  // sync da query string (deep links da dashboard)
+  // Timeframe
+  const [tfId, setTfId] = useState<TimeFrameId>("today");
+  const today = new Date();
+  const [customStart, setCustomStart] = useState(toDateInput(today));
+  const [customEnd, setCustomEnd] = useState(toDateInput(today));
+  const tf = useMemo(() => {
+    if (tfId === "custom") return makeTimeFrame("custom", new Date(customStart), new Date(customEnd));
+    return makeTimeFrame(tfId);
+  }, [tfId, customStart, customEnd]);
+
   useEffect(() => {
     if (search.f === "nuovo") setOpenNew(true);
-    if (search.f && ["oggi","domani","ritardi","attesa","pronti","ritirati","mozzarella","alto"].includes(search.f)) {
-      setFilter(search.f as Filter);
-    }
+    if (search.f === "oggi") setTfId("today");
+    else if (search.f === "domani") setTfId("tomorrow");
+    else if (search.f === "attesa") setStatusSel(new Set(["in_attesa"]));
+    else if (search.f === "pronti") setStatusSel(new Set(["pronto"]));
+    else if (search.f === "ritirati") setStatusSel(new Set(["ritirato"]));
   }, [search.f]);
 
-  const todayStr = new Date().toDateString();
-  const tomorrowStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toDateString(); })();
-  const cut = Date.now() - 86400000;
+  const toggleStatus = (s: OrderStatus) => setStatusSel(prev => {
+    const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n;
+  });
+  const toggleDelivery = (d: DeliveryMode) => setDeliverySel(prev => {
+    const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n;
+  });
 
-  const filtered = useMemo(() => orders.filter((o) => {
+  const inPeriod = useMemo(() => orders.filter(o => inFrame(o.pickupDate, tf)), [orders, tf]);
+
+  const filtered = useMemo(() => inPeriod.filter((o) => {
     const c = clients.find((c) => c.id === o.clientId);
     if (q && !(c?.name.toLowerCase().includes(q.toLowerCase()) || c?.phone.includes(q))) return false;
-    switch (filter) {
-      case "oggi": return new Date(o.pickupDate).toDateString() === todayStr && o.status !== "annullato";
-      case "domani": return new Date(o.pickupDate).toDateString() === tomorrowStr;
-      case "ritardi": return o.status === "in_attesa" && +new Date(o.pickupDate) < cut;
-      case "attesa": return o.status === "in_attesa";
-      case "pronti": return o.status === "pronto";
-      case "ritirati": return o.status === "ritirato";
-      case "annullati": return o.status === "annullato";
-      case "consegne": return !!o.deliveryId;
-      case "mozzarella": return o.items.some(i => i.productId.includes("mozzarella"));
-      case "alto": return o.total >= 30;
-      default: return true;
-    }
-  }).sort((a, b) => +new Date(b.pickupDate) - +new Date(a.pickupDate)), [orders, filter, q, clients, todayStr, tomorrowStr, cut]);
+    if (statusSel.size > 0 && !statusSel.has(o.status)) return false;
+    if (deliverySel.size > 0 && !deliverySel.has(o.delivery ?? "ritiro")) return false;
+    return true;
+  }).sort((a, b) => +new Date(b.pickupDate) - +new Date(a.pickupDate)), [inPeriod, q, clients, statusSel, deliverySel]);
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
 
   return (
     <div>
-      <TopBar title="Ordini" subtitle={`${orders.length} totali · ${filtered.length} visibili`} />
+      <TopBar title="Ordini" subtitle={`${filtered.length} totali · ${tf.label}`} />
 
       <div className="px-4 md:px-6 pt-3 sticky top-0 md:static bg-brand-cream z-30 space-y-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca cliente o telefono..."
-          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
+        {/* Top row: search + timeframe */}
+        <div className="flex flex-col md:flex-row gap-2">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cerca cliente o telefono..."
+            className="flex-1 bg-card border border-border rounded-lg p-2.5 text-sm" />
+          <div className="flex gap-1.5 items-center md:justify-end">
+            <select value={tfId} onChange={(e) => setTfId(e.target.value as TimeFrameId)}
+              className="bg-card border border-border rounded-lg p-2.5 text-sm font-semibold text-brand-green">
+              {TIME_FRAME_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+            {tfId === "custom" && (
+              <>
+                <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
+                  className="bg-card border border-border rounded-lg p-2 text-xs" />
+                <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
+                  className="bg-card border border-border rounded-lg p-2 text-xs" />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Status filters */}
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {FILTERS.map((t) => (
-            <button key={t.id} onClick={() => setFilter(t.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${filter === t.id ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
-              {t.label}
-            </button>
-          ))}
+          {STATUS_ORDER.map((s) => {
+            const active = statusSel.has(s);
+            return (
+              <button key={s} onClick={() => toggleStatus(s)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${active ? `${STATUS_STYLE[s]} ring-1 ring-current` : "bg-card text-foreground/60 border-border"}`}>
+                {STATUS_LABEL[s]}
+              </button>
+            );
+          })}
+          {statusSel.size > 0 && (
+            <button onClick={() => setStatusSel(new Set())} className="px-2 py-1.5 text-[11px] text-muted-foreground underline whitespace-nowrap">azzera</button>
+          )}
+        </div>
+
+        {/* Delivery filters */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold shrink-0">Delivery</span>
+          {(Object.keys(DELIVERY_LABEL) as DeliveryMode[]).map((d) => {
+            const active = deliverySel.has(d);
+            return (
+              <button key={d} onClick={() => toggleDelivery(d)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition ${active ? (d === "ritiro" ? "bg-brand-green/15 text-brand-green border-brand-green/40 ring-1 ring-brand-green/40" : "bg-blue-600/15 text-blue-700 border-blue-600/40 ring-1 ring-blue-600/40") : "bg-card text-foreground/60 border-border"}`}>
+                {DELIVERY_LABEL[d]}
+              </button>
+            );
+          })}
+          {deliverySel.size > 0 && (
+            <button onClick={() => setDeliverySel(new Set())} className="px-2 py-1.5 text-[11px] text-muted-foreground underline whitespace-nowrap">azzera</button>
+          )}
         </div>
       </div>
 
       <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine.</p>}
+        {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine in questo periodo.</p>}
         {filtered.map((o) => {
           const c = clientById(o.clientId);
           const m = orderMargin(o, products);
-          const overdue = o.status === "in_attesa" && +new Date(o.pickupDate) < cut;
+          const overdue = o.status === "in_attesa" && +new Date(o.pickupDate) < Date.now() - 86400000;
           return (
             <div key={o.id} className={`bg-card rounded-xl p-4 shadow-sm ${overdue ? "ring-2 ring-danger/40" : ""}`}>
-              <button onClick={() => setEditId(o.id)} className="w-full text-left">
-                <div className="flex justify-between items-start mb-1 gap-2">
-                  <div>
-                    <p className="font-display text-lg text-brand-green leading-tight">{c?.name ?? "—"}</p>
-                    <p className="text-[11px] text-muted-foreground">{c?.phone ?? "—"} · {SOURCE_LABEL[o.source ?? "negozio"]}</p>
-                    {o.label && <p className="text-xs text-brand-gold font-semibold mt-0.5">{o.label}</p>}
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
-                    {o.deliveryId && <span className="text-[9px] bg-blue-600/15 text-blue-700 px-1.5 py-0.5 rounded">Consegna</span>}
-                  </div>
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <button onClick={() => setEditId(o.id)} className="text-left min-w-0 flex-1">
+                  <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? "—"}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{c?.phone ?? "—"} · {SOURCE_LABEL[o.source ?? "negozio"]}</p>
+                  {o.label && <p className="text-xs text-brand-gold font-semibold mt-0.5 truncate">{o.label}</p>}
+                </button>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap border ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${o.delivery === "domicilio" ? "bg-blue-600/15 text-blue-700" : "bg-brand-green/10 text-brand-green"}`}>
+                    {o.delivery === "domicilio" ? "Domicilio" : "Ritiro"}
+                  </span>
                 </div>
+              </div>
+              <button onClick={() => setEditId(o.id)} className="w-full text-left">
                 <p className="text-xs text-muted-foreground mb-2">
-                  Ritiro {formatDate(o.pickupDate)} · {formatTime(o.pickupDate)} · <span className="font-semibold text-brand-green">{formatEuro(o.total)}</span> · margine <span className="font-semibold">{formatEuro(m)}</span>
+                  {formatDate(o.pickupDate)} · {formatTime(o.pickupDate)} · <span className="font-semibold text-brand-green">{formatEuro(o.total)}</span> · margine <span className="font-semibold">{formatEuro(m)}</span>
                 </p>
                 <ul className="text-sm space-y-0.5">
                   {o.items.slice(0, 3).map((i, idx) => {
@@ -147,29 +189,21 @@ function OrdiniPage() {
                   })}
                   {o.items.length > 3 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 3}</li>}
                 </ul>
-                {o.notes && <p className="text-xs italic text-muted-foreground mt-2">Note: {o.notes}</p>}
+                {o.notes && <p className="text-xs italic text-muted-foreground mt-2 line-clamp-2">Note: {o.notes}</p>}
               </button>
-              <div className="flex gap-1.5 mt-3">
-                {o.status === "in_attesa" && (
-                  <button onClick={() => updateOrder(o.id, { status: "pronto" })}
-                    className="flex-1 text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 font-semibold">Pronto</button>
+              <div className="flex flex-wrap gap-1.5 mt-3 items-center">
+                <button onClick={() => setEditId(o.id)}
+                  className="flex-1 min-w-[80px] text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 px-3 font-semibold">Modifica</button>
+                {c?.phone && (
+                  <a href={`tel:${c.phone.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()}
+                    className="text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 font-semibold">Chiama</a>
                 )}
-                {(o.status === "in_attesa" || o.status === "pronto") && (
-                  <button onClick={() => updateOrder(o.id, { status: "ritirato" })}
-                    className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Ritirato</button>
-                )}
-                {o.status === "da_consegnare" && (
-                  <button onClick={() => updateOrder(o.id, { status: "consegnato" })}
-                    className="flex-1 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Consegnato</button>
-                )}
-                <button onClick={() => duplicateOrder(o.id)}
-                  className="text-xs bg-card border border-border rounded-lg px-2 py-1.5 font-semibold">Duplica</button>
-                {c?.phone && <CallBtn phone={c.phone} />}
                 {c?.phone && (
                   <button onClick={() => setWaOpen(o.id)}
-                    className="text-xs bg-brand-gold text-white rounded-lg px-2 py-1.5 font-semibold">WA</button>
+                    className="text-xs bg-[#25D366] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
                 )}
-                {c?.phone && <CopyBtn text={c.phone} label="Copia tel" />}
+                <button onClick={() => setConfirmDel(o.id)} aria-label="Elimina"
+                  className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
             </div>
           );
@@ -202,11 +236,25 @@ function OrdiniPage() {
         );
       })()}
 
-      {filtered.find(o => o.status === "in_attesa") && filter === "ritardi" && (
-        <div className="px-4 md:px-6 pb-4 text-xs text-muted-foreground italic">
-          Ordini "In attesa" con data ritiro più vecchia di 24 ore.
-        </div>
+      {confirmDel && (
+        <DeleteOrderDialog orderId={confirmDel} onClose={() => setConfirmDel(null)} />
       )}
+    </div>
+  );
+}
+
+function DeleteOrderDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const { deleteOrder } = useStore();
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-display text-xl text-brand-green mb-2">Elimina ordine</h3>
+        <p className="text-sm text-foreground/80 mb-4">Sei sicuro di voler eliminare quest'ordine? L'operazione non è reversibile.</p>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold">Annulla</button>
+          <button onClick={() => { deleteOrder(orderId); onClose(); }} className="px-4 py-2 rounded-lg bg-danger text-white text-sm font-semibold">Elimina</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -217,7 +265,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   onClose: () => void;
   onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
 }) {
-  const { clients, products, orders, updateOrder, deleteOrder } = useStore();
+  const { clients, products, orders, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
   const existing = orderId ? orders.find((o) => o.id === orderId) : null;
 
   const [clientQ, setClientQ] = useState("");
@@ -239,6 +287,30 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [source, setSource] = useState<OrderSource>(initialSource);
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [search, setSearch] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const selectedClient = clients.find(c => c.id === clientId);
+
+  // Phone management
+  const [phone, setPhone] = useState(selectedClient?.phone ?? "");
+  useEffect(() => {
+    setPhone(selectedClient?.phone ?? "");
+  }, [clientId, selectedClient?.phone]);
+  const allPhones = useMemo(() => {
+    if (!selectedClient) return [] as string[];
+    const list = [selectedClient.phone, ...(selectedClient.phones ?? [])].filter(Boolean);
+    return Array.from(new Set(list));
+  }, [selectedClient]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    if (menuOpen) document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [menuOpen]);
 
   const total = items.reduce((s, i) => {
     const p = products.find((p) => p.id === i.productId);
@@ -260,8 +332,19 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6)
     : [];
 
+  const persistPhoneIfChanged = () => {
+    if (!selectedClient) return;
+    const trimmed = phone.trim();
+    if (!trimmed || trimmed === selectedClient.phone) return;
+    // Promuovi il nuovo numero come principale, sposta il vecchio in `phones`.
+    const others = (selectedClient.phones ?? []).filter(p => p && p !== trimmed && p !== selectedClient.phone);
+    const newPhones = [selectedClient.phone, ...others].filter(Boolean);
+    updateClient(selectedClient.id, { phone: trimmed, phones: newPhones });
+  };
+
   const handleSave = () => {
     if (!clientId || items.length === 0) return;
+    persistPhoneIfChanged();
     const payload: Omit<Order, "id" | "createdAt"> = {
       clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
@@ -279,7 +362,12 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     }
   };
 
-  const selectedClient = clients.find(c => c.id === clientId);
+  const handleDuplicate = () => {
+    if (!existing) return;
+    duplicateOrder(existing.id);
+    setMenuOpen(false);
+    onClose();
+  };
 
   return (
     <Sheet open={true} onClose={onClose}
@@ -300,6 +388,21 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
         </div>
       }
     >
+      {mode === "edit" && (
+        <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
+          <div className="relative">
+            <button onClick={() => setMenuOpen(o => !o)}
+              className="px-3 py-1.5 rounded-lg bg-card border border-border text-lg leading-none" aria-label="Altre azioni">⋮</button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[180px]">
+                <button onClick={handleDuplicate}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream">Duplica ordine</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Cliente">
           <input placeholder="Cerca o seleziona..." value={clientQ || selectedClient?.name || ""}
@@ -314,6 +417,21 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
                 </button>
               ))}
             </div>
+          )}
+        </Field>
+        <Field label="Telefono">
+          <div className="flex gap-1">
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 ..."
+              className="flex-1 bg-card border border-border rounded-lg p-3" />
+            {allPhones.length > 1 && (
+              <select value={phone} onChange={(e) => setPhone(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli numero">
+                {allPhones.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+          </div>
+          {selectedClient && phone.trim() && phone.trim() !== selectedClient.phone && (
+            <p className="text-[10px] text-brand-gold mt-1">Salvando, questo numero diventerà il principale del cliente.</p>
           )}
         </Field>
         <Field label="Nome ordine (opz.)">
