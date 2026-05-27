@@ -126,6 +126,15 @@ function ClientiPage() {
               <div className="flex gap-1.5 mt-3">
                 <button onClick={() => setOpenId(c.id)}
                   className="flex-1 text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 px-3 font-semibold">Modifica</button>
+                {c.phone ? (
+                  <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} aria-label="Chiama"
+                    className="text-xs bg-blue-600 text-white rounded-lg px-2.5 py-1.5 font-semibold">Chiama</a>
+                ) : null}
+                {c.phone ? (
+                  <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()} aria-label="WhatsApp"
+                    className="text-xs bg-[#1FA855] text-white rounded-lg px-2.5 py-1.5 font-semibold">WhatsApp</a>
+                ) : null}
                 <button onClick={() => setConfirmDel(c.id)} aria-label="Elimina"
                   className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
