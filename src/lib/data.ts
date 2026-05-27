@@ -121,9 +121,12 @@ export interface Order {
   createdAt: string;
   source?: OrderSource;
   delivery?: DeliveryMode;
+  address?: string;            // indirizzo consegna (se delivery=domicilio)
+  payment?: DeliveryPayment;   // stato pagamento (se delivery=domicilio)
   timeline?: OrderEvent[];
   deliveryId?: string;
 }
+
 
 export interface Bundle {
   id: string;
