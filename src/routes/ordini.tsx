@@ -124,7 +124,8 @@ function OrdiniPage() {
         </div>
 
         {/* Status filters */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold shrink-0">Status</span>
           {STATUS_ORDER.map((s) => {
             const active = statusSel.has(s);
             return (
@@ -156,6 +157,26 @@ function OrdiniPage() {
           )}
         </div>
       </div>
+
+      {/* KPI di periodo */}
+      <div className="px-4 md:px-6 pt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+        {(() => {
+          const completedStatuses: OrderStatus[] = ["consegnato", "ritirato"];
+          const completati = inPeriod.filter(o => completedStatuses.includes(o.status));
+          const aperti = inPeriod.filter(o => !completedStatuses.includes(o.status) && o.status !== "annullato");
+          const fattGen = completati.reduce((s, o) => s + (o.total || 0), 0);
+          const valoreTot = inPeriod.filter(o => o.status !== "annullato").reduce((s, o) => s + (o.total || 0), 0);
+          return (
+            <>
+              <KpiMini label="Aperti" value={aperti.length.toString()} />
+              <KpiMini label="Completati" value={completati.length.toString()} />
+              <KpiMini label="Fatturato" value={formatEuro(fattGen)} highlight />
+              <KpiMini label="Valore totale" value={formatEuro(valoreTot)} />
+            </>
+          );
+        })()}
+      </div>
+
 
       <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
         {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine in questo periodo.</p>}
