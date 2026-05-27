@@ -318,6 +318,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   })();
   const [source, setSource] = useState<OrderSource>(initialSource);
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
+  const [address, setAddress] = useState(existing?.address ?? "");
+  const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -328,12 +330,19 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [phone, setPhone] = useState(selectedClient?.phone ?? "");
   useEffect(() => {
     setPhone(selectedClient?.phone ?? "");
+    if (!existing && selectedClient?.deliveryZone && !address) setAddress(selectedClient.deliveryZone);
   }, [clientId, selectedClient?.phone]);
   const allPhones = useMemo(() => {
     if (!selectedClient) return [] as string[];
     const list = [selectedClient.phone, ...(selectedClient.phones ?? [])].filter(Boolean);
     return Array.from(new Set(list));
   }, [selectedClient]);
+  const allAddresses = useMemo(() => {
+    if (!selectedClient) return [] as string[];
+    const list = [selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [selectedClient]);
+
 
   // Close menu on outside click
   useEffect(() => {
