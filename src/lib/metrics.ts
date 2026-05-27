@@ -653,3 +653,25 @@ export function problematicOnlineOrders(orders: OnlineOrder[], shipments: Shipme
     problemIds.has(o.id)
   );
 }
+
+/** Calcola la fascia oraria preferita del cliente in base agli orari di ritiro/scontrino. */
+export function clientPreferredTimeSlotAuto(orders: Order[], sales: CasualSale[], clientId: string): string | null {
+  const buckets: Record<string, { label: string; count: number }> = {
+    morning_early: { label: "Mattina presto (07–10)", count: 0 },
+    morning_late:  { label: "Mattina tarda (10–13)", count: 0 },
+    afternoon:     { label: "Pomeriggio (13–17)", count: 0 },
+    evening:       { label: "Sera (17–20)", count: 0 },
+  };
+  const add = (iso: string) => {
+    const h = new Date(iso).getHours();
+    if (h >= 7 && h < 10) buckets.morning_early.count++;
+    else if (h >= 10 && h < 13) buckets.morning_late.count++;
+    else if (h >= 13 && h < 17) buckets.afternoon.count++;
+    else if (h >= 17 && h < 20) buckets.evening.count++;
+  };
+  for (const o of clientOrders(orders, clientId)) add(o.pickupDate);
+  for (const s of clientSales(sales, clientId)) add(s.date);
+  const best = Object.values(buckets).sort((a, b) => b.count - a.count)[0];
+  return best && best.count > 0 ? best.label : null;
+}
+

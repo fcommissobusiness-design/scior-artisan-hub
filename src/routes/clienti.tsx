@@ -6,11 +6,10 @@ import { SEGMENT_META, type Client, type Segment } from "@/lib/data";
 import {
   clientLTV, clientOrderCount, clientAvgTicket, clientFrequencyPerMonth,
   daysInactive, suggestSegment, clientTopProducts, clientBadges,
-  recoverableClients,
+  clientPreferredTimeSlotAuto,
 } from "@/lib/metrics";
-import { loadCrmSettings } from "@/lib/crm-settings";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
-import { CopyBtn, CallBtn } from "@/components/QuickActions";
+import { CallBtn } from "@/components/QuickActions";
 
 interface Search { f?: string }
 
@@ -26,22 +25,13 @@ function ClientiPage() {
   const { clients, orders, products, casualSales, addClient, updateClient, deleteClient } = useStore();
   const [tab, setTab] = useState<Segment | "all">("all");
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"" | "premi" | "vicini" | "inattivi" | "caldi" | "alto" | "recuperabili" | "nuovi">("");
-  const crmSettings = useMemo(() => loadCrmSettings(), []);
-  const recuperabiliSet = useMemo(
-    () => new Set(recoverableClients(orders, casualSales, clients, crmSettings).map((c) => c.id)),
-    [orders, casualSales, clients, crmSettings],
-  );
   const [openId, setOpenId] = useState<string | null>(null);
   const [openNew, setOpenNew] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
   useEffect(() => {
-    if (search.f === "premi") setFilter("premi");
-    if (search.f === "inattivi") setFilter("inattivi");
-    if (search.f === "recuperabili") setFilter("recuperabili");
-    if (search.f === "vicini") setFilter("vicini");
-    if (search.f === "alto") setFilter("alto");
-    if (search.f === "nuovi") setFilter("nuovi");
+    if (search.f === "inattivi") setTab("inattivi");
+    if (search.f === "nuovi") setTab("nuovi");
   }, [search.f]);
 
   const counts = useMemo(() => {
@@ -54,64 +44,33 @@ function ClientiPage() {
     if (tab !== "all" && c.segment !== tab) return false;
     if (q) {
       const t = q.toLowerCase();
-      if (!(c.name.toLowerCase().includes(t) || c.phone.includes(q) || (c.tags ?? []).some(x => x.toLowerCase().includes(t)))) return false;
-    }
-    if (filter === "premi" && (c.stamps ?? 0) < 5) return false;
-    if (filter === "vicini" && (c.stamps ?? 0) !== 4) return false;
-    if (filter === "inattivi") {
-      const d = daysInactive(orders, casualSales, c);
-      if (d === null || d <= crmSettings.inactiveOccDays) return false;
-    }
-    if (filter === "caldi") {
-      const d = daysInactive(orders, casualSales, c);
-      if (d === null || d > 7) return false;
-    }
-    if (filter === "alto" && clientLTV(orders, casualSales, c.id) < 500) return false;
-    if (filter === "recuperabili" && !recuperabiliSet.has(c.id)) return false;
-    if (filter === "nuovi") {
-      if (!c.firstOrder) return false;
-      const days = (Date.now() - +new Date(c.firstOrder)) / 86400000;
-      if (days > crmSettings.newDays) return false;
+      if (!(c.name.toLowerCase().includes(t) || c.phone.includes(q))) return false;
     }
     return true;
-  }), [clients, tab, q, filter, orders, casualSales, crmSettings, recuperabiliSet]);
+  }), [clients, tab, q]);
 
   return (
     <div>
       <TopBar title="Clienti" subtitle={`${clients.length} schede totali`} />
 
+      {/* Segmenti header — solo lettura */}
       <div className="px-4 md:px-6 pt-3 grid grid-cols-5 gap-2">
         {(Object.keys(SEGMENT_META) as Segment[]).map((s) => (
-          <button key={s} onClick={() => setTab(s)} className={`bg-card rounded-lg p-2 text-center ${tab === s ? "ring-2 ring-brand-gold" : ""}`}>
+          <div key={s} className="bg-card rounded-lg p-2 text-center">
             <p className="font-display text-lg text-brand-green leading-none">{counts[s]}</p>
             <p className="text-[9px] text-muted-foreground mt-1 leading-tight">{SEGMENT_META[s].label}</p>
-          </button>
+          </div>
         ))}
       </div>
 
       <div className="px-4 md:px-6 pt-3 space-y-2">
-        <input placeholder="Cerca per nome, telefono o tag..." value={q} onChange={(e) => setQ(e.target.value)}
+        <input placeholder="Cerca per nome o telefono..." value={q} onChange={(e) => setQ(e.target.value)}
           className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {SEGMENTS.map((s) => (
             <button key={s} onClick={() => setTab(s)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === s ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
               {s === "all" ? "Tutti" : SEGMENT_META[s].label}
-            </button>
-          ))}
-          <span className="w-2" />
-          {[
-            { id: "premi" as const, label: "Premi pronti" },
-            { id: "vicini" as const, label: "Vicini al premio" },
-            { id: "recuperabili" as const, label: "Da recuperare" },
-            { id: "inattivi" as const, label: `Inattivi ${crmSettings.inactiveOccDays}+gg` },
-            { id: "caldi" as const, label: "Caldi 7gg" },
-            { id: "nuovi" as const, label: "Nuovi" },
-            { id: "alto" as const, label: "Alto spendenti" },
-          ].map(b => (
-            <button key={b.id} onClick={() => setFilter(filter === b.id ? "" : b.id)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${filter === b.id ? "bg-brand-gold text-white" : "bg-card text-foreground/70"}`}>
-              {b.label}
             </button>
           ))}
         </div>
@@ -121,49 +80,56 @@ function ClientiPage() {
         {filtered.length === 0 && <p className="md:col-span-3 text-center text-sm text-muted-foreground py-8">Nessun cliente.</p>}
         {filtered.map((c) => {
           const meta = SEGMENT_META[c.segment];
-          const stamps = c.stamps ?? 0;
           const ltv = clientLTV(orders, casualSales, c.id);
           const inactive = daysInactive(orders, casualSales, c);
+          const avg = clientAvgTicket(orders, casualSales, c.id);
           const badges = clientBadges(orders, casualSales, c);
           return (
-            <button key={c.id} onClick={() => setOpenId(c.id)} className="text-left bg-card rounded-xl p-4 shadow-sm hover:shadow-md">
-              <div className="flex justify-between items-start mb-1">
-                <div>
-                  <p className="font-display text-lg text-brand-green leading-tight">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.phone || "—"}</p>
+            <div key={c.id} className="bg-card rounded-xl p-4 shadow-sm hover:shadow-md">
+              <button onClick={() => setOpenId(c.id)} className="w-full text-left">
+                <div className="flex justify-between items-start mb-1 gap-2">
+                  <div className="min-w-0">
+                    <p className="font-display text-lg text-brand-green leading-tight truncate">{c.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{c.phone || "—"}</p>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${meta.color}`}>{meta.label}</span>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${meta.color}`}>{meta.label}</span>
-              </div>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {badges.map((b) => (
-                  <span key={b} className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase ${
-                    b === "caldo" ? "bg-success/15 text-success" :
-                    b === "inattivo" ? "bg-neutral-700/15 text-neutral-700" :
-                    b === "alto spendente" ? "bg-brand-gold/20 text-brand-gold" :
-                    b === "vicino premio" ? "bg-warning/15 text-warning" :
-                    "bg-brand-green/15 text-brand-green"
-                  }`}>{b}</span>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                <div><p className="text-[10px] text-muted-foreground">LTV</p><p className="text-sm font-bold text-brand-green">{formatEuro(ltv)}</p></div>
-                <div><p className="text-[10px] text-muted-foreground">Inattiv.</p><p className="text-sm font-bold">{inactive === null ? "—" : inactive + "gg"}</p></div>
-                <div><p className="text-[10px] text-muted-foreground">Ultimo</p><p className="text-sm font-bold">{c.lastOrder ? formatDate(c.lastOrder) : "—"}</p></div>
-              </div>
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] text-muted-foreground">Fedeltà</span>
-                  <span className="text-[11px] text-brand-green font-semibold">{stamps}/5</span>
+                {badges.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {badges.map((b) => (
+                      <span key={b} className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase ${
+                        b === "caldo" ? "bg-success/15 text-success" :
+                        b === "inattivo" ? "bg-neutral-700/15 text-neutral-700" :
+                        b === "alto spendente" ? "bg-brand-gold/20 text-brand-gold" :
+                        b === "vicino premio" ? "bg-warning/15 text-warning" :
+                        "bg-brand-green/15 text-brand-green"
+                      }`}>{b}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">LTV</p>
+                    <p className="text-sm font-bold text-brand-green">{formatEuro(ltv)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Ultimo ordine</p>
+                    <p className="text-sm font-bold leading-tight">{c.lastOrder ? formatDate(c.lastOrder) : "—"}</p>
+                    <p className="text-[10px] text-muted-foreground">{inactive === null ? "" : `${inactive}gg fa`}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Scontr. medio</p>
+                    <p className="text-sm font-bold text-brand-green">{formatEuro(avg)}</p>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  {[0,1,2,3,4].map(i => (
-                    <div key={i} className={`flex-1 h-3 rounded-full transition-colors ${i < stamps ? "bg-brand-gold" : "bg-muted"}`} />
-                  ))}
-                </div>
-                {stamps >= 5 && <p className="text-[11px] text-brand-gold mt-1 font-semibold">Premio pronto: 1kg mozzarella</p>}
-                {stamps === 4 && <p className="text-[11px] text-warning mt-1 font-semibold">Quasi completato</p>}
+              </button>
+              <div className="flex gap-1.5 mt-3">
+                <button onClick={() => setOpenId(c.id)}
+                  className="flex-1 text-xs bg-brand-green text-brand-cream rounded-lg py-1.5 px-3 font-semibold">Modifica</button>
+                <button onClick={() => setConfirmDel(c.id)} aria-label="Elimina"
+                  className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -171,7 +137,7 @@ function ClientiPage() {
       <Fab onClick={() => setOpenNew(true)} />
 
       {openNew && (
-        <ClientSheet mode="new" onClose={() => setOpenNew(false)} onSave={(c) => { addClient(c as Omit<Client, "id">); setOpenNew(false); }} />
+        <ClientSheet onClose={() => setOpenNew(false)} onSave={(c) => { addClient(c as Omit<Client, "id">); setOpenNew(false); }} />
       )}
 
       {openId && (() => {
@@ -182,8 +148,26 @@ function ClientiPage() {
             client={c}
             onClose={() => setOpenId(null)}
             onSave={(patch) => { updateClient(c.id, patch); setOpenId(null); }}
-            onDelete={() => { if (confirm(`Eliminare ${c.name}?`)) { deleteClient(c.id); setOpenId(null); } }}
+            onDelete={() => setConfirmDel(c.id)}
           />
+        );
+      })()}
+
+      {confirmDel && (() => {
+        const c = clients.find(x => x.id === confirmDel);
+        if (!c) return null;
+        return (
+          <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4" onClick={() => setConfirmDel(null)}>
+            <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-display text-xl text-brand-green mb-2">Elimina cliente</h3>
+              <p className="text-sm text-foreground/80 mb-4">Sei sicuro di voler eliminare <strong>{c.name}</strong>?</p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setConfirmDel(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold">Annulla</button>
+                <button onClick={() => { deleteClient(c.id); setConfirmDel(null); setOpenId(null); }}
+                  className="px-4 py-2 rounded-lg bg-danger text-white text-sm font-semibold">Conferma</button>
+              </div>
+            </div>
+          </div>
         );
       })()}
     </div>
@@ -196,19 +180,15 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
   onSave: (patch: Partial<Client>) => void;
   onDelete: () => void;
 }) {
-  const { orders, casualSales, products, addLoyaltyEvent, setLoyaltyStamps, logClientEvent } = useStore();
+  const { orders, casualSales, products, updateClient, addLoyaltyEvent, setLoyaltyStamps, logClientEvent } = useStore();
   const [openWa, setOpenWa] = useState(false);
 
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
-  const [segment, setSegment] = useState<Segment>(client.segment);
-  const [segmentManual, setSegmentManual] = useState(client.segmentManual ?? false);
+  const [address, setAddress] = useState(client.deliveryZone ?? "");
   const [stamps, setStamps] = useState(client.stamps ?? 0);
   const [firstOrder, setFirstOrder] = useState(client.firstOrder ?? new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState(client.notes ?? "");
-  const [tags, setTags] = useState<string>((client.tags ?? []).join(", "));
-  const [zone, setZone] = useState(client.deliveryZone ?? "");
-  const [slot, setSlot] = useState(client.preferredTimeSlot ?? "");
 
   const ltv = clientLTV(orders, casualSales, client.id);
   const ord = clientOrderCount(orders, casualSales, client.id);
@@ -216,20 +196,51 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
   const freq = clientFrequencyPerMonth(orders, casualSales, client);
   const inactive = daysInactive(orders, casualSales, client);
   const auto = suggestSegment(orders, casualSales, client);
-  const top = clientTopProducts(orders, casualSales, products, client.id, 5);
+  const top3 = clientTopProducts(orders, casualSales, products, client.id, 3);
+  const autoSlot = clientPreferredTimeSlotAuto(orders, casualSales, client.id);
+
+  const allPhones = useMemo(
+    () => Array.from(new Set([client.phone, ...(client.phones ?? [])].filter(Boolean))),
+    [client]
+  );
+  const allAddresses = useMemo(
+    () => Array.from(new Set([client.deliveryZone, ...(client.addresses ?? [])].filter(Boolean) as string[])),
+    [client]
+  );
 
   const orderHist = orders.filter(o => o.clientId === client.id).sort((a, b) => +new Date(b.pickupDate) - +new Date(a.pickupDate));
   const saleHist = casualSales.filter(s => s.clientId === client.id).sort((a, b) => +new Date(b.date) - +new Date(a.date));
 
+  const persistContactsIfChanged = () => {
+    const patch: Partial<Client> = {};
+    const tp = phone.trim();
+    if (tp && tp !== client.phone) {
+      const others = (client.phones ?? []).filter(p => p && p !== tp && p !== client.phone);
+      patch.phone = tp;
+      patch.phones = [client.phone, ...others].filter(Boolean);
+    }
+    const ta = address.trim();
+    const ex = [client.deliveryZone, ...(client.addresses ?? [])].filter(Boolean) as string[];
+    if (ta && !ex.includes(ta)) {
+      patch.addresses = Array.from(new Set([...(client.addresses ?? []), ta]));
+      if (!client.deliveryZone) patch.deliveryZone = ta;
+    } else if (ta && ta !== (client.deliveryZone ?? "")) {
+      patch.deliveryZone = ta;
+    }
+    if (Object.keys(patch).length) updateClient(client.id, patch);
+  };
+
   const save = () => {
     if (!name.trim()) return;
+    persistContactsIfChanged();
     onSave({
-      name: name.trim(), phone: phone.trim(), segment, segmentManual,
-      stamps: Math.max(0, Math.min(5, stamps)), firstOrder,
+      name: name.trim(),
+      phone: phone.trim(),
+      stamps: Math.max(0, Math.min(5, stamps)),
+      firstOrder,
       notes: notes.trim() || undefined,
-      tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-      deliveryZone: zone.trim() || undefined,
-      preferredTimeSlot: slot.trim() || undefined,
+      // segment is recalculated automatically by the store / recomputeSegments
+      segmentManual: false,
     });
   };
 
@@ -239,9 +250,8 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
         <div className="flex flex-wrap gap-2">
           <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           {client.phone && <CallBtn phone={client.phone} className="bg-brand-green text-brand-cream rounded-xl px-3 py-3 text-sm font-semibold" />}
-          {client.phone && <CopyBtn text={client.phone} label="Copia tel" className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold text-foreground/80" />}
           {client.phone && (
-            <button onClick={() => { setOpenWa(true); logClientEvent(client.id, "whatsapp", "Aperto WhatsApp"); }} className="bg-success text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
+            <button onClick={() => { setOpenWa(true); logClientEvent(client.id, "whatsapp", "Aperto WhatsApp"); }} className="bg-[#1FA855] text-white rounded-xl px-4 py-3 text-sm font-semibold">WhatsApp</button>
           )}
           <button onClick={save} disabled={!name.trim()}
             className="flex-1 bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
@@ -259,7 +269,7 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
         <Stat label="Inattivit." value={inactive === null ? "—" : inactive + "gg"} />
         <Stat label="Ultimo ordine" value={client.lastOrder ? formatDate(client.lastOrder) : "—"} />
         <Stat label="Segmento auto" value={SEGMENT_META[auto].label} />
-        <Stat label="Stamps" value={`${stamps}/5`} />
+        <Stat label="Fascia preferita" value={autoSlot ?? "—"} />
       </div>
 
       {/* FEDELTÀ */}
@@ -294,55 +304,53 @@ function ClientDetail({ client, onClose, onSave, onDelete }: {
           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
         <Field label="Telefono">
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 333 ..." className="w-full bg-card border border-border rounded-lg p-3" />
-        </Field>
-        <Field label={`Segmento ${segmentManual ? "(manuale)" : "(auto: " + SEGMENT_META[auto].label + ")"}`}>
-          <div className="flex gap-2">
-            <select value={segment} onChange={(e) => setSegment(e.target.value as Segment)} className="flex-1 bg-card border border-border rounded-lg p-3">
-              {(Object.keys(SEGMENT_META) as Segment[]).map((s) => <option key={s} value={s}>{SEGMENT_META[s].label}</option>)}
-            </select>
-            <label className="flex items-center gap-1 text-xs">
-              <input type="checkbox" checked={segmentManual} onChange={(e) => setSegmentManual(e.target.checked)} />
-              Manuale
-            </label>
+          <div className="flex gap-1">
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 333 ..."
+              className="flex-1 bg-card border border-border rounded-lg p-3" />
+            {allPhones.length > 1 && (
+              <select value={phone} onChange={(e) => setPhone(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli numero">
+                {allPhones.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
           </div>
-          {!segmentManual && segment !== auto && (
-            <button onClick={() => setSegment(auto)} className="text-xs text-brand-gold mt-1 font-semibold">Allinea ad auto</button>
-          )}
+        </Field>
+        <Field label="Indirizzo">
+          <div className="flex gap-1">
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Via, civico, città"
+              className="flex-1 bg-card border border-border rounded-lg p-3" />
+            {allAddresses.length > 1 && (
+              <select value={address} onChange={(e) => setAddress(e.target.value)}
+                className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli indirizzo">
+                {allAddresses.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            )}
+          </div>
         </Field>
         <Field label="Data primo ordine">
           <input type="date" value={firstOrder} onChange={(e) => setFirstOrder(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Fascia oraria preferita">
-          <input value={slot} onChange={(e) => setSlot(e.target.value)} placeholder="es. 08:30-10:00" className="w-full bg-card border border-border rounded-lg p-3" />
-        </Field>
-        <Field label="Zona consegna">
-          <input value={zone} onChange={(e) => setZone(e.target.value)} placeholder="es. Centro" className="w-full bg-card border border-border rounded-lg p-3" />
-        </Field>
       </div>
-
-      <Field label="Tag (separati da virgola)">
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="vip, intolleranza-lattosio, ristorante"
-          className="w-full bg-card border border-border rounded-lg p-3" />
-      </Field>
 
       <Field label="Note">
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
 
-      {top.length > 0 && (
-        <Field label="Prodotti preferiti">
+      <Field label="Prodotti preferiti (Top 3)">
+        {top3.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">Nessun ordine registrato.</p>
+        ) : (
           <ul className="bg-card rounded-lg p-3 text-sm space-y-1">
-            {top.map(t => (
+            {top3.map(t => (
               <li key={t.product!.id} className="flex justify-between">
                 <span>{t.product!.name}</span>
                 <span className="text-muted-foreground">x{t.qty.toFixed(t.product!.unit === "kg" ? 1 : 0)}</span>
               </li>
             ))}
           </ul>
-        </Field>
-      )}
+        )}
+      </Field>
 
       {/* TIMELINE UNIFICATA */}
       <div className="space-y-3">
@@ -397,21 +405,19 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ClientSheet({ mode, onClose, onSave }: {
-  mode: "new"; onClose: () => void; onSave: (c: Omit<Client, "id">) => void;
+function ClientSheet({ onClose, onSave }: {
+  onClose: () => void; onSave: (c: Omit<Client, "id">) => void;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [segment, setSegment] = useState<Segment>("nuovi");
 
   const save = () => {
     if (!name.trim()) return;
     onSave({
-      name: name.trim(), phone: phone.trim(), segment, stamps: 0,
+      name: name.trim(), phone: phone.trim(), segment: "nuovi", stamps: 0,
       firstOrder: new Date().toISOString().slice(0, 10),
     });
   };
-  void mode;
 
   return (
     <Sheet open={true} onClose={onClose} title="Nuovo cliente"
@@ -427,11 +433,6 @@ function ClientSheet({ mode, onClose, onSave }: {
       </Field>
       <Field label="Telefono">
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 333 ..." className="w-full bg-card border border-border rounded-lg p-3" />
-      </Field>
-      <Field label="Segmento iniziale">
-        <select value={segment} onChange={(e) => setSegment(e.target.value as Segment)} className="w-full bg-card border border-border rounded-lg p-3">
-          {(Object.keys(SEGMENT_META) as Segment[]).map((s) => <option key={s} value={s}>{SEGMENT_META[s].label}</option>)}
-        </select>
       </Field>
     </Sheet>
   );

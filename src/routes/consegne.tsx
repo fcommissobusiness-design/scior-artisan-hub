@@ -34,6 +34,8 @@ function ConsegnePage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [waId, setWaId] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Set<DeliveryStatus>>(new Set());
 
   // Timeframe
   const [tfId, setTfId] = useState<TimeFrameId>("today");
@@ -45,8 +47,20 @@ function ConsegnePage() {
     return makeTimeFrame(tfId);
   }, [tfId, customStart, customEnd]);
 
+  const clientById = (id: string) => clients.find(c => c.id === id);
+
   const inPeriod = useMemo(() => deliveries.filter(d => inFrame(d.date, tf)), [deliveries, tf]);
-  const list = useMemo(() => [...inPeriod].sort((a, b) => +new Date(b.date) - +new Date(a.date)), [inPeriod]);
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return [...inPeriod]
+      .filter(d => statusFilter.size === 0 || statusFilter.has(d.status))
+      .filter(d => {
+        if (!t) return true;
+        const c = clientById(d.clientId);
+        return (c?.name.toLowerCase().includes(t) ?? false) || (c?.phone.includes(q) ?? false);
+      })
+      .sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  }, [inPeriod, q, statusFilter, clients]);
 
   const aperte = inPeriod.filter(d => d.status === "da_preparare" || d.status === "in_consegna");
   const completate = inPeriod.filter(d => d.status === "consegnata");
@@ -61,7 +75,11 @@ function ConsegnePage() {
       return s + (o?.total ?? 0);
     }, 0);
 
-  const clientById = (id: string) => clients.find(c => c.id === id);
+  const toggleStatus = (s: DeliveryStatus) => {
+    const next = new Set(statusFilter);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    setStatusFilter(next);
+  };
 
   return (
     <div>
@@ -80,6 +98,21 @@ function ConsegnePage() {
               className="bg-card border border-border rounded-lg p-2 text-xs" />
           </>
         )}
+      </div>
+
+      <div className="px-4 md:px-6 pt-3">
+        <input placeholder="Cerca cliente o telefono..." value={q} onChange={(e) => setQ(e.target.value)}
+          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
+      </div>
+
+      <div className="px-4 md:px-6 pt-3 flex gap-1.5 overflow-x-auto pb-1 items-center">
+        <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap pr-1">Status:</span>
+        {(Object.keys(STATUS_LABEL) as DeliveryStatus[]).map(s => (
+          <button key={s} onClick={() => toggleStatus(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusFilter.has(s) ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
+            {STATUS_LABEL[s]}
+          </button>
+        ))}
       </div>
 
       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
