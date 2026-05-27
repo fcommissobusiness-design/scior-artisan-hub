@@ -74,6 +74,7 @@ export interface Client {
   name: string;
   phone: string;
   phones?: string[]; // numeri aggiuntivi opzionali
+  addresses?: string[]; // indirizzi aggiuntivi salvati (storico)
   segment: Segment;
   segmentManual?: boolean;     // se true, non sovrascrivere segmento auto
   lastOrder?: string;
@@ -86,6 +87,7 @@ export interface Client {
   deliveryZone?: string;
   tags?: string[];
 }
+
 
 export interface OrderItem {
   productId: string;
