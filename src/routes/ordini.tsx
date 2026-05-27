@@ -265,7 +265,17 @@ function OrdiniPage() {
   );
 }
 
+function KpiMini({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg p-2.5 ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
+      <p className={`text-[10px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
+      <p className={`font-display text-lg leading-tight mt-0.5 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
+    </div>
+  );
+}
+
 function DeleteOrderDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+
   const { deleteOrder } = useStore();
   return (
     <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={onClose}>
