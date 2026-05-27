@@ -2,7 +2,7 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
@@ -124,7 +124,8 @@ function OrdiniPage() {
         </div>
 
         {/* Status filters */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold shrink-0">Status</span>
           {STATUS_ORDER.map((s) => {
             const active = statusSel.has(s);
             return (
@@ -156,6 +157,26 @@ function OrdiniPage() {
           )}
         </div>
       </div>
+
+      {/* KPI di periodo */}
+      <div className="px-4 md:px-6 pt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+        {(() => {
+          const completedStatuses: OrderStatus[] = ["consegnato", "ritirato"];
+          const completati = inPeriod.filter(o => completedStatuses.includes(o.status));
+          const aperti = inPeriod.filter(o => !completedStatuses.includes(o.status) && o.status !== "annullato");
+          const fattGen = completati.reduce((s, o) => s + (o.total || 0), 0);
+          const valoreTot = inPeriod.filter(o => o.status !== "annullato").reduce((s, o) => s + (o.total || 0), 0);
+          return (
+            <>
+              <KpiMini label="Aperti" value={aperti.length.toString()} />
+              <KpiMini label="Completati" value={completati.length.toString()} />
+              <KpiMini label="Fatturato" value={formatEuro(fattGen)} highlight />
+              <KpiMini label="Valore totale" value={formatEuro(valoreTot)} />
+            </>
+          );
+        })()}
+      </div>
+
 
       <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-3">
         {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine in questo periodo.</p>}
@@ -200,8 +221,9 @@ function OrdiniPage() {
                 )}
                 {c?.phone && (
                   <button onClick={() => setWaOpen(o.id)}
-                    className="text-xs bg-[#25D366] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
+                    className="text-xs bg-[#1FA855] text-white rounded-lg px-3 py-1.5 font-semibold">WhatsApp</button>
                 )}
+
                 <button onClick={() => setConfirmDel(o.id)} aria-label="Elimina"
                   className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1.5 text-sm">🗑</button>
               </div>
@@ -243,7 +265,17 @@ function OrdiniPage() {
   );
 }
 
+function KpiMini({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-lg p-2.5 ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
+      <p className={`text-[10px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
+      <p className={`font-display text-lg leading-tight mt-0.5 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
+    </div>
+  );
+}
+
 function DeleteOrderDialog({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+
   const { deleteOrder } = useStore();
   return (
     <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={onClose}>
@@ -286,6 +318,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   })();
   const [source, setSource] = useState<OrderSource>(initialSource);
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
+  const [address, setAddress] = useState(existing?.address ?? "");
+  const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -296,12 +330,19 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [phone, setPhone] = useState(selectedClient?.phone ?? "");
   useEffect(() => {
     setPhone(selectedClient?.phone ?? "");
+    if (!existing && selectedClient?.deliveryZone && !address) setAddress(selectedClient.deliveryZone);
   }, [clientId, selectedClient?.phone]);
   const allPhones = useMemo(() => {
     if (!selectedClient) return [] as string[];
     const list = [selectedClient.phone, ...(selectedClient.phones ?? [])].filter(Boolean);
     return Array.from(new Set(list));
   }, [selectedClient]);
+  const allAddresses = useMemo(() => {
+    if (!selectedClient) return [] as string[];
+    const list = [selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[];
+    return Array.from(new Set(list));
+  }, [selectedClient]);
+
 
   // Close menu on outside click
   useEffect(() => {
@@ -336,23 +377,37 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (!selectedClient) return;
     const trimmed = phone.trim();
     if (!trimmed || trimmed === selectedClient.phone) return;
-    // Promuovi il nuovo numero come principale, sposta il vecchio in `phones`.
     const others = (selectedClient.phones ?? []).filter(p => p && p !== trimmed && p !== selectedClient.phone);
     const newPhones = [selectedClient.phone, ...others].filter(Boolean);
     updateClient(selectedClient.id, { phone: trimmed, phones: newPhones });
+  };
+  const persistAddressIfChanged = () => {
+    if (!selectedClient || delivery !== "domicilio") return;
+    const trimmed = address.trim();
+    if (!trimmed) return;
+    const existing = [selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[];
+    if (existing.includes(trimmed)) return;
+    const newAddresses = Array.from(new Set([...(selectedClient.addresses ?? []), trimmed]));
+    const patch: Partial<typeof selectedClient> = { addresses: newAddresses };
+    if (!selectedClient.deliveryZone) patch.deliveryZone = trimmed;
+    updateClient(selectedClient.id, patch);
   };
 
   const handleSave = () => {
     if (!clientId || items.length === 0) return;
     persistPhoneIfChanged();
+    persistAddressIfChanged();
     const payload: Omit<Order, "id" | "createdAt"> = {
       clientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
+      address: delivery === "domicilio" ? address.trim() || undefined : undefined,
+      payment: delivery === "domicilio" ? payment : undefined,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
   };
+
 
   const handleDelete = () => {
     if (!existing) return;
@@ -454,6 +509,32 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
             {(Object.keys(DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{DELIVERY_LABEL[d]}</option>)}
           </select>
         </Field>
+        {delivery === "domicilio" && (
+          <>
+            <Field label="Indirizzo consegna">
+              <div className="flex gap-1">
+                <input value={address} onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Via, civico, città"
+                  className="flex-1 bg-card border border-border rounded-lg p-3" />
+                {allAddresses.length > 1 && (
+                  <select value={address} onChange={(e) => setAddress(e.target.value)}
+                    className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli indirizzo">
+                    {allAddresses.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+              </div>
+            </Field>
+            <Field label="Pagamento">
+              <select value={payment} onChange={(e) => setPayment(e.target.value as DeliveryPayment)}
+                className="w-full bg-card border border-border rounded-lg p-3">
+                <option value="pagato_anticipo">Pagato in anticipo</option>
+                <option value="da_pagare">Ancora da pagare</option>
+                <option value="pagato_consegna">Pagato alla consegna</option>
+              </select>
+            </Field>
+          </>
+        )}
+
         <Field label="Status">
           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
