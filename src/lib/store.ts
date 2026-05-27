@@ -414,14 +414,63 @@ export function useStore() {
 
     // DELIVERIES
     addDelivery: (d: Omit<Delivery, "id" | "createdAt">) => {
-      const del: Delivery = { ...d, id: uid("d_"), createdAt: nowIso() };
-      setStore({ ...store, deliveries: [del, ...store.deliveries] });
+      const delId = uid("d_");
+      let orderId = d.orderId;
+      let nextOrders = store.orders;
+      // Sync: nuova consegna senza ordine → crea Ordine "da_consegnare"
+      if (!orderId) {
+        orderId = uid("o_");
+        const order: Order = {
+          id: orderId, clientId: d.clientId, items: [],
+          pickupDate: d.date,
+          status: d.status === "consegnata" ? "consegnato"
+                : d.status === "annullata" ? "annullato"
+                : "da_consegnare",
+          total: 0, createdAt: nowIso(),
+          source: "negozio", delivery: "domicilio",
+          address: d.address, payment: d.payment,
+          deliveryId: delId,
+          timeline: [{ date: nowIso(), type: "creato", note: "Da consegna" }],
+        };
+        nextOrders = [order, ...store.orders];
+      } else {
+        // collega l'ordine esistente
+        nextOrders = store.orders.map(o => o.id === orderId ? { ...o, deliveryId: delId } : o);
+      }
+      const del: Delivery = { ...d, id: delId, orderId, createdAt: nowIso() };
+      setStore({ ...store, deliveries: [del, ...store.deliveries], orders: nextOrders });
       return del;
     },
-    updateDelivery: (id: string, patch: Partial<Delivery>) =>
-      setStore({ ...store, deliveries: store.deliveries.map((d) => d.id === id ? { ...d, ...patch } : d) }),
-    deleteDelivery: (id: string) =>
-      setStore({ ...store, deliveries: store.deliveries.filter((d) => d.id !== id) }),
+    updateDelivery: (id: string, patch: Partial<Delivery>) => {
+      const prev = store.deliveries.find(d => d.id === id);
+      if (!prev) return;
+      const merged: Delivery = { ...prev, ...patch };
+      let nextOrders = store.orders;
+      if (merged.orderId) {
+        nextOrders = nextOrders.map(o => {
+          if (o.id !== merged.orderId) return o;
+          const oPatch: Partial<Order> = {};
+          if (patch.status) {
+            oPatch.status = merged.status === "consegnata" ? "consegnato"
+              : merged.status === "annullata" ? "annullato"
+              : "da_consegnare";
+          }
+          if (patch.address !== undefined) oPatch.address = merged.address;
+          if (patch.payment !== undefined) oPatch.payment = merged.payment;
+          if (patch.date) oPatch.pickupDate = merged.date;
+          return { ...o, ...oPatch };
+        });
+      }
+      setStore({ ...store, deliveries: store.deliveries.map(d => d.id === id ? merged : d), orders: nextOrders });
+    },
+    deleteDelivery: (id: string) => {
+      const d = store.deliveries.find(x => x.id === id);
+      const nextOrders = d?.orderId
+        ? store.orders.map(o => o.id === d.orderId ? { ...o, deliveryId: undefined } : o)
+        : store.orders;
+      setStore({ ...store, deliveries: store.deliveries.filter(x => x.id !== id), orders: nextOrders });
+    },
+
 
     // PRODUCTIONS
     addProduction: (p: Omit<Production, "id">) => {
