@@ -509,6 +509,32 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
             {(Object.keys(DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{DELIVERY_LABEL[d]}</option>)}
           </select>
         </Field>
+        {delivery === "domicilio" && (
+          <>
+            <Field label="Indirizzo consegna">
+              <div className="flex gap-1">
+                <input value={address} onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Via, civico, città"
+                  className="flex-1 bg-card border border-border rounded-lg p-3" />
+                {allAddresses.length > 1 && (
+                  <select value={address} onChange={(e) => setAddress(e.target.value)}
+                    className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli indirizzo">
+                    {allAddresses.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
+              </div>
+            </Field>
+            <Field label="Pagamento">
+              <select value={payment} onChange={(e) => setPayment(e.target.value as DeliveryPayment)}
+                className="w-full bg-card border border-border rounded-lg p-3">
+                <option value="pagato_anticipo">Pagato in anticipo</option>
+                <option value="da_pagare">Ancora da pagare</option>
+                <option value="pagato_consegna">Pagato alla consegna</option>
+              </select>
+            </Field>
+          </>
+        )}
+
         <Field label="Status">
           <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
