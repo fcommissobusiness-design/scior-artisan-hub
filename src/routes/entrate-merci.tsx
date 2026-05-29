@@ -333,14 +333,28 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         <Field label="Stato consegna">
           <select value={status} onChange={e => setStatus(e.target.value as GoodsReceiptStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
-            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+            {SHEET_STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
           </select>
         </Field>
-        <Field label="Corriere / consegna">
-          <input value={carrier} onChange={e => setCarrier(e.target.value)}
-            placeholder="Es. SDA, consegna diretta..."
-            className="w-full bg-card border border-border rounded-lg p-3" />
+        <Field label="Corriere consegna">
+          {addingCarrier ? (
+            <input value={carrier} onChange={e => setCarrier(e.target.value)} autoFocus
+              placeholder="Nome corriere"
+              onBlur={() => setAddingCarrier(false)}
+              className="w-full bg-card border border-border rounded-lg p-3" />
+          ) : (
+            <select value={carrier} onChange={e => {
+              if (e.target.value === "__add__") { setCarrier(""); setAddingCarrier(true); }
+              else setCarrier(e.target.value);
+            }} className="w-full bg-card border border-border rounded-lg p-3">
+              <option value="__add__">+ Aggiungi corriere</option>
+              <option value="">— Nessuno —</option>
+              {carriers.map(c => <option key={c} value={c}>{c}</option>)}
+              {carrier && !carriers.includes(carrier) && <option value={carrier}>{carrier}</option>}
+            </select>
+          )}
         </Field>
+
       </div>
 
       {/* ITEMS */}
