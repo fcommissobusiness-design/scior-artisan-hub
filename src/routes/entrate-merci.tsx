@@ -189,15 +189,25 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, addGoodsReceipt, updateGoodsReceipt } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct } = useStore();
+
+  // Corrieri già registrati (da ricevute esistenti)
+  const carriers = useMemo(() => {
+    const set = new Set<string>();
+    goodsReceipts.forEach(r => { if (r.carrier?.trim()) set.add(r.carrier.trim()); });
+    return Array.from(set).sort();
+  }, [goodsReceipts]);
 
   const [supplierId, setSupplierId] = useState(receipt?.supplierId ?? suppliers[0]?.id ?? "");
   const [date, setDate] = useState(receipt?.date.slice(0, 16) ?? new Date().toISOString().slice(0, 16));
   const [status, setStatus] = useState<GoodsReceiptStatus>(receipt?.status ?? "ricevuta");
   const [items, setItems] = useState<GoodsReceiptItem[]>(receipt?.items ?? []);
   const [carrier, setCarrier] = useState(receipt?.carrier ?? "");
+  const [addingCarrier, setAddingCarrier] = useState(false);
+  const [newProductFor, setNewProductFor] = useState<number | "append" | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(receipt?.paymentMethod ?? "");
   const [notes, setNotes] = useState(receipt?.notes ?? "");
+
 
   const [invoiceNumber, setInvoiceNumber] = useState(receipt?.invoiceNumber ?? "");
   const [invoiceDate, setInvoiceDate] = useState(receipt?.invoiceDate?.slice(0, 10) ?? "");
