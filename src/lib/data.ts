@@ -669,7 +669,9 @@ export const GOODS_RECEIPT_STATUS_LABEL: Record<GoodsReceiptStatus, string> = {
   ricevuta: "Ricevuta",
   verificata: "Verificata",
   archiviata: "Archiviata",
+  annullata: "Annullata",
 };
+
 
 export const INVOICE_STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
   da_pagare: "Da pagare",
