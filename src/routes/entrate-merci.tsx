@@ -361,28 +361,68 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       <Field label={`Prodotti consegnati (${items.length}) · totale stimato ${formatEuro(computedTotal)}`}>
         <div className="space-y-2">
           {items.map((it, i) => (
-            <div key={i} className="bg-card border border-border rounded-lg p-2 grid grid-cols-12 gap-2 items-center">
-              <select value={it.productId} onChange={e => updateItem(i, { productId: e.target.value })}
-                className="col-span-6 bg-background border border-border rounded p-2 text-sm">
+            <div key={i} className="bg-card border border-border rounded-lg p-2 space-y-2">
+              <select value={it.productId} onChange={e => {
+                if (e.target.value === "__new__") setNewProductFor(i);
+                else updateItem(i, { productId: e.target.value });
+              }} className="w-full bg-background border border-border rounded p-2 text-sm">
+                <option value="__new__">+ Aggiungi prodotto nuovo</option>
                 {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input type="number" step="0.1" value={it.qty}
-                onChange={e => updateItem(i, { qty: Number(e.target.value) })}
-                placeholder="Qta"
-                className="col-span-2 bg-background border border-border rounded p-2 text-sm" />
-              <input type="number" step="0.01" value={it.unitCost ?? ""}
-                onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
-                placeholder="€/u"
-                className="col-span-3 bg-background border border-border rounded p-2 text-sm" />
-              <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg">×</button>
+              <div className="grid grid-cols-12 gap-2 items-end">
+                <label className="col-span-5 text-[10px] text-muted-foreground">
+                  Quantità (grammi)
+                  <input type="number" step="1" value={it.qty}
+                    onChange={e => updateItem(i, { qty: Number(e.target.value) })}
+                    className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
+                </label>
+                <label className="col-span-6 text-[10px] text-muted-foreground">
+                  Prezzo (€)
+                  <input type="number" step="0.01" value={it.unitCost ?? ""}
+                    onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
+                    className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
+                </label>
+                <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg pb-1">×</button>
+              </div>
             </div>
           ))}
-          <button onClick={addItem}
-            className="w-full text-sm border border-dashed border-border rounded-lg py-2 text-brand-green font-semibold">
-            + Aggiungi prodotto
-          </button>
+          <select onChange={e => {
+            if (e.target.value === "__new__") setNewProductFor("append");
+            else if (e.target.value) {
+              setItems(prev => [...prev, { productId: e.target.value, qty: 1, unitCost: supplierProducts.find(p => p.id === e.target.value)?.cost ?? undefined }]);
+            }
+            e.target.value = "";
+          }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
+            <option value="">+ Aggiungi prodotto</option>
+            <option value="__new__">+ Aggiungi prodotto nuovo</option>
+            {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         </div>
       </Field>
+
+      {newProductFor !== null && (
+        <NewProductMini
+          onClose={() => setNewProductFor(null)}
+          onCreate={(p) => {
+            const id = addProduct(p);
+            // addProduct in store non ritorna id: generiamo qui un riferimento via name fallback
+            // Soluzione: utilizziamo l'ultimo prodotto creato (cerchiamo per nome)
+            setTimeout(() => {
+              // gestito da effetto sotto
+            }, 0);
+            // Aggiungiamo la riga ora con productId vuoto; verrà sostituito quando il prodotto compare
+            const tmpName = p.name;
+            setItems(prev => {
+              const baseItem: GoodsReceiptItem = { productId: "__pending__:" + tmpName, qty: 1, unitCost: p.cost ?? undefined };
+              if (newProductFor === "append") return [...prev, baseItem];
+              return prev.map((it, i) => i === newProductFor ? baseItem : it);
+            });
+            setNewProductFor(null);
+          }}
+        />
+      )}
+      <PendingProductResolver items={items} setItems={setItems} products={products} />
+
 
       {/* DOCUMENTO */}
       <div className="grid grid-cols-2 gap-3">
