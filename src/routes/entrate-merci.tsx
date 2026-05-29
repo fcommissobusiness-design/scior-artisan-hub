@@ -404,16 +404,9 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         <NewProductMini
           onClose={() => setNewProductFor(null)}
           onCreate={(p) => {
-            const id = addProduct(p);
-            // addProduct in store non ritorna id: generiamo qui un riferimento via name fallback
-            // Soluzione: utilizziamo l'ultimo prodotto creato (cerchiamo per nome)
-            setTimeout(() => {
-              // gestito da effetto sotto
-            }, 0);
-            // Aggiungiamo la riga ora con productId vuoto; verrà sostituito quando il prodotto compare
-            const tmpName = p.name;
+            const created = addProduct(p);
+            const baseItem: GoodsReceiptItem = { productId: created.id, qty: 1, unitCost: p.cost ?? undefined };
             setItems(prev => {
-              const baseItem: GoodsReceiptItem = { productId: "__pending__:" + tmpName, qty: 1, unitCost: p.cost ?? undefined };
               if (newProductFor === "append") return [...prev, baseItem];
               return prev.map((it, i) => i === newProductFor ? baseItem : it);
             });
@@ -421,7 +414,8 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
           }}
         />
       )}
-      <PendingProductResolver items={items} setItems={setItems} products={products} />
+
+
 
 
       {/* DOCUMENTO */}
