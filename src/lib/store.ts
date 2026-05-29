@@ -71,11 +71,14 @@ const SEED: Store = {
 };
 
 function migrate(parsed: any): Store {
+  // One-time refresh of clients list (real customers list) — drop legacy demo clients.
+  const clientsSeedV2 = parsed.__clientsSeedV2 === true;
+  const clientsSource = clientsSeedV2 ? (parsed.clients ?? SEED.clients) : SEED.clients;
   const out: Store = {
     products: (parsed.products ?? SEED.products).map((p: Product) => ({
       available: true, seasonal: false, magnet: false, ...p,
     })),
-    clients: (parsed.clients ?? SEED.clients).map((c: Client) => ({
+    clients: clientsSource.map((c: Client) => ({
       ...c,
       loyaltyHistory: c.loyaltyHistory ?? [],
       tags: c.tags ?? [],
@@ -106,8 +109,10 @@ function migrate(parsed: any): Store {
     haccpReadings: parsed.haccpReadings ?? SEED.haccpReadings,
     cleaningTasks: parsed.cleaningTasks ?? SEED.cleaningTasks,
   };
+  (out as any).__clientsSeedV2 = true;
   return out;
 }
+
 
 function load(): Store {
   if (typeof window === "undefined") return SEED;
