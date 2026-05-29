@@ -35,9 +35,11 @@ function EntrateMerciPage() {
   const [supplierFilter, setSupplierFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | GoodsReceiptStatus>("all");
   const [payFilter, setPayFilter] = useState<"all" | InvoicePaymentStatus | "scaduto_only">("all");
+  const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
+  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
 
   const list = useMemo(() => {
-    let base = [...goodsReceipts];
+    let base = goodsReceipts.filter(r => inFrame(r.date, tf));
     if (supplierFilter) base = base.filter(r => r.supplierId === supplierFilter);
     if (statusFilter !== "all") base = base.filter(r => r.status === statusFilter);
     if (payFilter === "scaduto_only") base = base.filter(isOverdue);
@@ -53,34 +55,19 @@ function EntrateMerciPage() {
       });
     }
     return base.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [goodsReceipts, suppliers, q, supplierFilter, statusFilter, payFilter]);
-
-  const kpis = useMemo(() => {
-    const toPay = goodsReceipts.filter(r => r.paymentStatus === "da_pagare");
-    const overdue = goodsReceipts.filter(isOverdue);
-    const toPayTotal = toPay.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
-    const overdueTotal = overdue.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
-    const last30 = goodsReceipts.filter(r => +new Date(r.date) > Date.now() - 30 * 86400000);
-    return {
-      total: goodsReceipts.length,
-      toPay: toPay.length,
-      toPayTotal,
-      overdue: overdue.length,
-      overdueTotal,
-      last30: last30.length,
-    };
-  }, [goodsReceipts]);
+  }, [goodsReceipts, suppliers, q, supplierFilter, statusFilter, payFilter, tf]);
 
   return (
     <div>
-      <TopBar title="Entrate Merci" subtitle={`${kpis.total} consegne · ${kpis.toPay} fatture da pagare`} />
+      <TopBar title="Scarico Prodotti" subtitle="Carico merce in magazzino" />
 
-      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Ultime 30gg" value={String(kpis.last30)} />
-        <Kpi label="Da pagare" value={String(kpis.toPay)} sub={formatEuro(kpis.toPayTotal)} warn={kpis.toPay > 0} />
-        <Kpi label="Scadute" value={String(kpis.overdue)} sub={formatEuro(kpis.overdueTotal)} danger={kpis.overdue > 0} />
-        <Kpi label="Totale" value={String(kpis.total)} />
+      <div className="px-4 md:px-6 pt-4 flex justify-end">
+        <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
+          className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+          {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
       </div>
+
 
       <div className="px-4 md:px-6 space-y-2 pb-2">
         <input value={q} onChange={e => setQ(e.target.value)}
