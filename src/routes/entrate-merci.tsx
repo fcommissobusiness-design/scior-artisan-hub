@@ -95,8 +95,9 @@ function EntrateMerciPage() {
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
             className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
             <option value="all">Tutti gli stati</option>
-            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+            {FILTER_STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
           </select>
+
           <select value={payFilter} onChange={e => setPayFilter(e.target.value as any)}
             className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
             <option value="all">Tutti pagamenti</option>
