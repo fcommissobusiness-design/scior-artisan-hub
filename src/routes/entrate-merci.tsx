@@ -544,3 +544,62 @@ function AttachmentRow({ att, onDelete }: { att: GoodsReceiptAttachment; onDelet
     </div>
   );
 }
+
+const CATEGORIES: ProductCategory[] = [
+  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati", "Salumi",
+  "Dispensa", "Pane", "Latte", "Bevande", "Vini",
+];
+
+function NewProductMini({ onClose, onCreate }: {
+  onClose: () => void;
+  onCreate: (p: Omit<Product, "id">) => void;
+}) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<ProductCategory>("Dispensa");
+  const [unit, setUnit] = useState<"kg" | "pz">("pz");
+  const [cost, setCost] = useState("");
+  const [price, setPrice] = useState("");
+
+  const save = () => {
+    if (!name.trim()) { alert("Inserisci il nome"); return; }
+    onCreate({
+      name: name.trim(), category, unit,
+      cost: cost ? Number(cost) : null,
+      price: price ? Number(price) : 0,
+      active: true, available: true,
+    });
+  };
+
+  return (
+    <Sheet open={true} onClose={onClose} title="Nuovo prodotto"
+      footer={<button onClick={save} className="w-full bg-brand-gold text-white rounded-xl py-3 font-semibold">Crea prodotto</button>}>
+      <Field label="Nome prodotto">
+        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Categoria">
+          <select value={category} onChange={e => setCategory(e.target.value as ProductCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Unità">
+          <select value={unit} onChange={e => setUnit(e.target.value as "kg" | "pz")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="pz">Pezzo</option>
+            <option value="kg">Kg</option>
+          </select>
+        </Field>
+        <Field label="Costo €">
+          <input type="number" step="0.01" value={cost} onChange={e => setCost(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Prezzo €">
+          <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+      </div>
+    </Sheet>
+  );
+}
