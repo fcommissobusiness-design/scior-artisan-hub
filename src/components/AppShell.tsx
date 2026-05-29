@@ -16,7 +16,7 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "Magazzino & Qualità", items: [
     { to: "/magazzino", label: "Magazzino", short: "Mag." },
     { to: "/food-safety", label: "Food Safety", short: "Food" },
-    { to: "/entrate-merci", label: "Entrate Merci", short: "Entr." },
+    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
     { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
   ]},
