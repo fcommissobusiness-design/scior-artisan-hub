@@ -252,8 +252,11 @@ export function useStore() {
     // PRODUCTS
     addProduct: (p: Omit<Product, "id">) => {
       const id = uid("p_");
-      setStore({ ...store, products: [{ ...p, id }, ...store.products] });
+      const created: Product = { ...p, id };
+      setStore({ ...store, products: [created, ...store.products] });
+      return created;
     },
+
     updateProduct: (id: string, patch: Partial<Product>) => {
       setStore({
         ...store,
