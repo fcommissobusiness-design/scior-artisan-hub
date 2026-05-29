@@ -306,7 +306,8 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
 
   return (
     <Sheet open={true} onClose={onClose}
-      title={mode === "new" ? "Nuova entrata merce" : "Consegna fornitore"}
+      title={mode === "new" ? "Nuovo Scarico Prodotti" : "Scarico Prodotti"}
+
       footer={
         <div className="flex gap-3">
           {mode === "edit" && onDelete && (
