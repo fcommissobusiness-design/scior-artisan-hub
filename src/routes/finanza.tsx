@@ -187,7 +187,7 @@ function FinanzaPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Link to="/incassi" className="bg-card rounded-xl p-3 text-center text-sm font-semibold text-brand-green">Cassa →</Link>
             <Link to="/pagamenti" className="bg-card rounded-xl p-3 text-center text-sm font-semibold text-brand-green">Pagamenti →</Link>
-            <Link to="/entrate-merci" className="bg-card rounded-xl p-3 text-center text-sm font-semibold text-brand-green">Entrate merci →</Link>
+            <Link to="/entrate-merci" className="bg-card rounded-xl p-3 text-center text-sm font-semibold text-brand-green">Scarico prodotti →</Link>
             <Link to="/report" className="bg-card rounded-xl p-3 text-center text-sm font-semibold text-brand-green">Report →</Link>
           </div>
 
