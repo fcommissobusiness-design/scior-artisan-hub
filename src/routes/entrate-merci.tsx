@@ -5,16 +5,21 @@ import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/
 import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
-  type PaymentMethod,
+  type PaymentMethod, type Product, type ProductCategory,
   GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal,
 } from "@/lib/data";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
+import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 
 export const Route = createFileRoute("/entrate-merci")({ component: EntrateMerciPage });
 
-const STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "verificata", "archiviata"];
+// Filtro lista: stati attivi semplificati
+const FILTER_STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "annullata"];
+// Stati selezionabili nella scheda
+const SHEET_STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "annullata"];
 const PAY_STATUSES: InvoicePaymentStatus[] = ["da_pagare", "pagato", "scaduto", "non_applicabile"];
 const PAYMENT_METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
+
 
 function isOverdue(r: GoodsReceipt): boolean {
   if (r.paymentStatus !== "da_pagare") return false;
@@ -30,9 +35,11 @@ function EntrateMerciPage() {
   const [supplierFilter, setSupplierFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | GoodsReceiptStatus>("all");
   const [payFilter, setPayFilter] = useState<"all" | InvoicePaymentStatus | "scaduto_only">("all");
+  const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
+  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
 
   const list = useMemo(() => {
-    let base = [...goodsReceipts];
+    let base = goodsReceipts.filter(r => inFrame(r.date, tf));
     if (supplierFilter) base = base.filter(r => r.supplierId === supplierFilter);
     if (statusFilter !== "all") base = base.filter(r => r.status === statusFilter);
     if (payFilter === "scaduto_only") base = base.filter(isOverdue);
@@ -48,34 +55,19 @@ function EntrateMerciPage() {
       });
     }
     return base.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [goodsReceipts, suppliers, q, supplierFilter, statusFilter, payFilter]);
-
-  const kpis = useMemo(() => {
-    const toPay = goodsReceipts.filter(r => r.paymentStatus === "da_pagare");
-    const overdue = goodsReceipts.filter(isOverdue);
-    const toPayTotal = toPay.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
-    const overdueTotal = overdue.reduce((s, r) => s + (r.documentTotal ?? calcReceiptTotal(r)), 0);
-    const last30 = goodsReceipts.filter(r => +new Date(r.date) > Date.now() - 30 * 86400000);
-    return {
-      total: goodsReceipts.length,
-      toPay: toPay.length,
-      toPayTotal,
-      overdue: overdue.length,
-      overdueTotal,
-      last30: last30.length,
-    };
-  }, [goodsReceipts]);
+  }, [goodsReceipts, suppliers, q, supplierFilter, statusFilter, payFilter, tf]);
 
   return (
     <div>
-      <TopBar title="Entrate Merci" subtitle={`${kpis.total} consegne · ${kpis.toPay} fatture da pagare`} />
+      <TopBar title="Scarico Prodotti" subtitle="Carico merce in magazzino" />
 
-      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Ultime 30gg" value={String(kpis.last30)} />
-        <Kpi label="Da pagare" value={String(kpis.toPay)} sub={formatEuro(kpis.toPayTotal)} warn={kpis.toPay > 0} />
-        <Kpi label="Scadute" value={String(kpis.overdue)} sub={formatEuro(kpis.overdueTotal)} danger={kpis.overdue > 0} />
-        <Kpi label="Totale" value={String(kpis.total)} />
+      <div className="px-4 md:px-6 pt-4 flex justify-end">
+        <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
+          className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+          {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
       </div>
+
 
       <div className="px-4 md:px-6 space-y-2 pb-2">
         <input value={q} onChange={e => setQ(e.target.value)}
@@ -90,8 +82,9 @@ function EntrateMerciPage() {
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}
             className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
             <option value="all">Tutti gli stati</option>
-            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+            {FILTER_STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
           </select>
+
           <select value={payFilter} onChange={e => setPayFilter(e.target.value as any)}
             className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
             <option value="all">Tutti pagamenti</option>
@@ -196,15 +189,25 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, addGoodsReceipt, updateGoodsReceipt } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct } = useStore();
+
+  // Corrieri già registrati (da ricevute esistenti)
+  const carriers = useMemo(() => {
+    const set = new Set<string>();
+    goodsReceipts.forEach(r => { if (r.carrier?.trim()) set.add(r.carrier.trim()); });
+    return Array.from(set).sort();
+  }, [goodsReceipts]);
 
   const [supplierId, setSupplierId] = useState(receipt?.supplierId ?? suppliers[0]?.id ?? "");
   const [date, setDate] = useState(receipt?.date.slice(0, 16) ?? new Date().toISOString().slice(0, 16));
   const [status, setStatus] = useState<GoodsReceiptStatus>(receipt?.status ?? "ricevuta");
   const [items, setItems] = useState<GoodsReceiptItem[]>(receipt?.items ?? []);
   const [carrier, setCarrier] = useState(receipt?.carrier ?? "");
+  const [addingCarrier, setAddingCarrier] = useState(false);
+  const [newProductFor, setNewProductFor] = useState<number | "append" | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(receipt?.paymentMethod ?? "");
   const [notes, setNotes] = useState(receipt?.notes ?? "");
+
 
   const [invoiceNumber, setInvoiceNumber] = useState(receipt?.invoiceNumber ?? "");
   const [invoiceDate, setInvoiceDate] = useState(receipt?.invoiceDate?.slice(0, 10) ?? "");
@@ -303,7 +306,8 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
 
   return (
     <Sheet open={true} onClose={onClose}
-      title={mode === "new" ? "Nuova entrata merce" : "Consegna fornitore"}
+      title={mode === "new" ? "Nuovo Scarico Prodotti" : "Scarico Prodotti"}
+
       footer={
         <div className="flex gap-3">
           {mode === "edit" && onDelete && (
@@ -329,42 +333,90 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         <Field label="Stato consegna">
           <select value={status} onChange={e => setStatus(e.target.value as GoodsReceiptStatus)}
             className="w-full bg-card border border-border rounded-lg p-3">
-            {STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
+            {SHEET_STATUSES.map(s => <option key={s} value={s}>{GOODS_RECEIPT_STATUS_LABEL[s]}</option>)}
           </select>
         </Field>
-        <Field label="Corriere / consegna">
-          <input value={carrier} onChange={e => setCarrier(e.target.value)}
-            placeholder="Es. SDA, consegna diretta..."
-            className="w-full bg-card border border-border rounded-lg p-3" />
+        <Field label="Corriere consegna">
+          {addingCarrier ? (
+            <input value={carrier} onChange={e => setCarrier(e.target.value)} autoFocus
+              placeholder="Nome corriere"
+              onBlur={() => setAddingCarrier(false)}
+              className="w-full bg-card border border-border rounded-lg p-3" />
+          ) : (
+            <select value={carrier} onChange={e => {
+              if (e.target.value === "__add__") { setCarrier(""); setAddingCarrier(true); }
+              else setCarrier(e.target.value);
+            }} className="w-full bg-card border border-border rounded-lg p-3">
+              <option value="__add__">+ Aggiungi corriere</option>
+              <option value="">— Nessuno —</option>
+              {carriers.map(c => <option key={c} value={c}>{c}</option>)}
+              {carrier && !carriers.includes(carrier) && <option value={carrier}>{carrier}</option>}
+            </select>
+          )}
         </Field>
+
       </div>
 
       {/* ITEMS */}
       <Field label={`Prodotti consegnati (${items.length}) · totale stimato ${formatEuro(computedTotal)}`}>
         <div className="space-y-2">
           {items.map((it, i) => (
-            <div key={i} className="bg-card border border-border rounded-lg p-2 grid grid-cols-12 gap-2 items-center">
-              <select value={it.productId} onChange={e => updateItem(i, { productId: e.target.value })}
-                className="col-span-6 bg-background border border-border rounded p-2 text-sm">
+            <div key={i} className="bg-card border border-border rounded-lg p-2 space-y-2">
+              <select value={it.productId} onChange={e => {
+                if (e.target.value === "__new__") setNewProductFor(i);
+                else updateItem(i, { productId: e.target.value });
+              }} className="w-full bg-background border border-border rounded p-2 text-sm">
+                <option value="__new__">+ Aggiungi prodotto nuovo</option>
                 {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input type="number" step="0.1" value={it.qty}
-                onChange={e => updateItem(i, { qty: Number(e.target.value) })}
-                placeholder="Qta"
-                className="col-span-2 bg-background border border-border rounded p-2 text-sm" />
-              <input type="number" step="0.01" value={it.unitCost ?? ""}
-                onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
-                placeholder="€/u"
-                className="col-span-3 bg-background border border-border rounded p-2 text-sm" />
-              <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg">×</button>
+              <div className="grid grid-cols-12 gap-2 items-end">
+                <label className="col-span-5 text-[10px] text-muted-foreground">
+                  Quantità (grammi)
+                  <input type="number" step="1" value={it.qty}
+                    onChange={e => updateItem(i, { qty: Number(e.target.value) })}
+                    className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
+                </label>
+                <label className="col-span-6 text-[10px] text-muted-foreground">
+                  Prezzo (€)
+                  <input type="number" step="0.01" value={it.unitCost ?? ""}
+                    onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
+                    className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
+                </label>
+                <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg pb-1">×</button>
+              </div>
             </div>
           ))}
-          <button onClick={addItem}
-            className="w-full text-sm border border-dashed border-border rounded-lg py-2 text-brand-green font-semibold">
-            + Aggiungi prodotto
-          </button>
+          <select onChange={e => {
+            if (e.target.value === "__new__") setNewProductFor("append");
+            else if (e.target.value) {
+              setItems(prev => [...prev, { productId: e.target.value, qty: 1, unitCost: supplierProducts.find(p => p.id === e.target.value)?.cost ?? undefined }]);
+            }
+            e.target.value = "";
+          }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
+            <option value="">+ Aggiungi prodotto</option>
+            <option value="__new__">+ Aggiungi prodotto nuovo</option>
+            {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         </div>
       </Field>
+
+      {newProductFor !== null && (
+        <NewProductMini
+          onClose={() => setNewProductFor(null)}
+          onCreate={(p) => {
+            const created = addProduct(p);
+            const baseItem: GoodsReceiptItem = { productId: created.id, qty: 1, unitCost: p.cost ?? undefined };
+            setItems(prev => {
+              if (newProductFor === "append") return [...prev, baseItem];
+              return prev.map((it, i) => i === newProductFor ? baseItem : it);
+            });
+            setNewProductFor(null);
+          }}
+        />
+      )}
+
+
+
 
       {/* DOCUMENTO */}
       <div className="grid grid-cols-2 gap-3">
@@ -490,5 +542,64 @@ function AttachmentRow({ att, onDelete }: { att: GoodsReceiptAttachment; onDelet
       <button onClick={() => downloadAttachment(att)} className="text-xs text-brand-green font-semibold px-2">Scarica</button>
       <button onClick={onDelete} className="text-xs text-danger font-semibold px-2">×</button>
     </div>
+  );
+}
+
+const CATEGORIES: ProductCategory[] = [
+  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati", "Salumi",
+  "Dispensa", "Pane", "Latte", "Bevande", "Vini",
+];
+
+function NewProductMini({ onClose, onCreate }: {
+  onClose: () => void;
+  onCreate: (p: Omit<Product, "id">) => void;
+}) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<ProductCategory>("Dispensa");
+  const [unit, setUnit] = useState<"kg" | "pz">("pz");
+  const [cost, setCost] = useState("");
+  const [price, setPrice] = useState("");
+
+  const save = () => {
+    if (!name.trim()) { alert("Inserisci il nome"); return; }
+    onCreate({
+      name: name.trim(), category, unit,
+      cost: cost ? Number(cost) : null,
+      price: price ? Number(price) : 0,
+      active: true, available: true,
+    });
+  };
+
+  return (
+    <Sheet open={true} onClose={onClose} title="Nuovo prodotto"
+      footer={<button onClick={save} className="w-full bg-brand-gold text-white rounded-xl py-3 font-semibold">Crea prodotto</button>}>
+      <Field label="Nome prodotto">
+        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Categoria">
+          <select value={category} onChange={e => setCategory(e.target.value as ProductCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Unità">
+          <select value={unit} onChange={e => setUnit(e.target.value as "kg" | "pz")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="pz">Pezzo</option>
+            <option value="kg">Kg</option>
+          </select>
+        </Field>
+        <Field label="Costo €">
+          <input type="number" step="0.01" value={cost} onChange={e => setCost(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Prezzo €">
+          <input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+      </div>
+    </Sheet>
   );
 }

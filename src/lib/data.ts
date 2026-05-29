@@ -621,7 +621,7 @@ export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [
 
 // ============= GOODS RECEIPTS / ENTRATE MERCI =============
 
-export type GoodsReceiptStatus = "attesa" | "ricevuta" | "verificata" | "archiviata";
+export type GoodsReceiptStatus = "attesa" | "ricevuta" | "verificata" | "archiviata" | "annullata";
 export type InvoicePaymentStatus = "da_pagare" | "pagato" | "scaduto" | "non_applicabile";
 export type DocumentKind = "fattura" | "ddt" | "ricevuta" | "preventivo" | "altro";
 
@@ -669,7 +669,9 @@ export const GOODS_RECEIPT_STATUS_LABEL: Record<GoodsReceiptStatus, string> = {
   ricevuta: "Ricevuta",
   verificata: "Verificata",
   archiviata: "Archiviata",
+  annullata: "Annullata",
 };
+
 
 export const INVOICE_STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
   da_pagare: "Da pagare",
