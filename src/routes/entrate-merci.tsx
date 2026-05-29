@@ -5,16 +5,21 @@ import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/
 import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
-  type PaymentMethod,
+  type PaymentMethod, type Product, type ProductCategory,
   GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal,
 } from "@/lib/data";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
+import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 
 export const Route = createFileRoute("/entrate-merci")({ component: EntrateMerciPage });
 
-const STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "verificata", "archiviata"];
+// Filtro lista: stati attivi semplificati
+const FILTER_STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "annullata"];
+// Stati selezionabili nella scheda
+const SHEET_STATUSES: GoodsReceiptStatus[] = ["attesa", "ricevuta", "annullata"];
 const PAY_STATUSES: InvoicePaymentStatus[] = ["da_pagare", "pagato", "scaduto", "non_applicabile"];
 const PAYMENT_METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
+
 
 function isOverdue(r: GoodsReceipt): boolean {
   if (r.paymentStatus !== "da_pagare") return false;
