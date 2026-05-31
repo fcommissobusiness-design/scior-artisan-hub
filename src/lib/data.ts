@@ -478,22 +478,9 @@ const isoToday = (h: number, m: number, dayOffset = 0) => {
   return d.toISOString();
 };
 
-export const SEED_ORDERS: Order[] = [
-  { id: "o1", clientId: "c1", label: "Ordine settimanale", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1 }, { productId: "ricotta-di-bufala", qty: 2 }], pickupDate: isoToday(10, 30), status: "in_attesa", total: 18.20, createdAt: new Date().toISOString(), notes: "Confezione regalo", source: "whatsapp" },
-  { id: "o2", clientId: "c3", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.5 }, { productId: "pane-casareccio-d-alise", qty: 0.5 }], pickupDate: isoToday(11, 0), status: "in_attesa", total: 9.0, createdAt: new Date().toISOString(), source: "negozio" },
-  { id: "o3", clientId: "c4", items: [{ productId: "provolone-del-monaco-dop", qty: 0.3 }, { productId: "salame-napoli", qty: 0.2 }], pickupDate: isoToday(17, 30), status: "pronto", total: 13.6, createdAt: new Date().toISOString(), source: "telefono" },
-  { id: "o4", clientId: "c2", items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1.5 }], pickupDate: isoToday(9, 0), status: "ritirato", total: 22.5, createdAt: new Date().toISOString(), source: "negozio" },
-  { id: "o5", clientId: "c5", items: [{ productId: "ricotta-di-bufala", qty: 3 }, { productId: "mortadella", qty: 0.3 }], pickupDate: isoToday(12, 0, -2), status: "ritirato", total: 9.15, createdAt: new Date().toISOString(), source: "negozio" },
-];
-
-export const SEED_CASUAL_SALES: CasualSale[] = [
-  { id: "s1", date: isoToday(9, 30, -1), items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 0.4 }, { productId: "pane-casareccio-d-alise", qty: 0.3 }], total: 6.9 },
-  { id: "s2", date: isoToday(11, 15), items: [{ productId: "ricotta-di-bufala", qty: 1 }, { productId: "tarallini-classici-all-olio-di-costanzo", qty: 1 }], total: 4.8 },
-];
-
-export const SEED_DELIVERIES: Delivery[] = [
-  { id: "d1", clientId: "c1", address: "Via Roma 12, Santi Cosma e Damiano", timeSlot: "10:00-12:00", date: isoToday(10, 0), status: "da_preparare", payment: "da_pagare", orderId: "o1", createdAt: new Date().toISOString() },
-];
+export const SEED_ORDERS: Order[] = [];
+export const SEED_CASUAL_SALES: CasualSale[] = [];
+export const SEED_DELIVERIES: Delivery[] = [];
 
 const isoDay = (dayOffset = 0) => {
   const d = new Date(today); d.setDate(d.getDate() + dayOffset); d.setHours(0, 0, 0, 0);
