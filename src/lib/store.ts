@@ -76,8 +76,12 @@ function migrate(parsed: any): Store {
   const clientsSource = clientsSeedV2 ? (parsed.clients ?? SEED.clients) : SEED.clients;
   // One-time wipe of demo orders/sales/deliveries so LTV/scontrino medio partono da zero.
   const cleanV3 = parsed.__cleanSeedV3 === true;
+  // Catalogo Maggio 2026: forza il re-seed di prodotti e bundle col listino aggiornato.
+  const catalogV4 = parsed.__catalogV4 === true;
+  const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
+  const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const out: Store = {
-    products: (parsed.products ?? SEED.products).map((p: Product) => ({
+    products: productsSource.map((p: Product) => ({
       available: true, seasonal: false, magnet: false, ...p,
     })),
     clients: clientsSource.map((c: Client) => ({
@@ -87,7 +91,7 @@ function migrate(parsed: any): Store {
       preferredProducts: c.preferredProducts ?? [],
     })),
     orders: cleanV3 ? (parsed.orders ?? []) : [],
-    bundles: parsed.bundles ?? SEED.bundles,
+    bundles: bundlesSource,
     casualSales: cleanV3 ? (parsed.casualSales ?? []) : [],
     deliveries: cleanV3 ? (parsed.deliveries ?? []) : [],
     productions: parsed.productions ?? SEED.productions,
@@ -109,6 +113,7 @@ function migrate(parsed: any): Store {
   };
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
+  (out as any).__catalogV4 = true;
   return out;
 }
 

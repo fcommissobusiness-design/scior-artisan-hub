@@ -9,8 +9,8 @@ import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 export const Route = createFileRoute("/offerte")({ component: OffertePage });
 
 const CATEGORIES: ProductCategory[] = [
-  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati", "Salumi",
-  "Dispensa", "Pane", "Latte", "Bevande", "Vini",
+  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati", "Burro e Latticini",
+  "Salumi", "Dispensa", "Pane", "Latte", "Bevande", "Vini", "Taralli", "Pasta",
 ];
 
 const QTY_PRESETS = [0.1, 0.2, 0.3, 0.4, 0.5];

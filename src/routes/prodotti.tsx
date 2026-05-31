@@ -11,8 +11,8 @@ export const Route = createFileRoute("/prodotti")({
 });
 
 const CATEGORIES: ProductCategory[] = [
-  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati",
-  "Salumi", "Dispensa", "Pane", "Latte", "Bevande", "Vini",
+  "Freschi di Bufala", "Freschi di Pecora", "Formaggi Stagionati", "Burro e Latticini",
+  "Salumi", "Dispensa", "Pane", "Latte", "Bevande", "Vini", "Taralli", "Pasta",
 ];
 
 const BADGE_COLORS: Record<string, string> = {

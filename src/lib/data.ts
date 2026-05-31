@@ -4,12 +4,15 @@ export type ProductCategory =
   | "Freschi di Bufala"
   | "Freschi di Pecora"
   | "Formaggi Stagionati"
+  | "Burro e Latticini"
   | "Salumi"
   | "Dispensa"
   | "Pane"
   | "Latte"
   | "Bevande"
-  | "Vini";
+  | "Vini"
+  | "Taralli"
+  | "Pasta";
 
 export interface PriceChange {
   date: string; // ISO
@@ -301,73 +304,159 @@ const p = (
   price: number,
   unit: "kg" | "pz",
   active: boolean,
-  badge?: Product["badge"]
+  badge?: Product["badge"],
+  notes?: string,
+  available: boolean = true,
 ): Product => ({
   id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-  name, category, cost, price, unit, active, badge,
-  available: true, seasonal: false, magnet: false,
+  name, category, cost, price, unit, active, badge, notes,
+  available, seasonal: false, magnet: false,
 });
 
 const fresh = (p: Product, shelfLifeDays: number, perishability: "bassa" | "media" | "alta" = "alta"): Product =>
   ({ ...p, fresh: true, shelfLifeDays, perishability, trackUnsold: true });
 
+// Listino aggiornato Maggio 2026
 export const SEED_PRODUCTS: Product[] = [
-  fresh(p("Mozzarella di Bufala Campana DOP", "Freschi di Bufala", 10.5, 15.0, "kg", true, "DOP"), 2),
-  fresh(p("Mozzarella Senza Lattosio DOP", "Freschi di Bufala", 11.5, 17.0, "kg", true, "DOP"), 2),
-  fresh(p("Ricotta di Bufala", "Freschi di Bufala", 1.0, 1.6, "pz", true), 3),
-  p("Burro di Bufala Gentile", "Freschi di Bufala", 3.0, 4.2, "pz", false),
-  p("Yogurt di Bufala Gentile", "Freschi di Bufala", 1.3, 2.3, "pz", false),
-  fresh(p("Ricotta di Pecora", "Freschi di Pecora", 0.8, 1.3, "pz", true), 3),
-  fresh(p("Marzolina di Pecora Bianca", "Freschi di Pecora", 1.2, 1.9, "pz", true), 5, "media"),
-  fresh(p("Marzolina di Pecora Condita", "Freschi di Pecora", 1.2, 2.0, "pz", true), 5, "media"),
-  p("Marzolina Sottovuoto", "Freschi di Pecora", 2.6, 4.2, "pz", true),
-  p("Caciocavallo Dolce", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
-  p("Caciocavallo Affumicato", "Formaggi Stagionati", 14.5, 21.0, "kg", true),
-  p("Caciotta Bianca", "Formaggi Stagionati", 16.0, 23.0, "kg", false),
-  p("Caciotta Mediterranea", "Formaggi Stagionati", 16.0, 23.0, "kg", true),
-  p("Provolone del Monaco DOP", "Formaggi Stagionati", 23.29, 34.0, "kg", true, "DOP"),
-  p("Auricchio Giovane 1kg", "Formaggi Stagionati", 11.79, 18.5, "kg", true),
-  p("Parmigiano Reggiano DOP", "Formaggi Stagionati", 18.6, 27.5, "kg", true, "DOP"),
-  p("Auricchio Semipiccante", "Formaggi Stagionati", 15.2, 22.0, "kg", true),
-  p("Pecorino Sardo Dolce DOP", "Formaggi Stagionati", 14.7, 22.0, "kg", false, "DOP"),
-  p("Pecorino Romano DOP", "Formaggi Stagionati", 14.9, 22.0, "kg", true, "DOP"),
-  p("Cotto Gran Tenerone", "Salumi", 9.6, 25.99, "kg", true),
-  p("Mortadella", "Salumi", 8.45, 14.5, "kg", true),
-  p("Prosciutto Crudo di Parma DOP - Cavazzuti", "Salumi", 17.1, 25.5, "kg", true, "DOP"),
-  p("Guanciale del Norcino Renzini", "Salumi", 10.96, 16.5, "kg", true),
-  p("Crudo Lui Renzini", "Salumi", 14.63, 22.0, "kg", true),
-  p("Lonza di Norcia Renzini", "Salumi", 11.7, 19.99, "kg", true),
-  p("Salame Napoli", "Salumi", 11.35, 17.0, "kg", true),
-  p("Salame Ungherese", "Salumi", 11.85, 17.5, "kg", true),
-  p("Salame Milanese", "Salumi", 11.85, 17.5, "kg", true),
-  p("Pancetta Tonda", "Salumi", 11.0, 17.5, "kg", true),
-  p("Pancetta Tesa", "Salumi", 8.8, 14.99, "kg", true),
-  p("Speck", "Salumi", 9.4, 15.99, "kg", true),
-  p("Salsiccia Paesana Sottovuoto Tucciarone", "Salumi", 16.0, 19.99, "kg", true),
-  p("Salame Strolghino Cavazzuti", "Salumi", 2.5, 4.5, "pz", false),
-  p("Zucchine Grigliate Casa Marrazzo", "Dispensa", 7.35, 10.5, "pz", true),
-  p("Carciofi Grigliati Casa Marrazzo", "Dispensa", 10.75, 15.0, "pz", true),
-  p("Melanzane a Filetti Casa Marrazzo", "Dispensa", 7.35, 6.9, "pz", true),
-  p("Olive di Gaeta DOP", "Dispensa", null, 6.99, "kg", false, "DOP"),
-  p("Tarallini Classici all'Olio Di Costanzo", "Dispensa", 0.88, 3.2, "pz", true),
-  p("Tarallini al Peperoncino Di Costanzo", "Dispensa", 0.88, 3.2, "pz", true),
-  p("Tarallini Premium pistacchio strega limone", "Dispensa", 1.82, 3.9, "pz", true),
-  p("Pane Casareccio D'Alise", "Pane", 2.0, 3.0, "kg", true),
-  p("Panini D'Alise", "Pane", 2.5, 3.6, "kg", true),
-  p("Latte Intero Latte Sano", "Latte", 1.91, 2.6, "pz", true),
-  p("Latte Alta Digeribilità Latte Sano", "Latte", 1.91, 2.6, "pz", true),
-  p("Acqua piccola Lete", "Bevande", 0.17, 1.0, "pz", true),
-  p("Acqua piccola Sorgesana", "Bevande", 0.13, 1.0, "pz", true),
-  p("Coca-Cola Lattina", "Bevande", 0.5, 2.0, "pz", true),
-  p("Birra Nastro Azzurro 33cl", "Bevande", 0.61, 2.0, "pz", true),
-  p("Birra Peroni 33cl", "Bevande", 0.54, 2.0, "pz", true),
-  p("Prosecco Maschio", "Bevande", 1.57, 3.0, "pz", true),
-  p("Aglianico Campania DOC", "Vini", null, 8.9, "pz", true, "DOC"),
-  p("Chianti DOCG", "Vini", null, 6.5, "pz", true, "DOCG"),
+  // 01 — Pane e Panificati
+  p("Pane Casareccio D'Alise", "Pane", 2.00, 3.00, "kg", true),
+  p("Panini D'Alise", "Pane", 2.50, 3.50, "kg", true),
+  p("Panini Olio D'Alise", "Pane", 3.00, 3.50, "kg", true, undefined, "Attivo solo weekend"),
+
+  // 02 — Freschi di Bufala
+  fresh(p("Mozzarella di Bufala Campana DOP", "Freschi di Bufala", 10.50, 14.50, "kg", true, "DOP"), 2),
+  fresh(p("Mozzarella Senza Lattosio DOP", "Freschi di Bufala", 11.50, 16.50, "kg", true, "DOP"), 2),
+  fresh(p("Ricotta di Bufala", "Freschi di Bufala", 1.00, 1.50, "pz", true), 3),
+  fresh(p("Burrata di Bufala Campana", "Freschi di Bufala", 10.50, 15.00, "kg", true), 2),
+
+  // 03 — Freschi di Pecora
+  fresh(p("Ricotta di Pecora", "Freschi di Pecora", 0.80, 1.20, "pz", true), 3),
+  fresh(p("Marzolina di Pecora Bianca", "Freschi di Pecora", 1.20, 1.80, "pz", true), 5, "media"),
+  fresh(p("Marzolina di Pecora Condita", "Freschi di Pecora", 1.20, 2.00, "pz", true), 5, "media"),
+  p("Marzolina Sottovuoto", "Freschi di Pecora", 2.60, 4.20, "pz", true, undefined, "Daniele valuta riduzione a 3,20€"),
+
+  // 04 — Formaggi Stagionati
+  p("Caciocavallo Dolce", "Formaggi Stagionati", 14.50, 17.00, "kg", true, undefined, "Da aggiornare a 21,00€"),
+  p("Caciocavallo Affumicato", "Formaggi Stagionati", 14.50, 17.00, "kg", true, undefined, "Da aggiornare a 21,00€"),
+  p("Caciotta Bianca", "Formaggi Stagionati", 16.00, 18.00, "kg", false),
+  p("Caciotta Mediterranea", "Formaggi Stagionati", 16.00, 21.50, "kg", true),
+  p("Provolone del Monaco DOP", "Formaggi Stagionati", 23.29, 27.99, "kg", true, "DOP", "Da aggiornare a 34,00€"),
+  p("Parmigiano Reggiano DOP", "Formaggi Stagionati", 18.60, 24.99, "kg", true, "DOP"),
+  p("Asiago DOP", "Formaggi Stagionati", 9.90, 13.99, "kg", true, "DOP", "Decisione Daniele"),
+  p("Pecorino Romano DOP", "Formaggi Stagionati", 14.90, 18.99, "kg", true, "DOP", "Da aggiornare a 22,00€"),
+  p("Auricchio Giovane 1kg", "Formaggi Stagionati", 11.79, 14.99, "kg", true),
+  p("Auricchio Semipiccante", "Formaggi Stagionati", 15.20, 0, "kg", true, undefined, "Esaurito — prezzo n.d.", false),
+  p("Pecorino Sardo Dolce DOP", "Formaggi Stagionati", 14.70, 18.99, "kg", false, "DOP"),
+  p("Scamorza Affumicata di Bufala", "Formaggi Stagionati", 14.50, 17.00, "kg", true, undefined, "Stesso prezzo Caciocavallo"),
+  p("Brigante Pinna", "Formaggi Stagionati", null, 0, "kg", false, undefined, "Non attivo — costo e prezzo n.d."),
+
+  // 05 — Burro e Latticini
+  p("Burro di Bufala Gentile", "Burro e Latticini", 2.50, 3.50, "pz", false, undefined, "In programma"),
+  p("Yogurt di Bufala Gentile", "Burro e Latticini", 1.30, 2.30, "pz", false, undefined, "Da riattivare a breve"),
+
+  // 06 — Salumi
+  p("Cotto Gran Tenerone", "Salumi", 9.60, 16.99, "kg", true),
+  p("Prosciutto Crudo di Parma DOP Cavazzuti", "Salumi", 17.10, 24.99, "kg", true, "DOP"),
+  p("Crudo Lui Renzini", "Salumi", 14.63, 19.99, "kg", true, undefined, "Da aggiornare a 22,00€"),
+  p("Mortadella", "Salumi", 8.45, 13.99, "kg", true, undefined, "Da aggiornare a 14,50€"),
+  p("Guanciale del Norcino Renzini", "Salumi", 10.96, 14.99, "kg", true, undefined, "Da aggiornare a 16,50€"),
+  p("Lonza di Norcia Renzini", "Salumi", 11.70, 18.99, "kg", true, undefined, "Da aggiornare a 19,99€"),
+  p("Salame Napoli", "Salumi", 11.35, 15.99, "kg", true),
+  p("Salame Milanese", "Salumi", 11.85, 15.99, "kg", true),
+  p("Salame Ungherese", "Salumi", 11.85, 15.99, "kg", true),
+  p("Pancetta Tonda", "Salumi", 11.00, 16.99, "kg", true, undefined, "Da aggiornare a 17,50€"),
+  p("Pancetta Tesa", "Salumi", 8.80, 14.99, "kg", true),
+  p("Speck", "Salumi", 9.40, 15.99, "kg", true),
+  p("Salsiccia Paesana SV Tucciarone", "Salumi", 16.00, 19.99, "kg", true),
+  p("Fesa di Tacchino", "Salumi", 10.50, 0, "kg", false, undefined, "Non attivo — prezzo n.d."),
+  p("Salame Strolghino Cavazzuti", "Salumi", 2.50, 3.50, "pz", false),
+
+  // 07 — Dispensa e Olive
+  p("Zucchine Grigliate Casa Marrazzo", "Dispensa", 7.35, 9.30, "pz", true),
+  p("Melanzane a Filetti Casa Marrazzo", "Dispensa", 7.35, 6.90, "pz", true, undefined, "SOTTO COSTO — correggere urgente"),
+  p("Carciofi Grigliati Casa Marrazzo", "Dispensa", 10.75, 11.80, "pz", true, undefined, "Da portare a 15,00€ o rimuovere"),
+  p("Pomodori Secchi Sott'Olio Casa Marrazzo", "Dispensa", null, 6.90, "pz", true, undefined, "Verificare costo urgente"),
+  p("Peperoni Grigliati Sott'Olio Casa Marrazzo", "Dispensa", null, 6.90, "pz", true, undefined, "Verificare costo urgente"),
+  p("Confettura Albicocche Casa Marrazzo", "Dispensa", null, 6.90, "pz", true, undefined, "Verificare costo"),
+  p("Confettura Mele Annurche Casa Marrazzo", "Dispensa", null, 6.90, "pz", true, undefined, "Verificare costo"),
+  p("Confettura Mandarini Casa Marrazzo", "Dispensa", null, 6.90, "pz", true, undefined, "Verificare costo"),
+  p("Olive Nere di Gaeta DOP", "Dispensa", null, 6.99, "kg", false, "DOP", "Da riattivare priorità massima"),
+  p("Olive Verdi Riviera di Gaeta", "Dispensa", null, 6.99, "kg", false),
+  p("Olio EVO Lazio", "Dispensa", null, 0, "pz", true, undefined, "Esaurito — da reinserire al riordino", false),
+  p("Miele Artigianale del Territorio", "Dispensa", null, 0, "pz", true, undefined, "Esaurito — da reinserire al riordino", false),
+  p("Alici di Gaeta Sott'Olio", "Dispensa", null, 0, "pz", false, undefined, "Non disponibile — trovare fornitore", false),
+  p("Nduja di Spilinga Artigianale", "Dispensa", null, 0, "pz", false, undefined, "Non disponibile — trovare fornitore", false),
+
+  // 08 — Latte
+  p("Latte Intero Latte Sano", "Latte", 1.91, 2.20, "pz", true, undefined, "Da aggiornare a 2,60€"),
+  p("Latte Parzialmente Scremato Latte Sano", "Latte", 1.88, 2.20, "pz", true, undefined, "Da aggiornare a 2,60€"),
+  p("Latte Alta Digeribilità Latte Sano", "Latte", 1.91, 2.40, "pz", true, undefined, "Da aggiornare a 2,60€"),
+
+  // 09 — Bevande
+  p("Acqua piccola Lete", "Bevande", 0.17, 1.00, "pz", true),
+  p("Acqua piccola Sorgesana", "Bevande", 0.13, 1.00, "pz", true),
+  p("Acque grandi Levissima e Ferrarelle", "Bevande", 0.30, 2.00, "pz", true, undefined, "Esaurite — da riordinare", false),
+  p("Coca-Cola lattina", "Bevande", 0.50, 2.00, "pz", true),
+  p("Fanta lattina", "Bevande", 0.49, 2.00, "pz", true),
+  p("Sprite lattina", "Bevande", 0.49, 2.00, "pz", true),
+  p("Estathe lattina", "Bevande", 0.55, 2.00, "pz", true),
+  p("RedBull", "Bevande", 0.88, 3.00, "pz", true),
+  p("Birra Nastro Azzurro 33cl", "Bevande", 0.61, 2.00, "pz", true),
+  p("Birra Peroni 33cl", "Bevande", 0.54, 2.00, "pz", true),
+  p("Prosecco Maschio", "Bevande", 1.57, 3.00, "pz", true, undefined, "In esaurimento — valutare riordino"),
+  p("Succo Yoga 1lt", "Bevande", 0.95, 2.50, "pz", true, undefined, "In esaurimento — non riordinare"),
+  p("Schweppes", "Bevande", null, 2.50, "pz", true, undefined, "In esaurimento — non riordinare"),
+  p("Energade", "Bevande", 0.46, 2.50, "pz", true, undefined, "In esaurimento — non riordinare"),
+
+  // 10 — Vini
+  p("Aglianico Campania DOC", "Vini", null, 8.90, "pz", true, "DOC"),
   p("Fiano di Avellino DOCG", "Vini", null, 10.95, "pz", true, "DOCG"),
   p("Greco di Tufo DOCG", "Vini", null, 9.95, "pz", true, "DOCG"),
-  p("Falanghina del Sannio DOC", "Vini", null, 9.0, "pz", true, "DOC"),
+  p("Falanghina del Sannio DOC", "Vini", null, 9.00, "pz", true, "DOC"),
+  p("Vino Greco", "Vini", null, 7.90, "pz", true, undefined, "Verificare rotazione"),
+  p("Lacryma", "Vini", null, 8.00, "pz", true, undefined, "Verificare rotazione"),
+  p("NTERRA", "Vini", null, 9.00, "pz", true, undefined, "Verificare rotazione"),
+  p("HYRIA", "Vini", null, 9.00, "pz", true, undefined, "Verificare rotazione"),
+  p("Chianti DOCG", "Vini", null, 6.50, "pz", true, "DOCG", "Esaurito — da riordinare", false),
+
+  // 11 — Taralli e Prodotti da Forno Di Costanzo
+  p("Tarallini Classici all'Olio", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini ai Cereali", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini Multi Cereali", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini al Peperoncino", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini al Pepe", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini al Finocchietto", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini alle Olive", "Taralli", 0.88, 3.20, "pz", true),
+  p("Tarallini al Pistacchio", "Taralli", 1.82, 3.20, "pz", true, undefined, "Da portare a 3,90€"),
+  p("Tarallini alla Strega", "Taralli", 1.82, 3.20, "pz", true, undefined, "Da portare a 3,90€"),
+  p("Tarallini al Limone", "Taralli", 1.82, 3.20, "pz", true, undefined, "Da portare a 3,90€"),
+  p("Caserecci", "Taralli", 1.92, 3.20, "pz", true, undefined, "Da portare a 3,90€"),
+  p("Intrecciati al Finocchietto", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato"),
+  p("Geniose Classiche", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato"),
+  p("Crostini Friabili", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato"),
+  p("Crostini Integrali", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato"),
+  p("Grissini Piemontesi", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,50€"),
+  p("Fresina Bianca", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,50€"),
+  p("Fresina al Finocchietto", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,50€"),
+  p("Fresina ai Cereali", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,50€"),
+  p("Fresina alla Curcuma", "Taralli", 1.55, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,50€"),
+  p("Scaldatelle al Finocchio", "Taralli", 2.10, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,90€"),
+  p("Naspro di Castellammare", "Taralli", 2.40, 3.20, "pz", true, undefined, "Da verificare stato — da portare a 3,90€"),
+
+  // 12 — Pasta
+  p("Pasta Di Costanzo", "Pasta", null, 2.90, "pz", false, undefined, "Non attivo — verificare costo prima di riattivare"),
+  p("Quadrifoglio IGP", "Pasta", 3.90, 2.90, "pz", true, "IGP", "SOTTO COSTO — portare a 5,50€ o rimuovere urgente"),
+  p("Lasagna IGP", "Pasta", 5.50, 2.90, "pz", true, "IGP", "SOTTO COSTO — rimuovere immediatamente"),
+  p("Orecchiette di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Penne Rigate di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Rigatoni di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Pacchero di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Conchiglioni di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Fusilloni di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Linguine di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
+  p("Spaghetti di Gragnano IGP", "Pasta", 2.90, 2.90, "pz", true, "IGP", "Portare a 4,50€"),
 ];
+
 
 export const SEED_CLIENTS: Client[] = [
   { id: "c1", name: "Domenico Tibaldi", phone: "", segment: "top", segmentManual: true, stamps: 0 },
@@ -456,19 +545,22 @@ export const SEED_CLIENTS: Client[] = [
   { id: "c-angela-calegari", name: "Angela Calegari", phone: "", segment: "nuovi", segmentManual: true, stamps: 0 },
 ];
 
+// Bundle aggiornati Maggio 2026
 export const SEED_BUNDLES: Bundle[] = [
-  { id: "b1",  name: "I Monti Bianchi",        ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 7.40, availability: "Sempre attivo", active: true, channel: "Vetrina", targetSegment: "abituali" },
-  { id: "b2",  name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.00, availability: "Sempre attivo", active: true, channel: "Banco + WhatsApp", targetSegment: "top" },
-  { id: "b3",  name: "La Tavola da Pranzo",    ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 250g"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.20, availability: "Venerdì e Sabato", active: true },
-  { id: "b4",  name: "Freschi Senza Lattosio", ingredients: ["Mozzarella s/lattosio 500g", "Ricotta pecora 2pz", "Marzolina pecora bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.50, availability: "Sempre attivo", active: true },
-  { id: "b5",  name: "Il Panino dello Chef",   ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.10, availability: "Martedì e Giovedì", active: true, channel: "Banco pranzo", targetSegment: "occasionali" },
-  { id: "b6",  name: "Il Banco dello Chef",    ingredients: ["Ricotta bufala 250g", "Pasta di Gragnano 2 formati", "Marzolina condita 1pz"], fullPrice: 12.60, offerPrice: 9.90, estimatedCost: 8.00, availability: "Venerdì e Sabato", active: true },
-  { id: "b7",  name: "La Bufala Pontina",      ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 250g", "Taralli 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 10.00, availability: "Weekend", active: true },
-  { id: "b8",  name: "La Merenda di Sciorio",  ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli 1pz", "Chianti 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: 11.00, availability: "Martedì e Giovedì", active: true },
-  { id: "b9",  name: "Box Famiglia",           ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane 500g", "Ricotta 250g", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, estimatedCost: 9.40, availability: "Sabato", active: true },
-  { id: "b10", name: "Il Sacco di Sciorio",    ingredients: ["4 Panini", "Salame Napoli 200g", "Marzolina Sottovuoto 3pz"], fullPrice: 13.60, offerPrice: 10.90, estimatedCost: 8.70, availability: "Martedì-Venerdì", active: true },
-  { id: "b11", name: "La Grigliata di Sciorio",ingredients: ["Salsiccia Paesana 400g", "Caciotta Mediterranea 200g", "Peperoni grigliati 300g"], fullPrice: 23.10, offerPrice: 16.90, estimatedCost: 13.20, availability: "Campagna stagionale", active: true },
+  { id: "b1",  name: "I Monti Bianchi",         ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 1pz", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 6.70, availability: "Fisso sempre attivo", active: true, channel: "Vetrina", targetSegment: "abituali" },
+  { id: "b2",  name: "Il Tagliere di Sciorio",  ingredients: ["Mozzarella bufala 500g", "Provolone del Monaco DOP 200g", "Salame Napoli 200g", "Taralli classici 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.06, availability: "Fisso sempre attivo", active: true, channel: "Banco + WhatsApp", targetSegment: "top" },
+  { id: "b3",  name: "La Tavola da Pranzo",     ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 1pz"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.19, availability: "Rotante venerdì e sabato", active: true },
+  { id: "b4",  name: "Freschi Senza Lattosio",  ingredients: ["Mozzarella s/lattosio 500g", "Ricotta di pecora 2pz", "Marzolina bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.55, availability: "Fisso sempre attivo", active: true },
+  { id: "b5",  name: "Il Panino dello Chef",    ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.14, availability: "Rotante martedì e giovedì", active: true, channel: "Banco pranzo", targetSegment: "occasionali" },
+  { id: "b6",  name: "Il Banco dello Chef",     ingredients: ["Ricotta bufala 1pz", "Mozzarella bufala 250g", "Pane casareccio 500g", "Marzolina condita 1pz"], fullPrice: 12.50, offerPrice: 9.90, estimatedCost: 5.08, availability: "Rotante venerdì e sabato", active: true },
+  { id: "b7",  name: "La Bufala Pontina",       ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 1pz", "Taralli classici 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 9.28, availability: "Rotante weekend", active: true },
+  { id: "b8",  name: "La Merenda di Sciorio",   ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli classici 1pz", "Aglianico Campania DOC 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: undefined, availability: "Rotante martedì e giovedì — prezzo da chiudere appena verificato costo Aglianico", active: true },
+  { id: "b9",  name: "Box Famiglia",            ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 1pz", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, estimatedCost: 8.69, availability: "Rotante sabato", active: true },
+  { id: "b10", name: "Il Sacco di Sciorio",     ingredients: ["Panini 4pz", "Salame Napoli 200g", "Marzolina Condita 2pz"], fullPrice: 13.60, offerPrice: 10.90, estimatedCost: 7.19, availability: "Rotante martedì-venerdì", active: true },
+  { id: "b11", name: "La Grigliata di Sciorio", ingredients: ["Salsiccia Paesana SV 400g", "Scamorza Affumicata 200g", "Peperoni grigliati Casa Marrazzo 300g"], fullPrice: 23.10, offerPrice: 16.90, estimatedCost: undefined, availability: "Temporaneo campagna estiva — margine min 20%", active: true },
+  { id: "b12", name: "Il Tagliere Estivo",      ingredients: ["Burrata bufala 250g", "Provolone del Monaco DOP 150g", "Salame Napoli 100g", "Taralli classici 1pz"], fullPrice: 19.50, offerPrice: 13.90, estimatedCost: 8.15, availability: "Nuovo — estate 2026", active: true },
 ];
+
 
 const today = new Date();
 const isoToday = (h: number, m: number, dayOffset = 0) => {
