@@ -74,6 +74,8 @@ function migrate(parsed: any): Store {
   // One-time refresh of clients list (real customers list) — drop legacy demo clients.
   const clientsSeedV2 = parsed.__clientsSeedV2 === true;
   const clientsSource = clientsSeedV2 ? (parsed.clients ?? SEED.clients) : SEED.clients;
+  // One-time wipe of demo orders/sales/deliveries so LTV/scontrino medio partono da zero.
+  const cleanV3 = parsed.__cleanSeedV3 === true;
   const out: Store = {
     products: (parsed.products ?? SEED.products).map((p: Product) => ({
       available: true, seasonal: false, magnet: false, ...p,
@@ -84,14 +86,10 @@ function migrate(parsed: any): Store {
       tags: c.tags ?? [],
       preferredProducts: c.preferredProducts ?? [],
     })),
-    orders: (parsed.orders ?? SEED.orders).map((o: Order) => ({
-      ...o,
-      source: o.source ?? "negozio",
-      timeline: o.timeline ?? [{ date: o.createdAt, type: "creato" }],
-    })),
+    orders: cleanV3 ? (parsed.orders ?? []) : [],
     bundles: parsed.bundles ?? SEED.bundles,
-    casualSales: parsed.casualSales ?? SEED.casualSales,
-    deliveries: parsed.deliveries ?? SEED.deliveries,
+    casualSales: cleanV3 ? (parsed.casualSales ?? []) : [],
+    deliveries: cleanV3 ? (parsed.deliveries ?? []) : [],
     productions: parsed.productions ?? SEED.productions,
     suppliers: parsed.suppliers ?? SEED.suppliers,
     cashEntries: parsed.cashEntries ?? SEED.cashEntries,
@@ -110,6 +108,7 @@ function migrate(parsed: any): Store {
     cleaningTasks: parsed.cleaningTasks ?? SEED.cleaningTasks,
   };
   (out as any).__clientsSeedV2 = true;
+  (out as any).__cleanSeedV3 = true;
   return out;
 }
 
