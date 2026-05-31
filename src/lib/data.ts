@@ -4,12 +4,15 @@ export type ProductCategory =
   | "Freschi di Bufala"
   | "Freschi di Pecora"
   | "Formaggi Stagionati"
+  | "Burro e Latticini"
   | "Salumi"
   | "Dispensa"
   | "Pane"
   | "Latte"
   | "Bevande"
-  | "Vini";
+  | "Vini"
+  | "Taralli"
+  | "Pasta";
 
 export interface PriceChange {
   date: string; // ISO
