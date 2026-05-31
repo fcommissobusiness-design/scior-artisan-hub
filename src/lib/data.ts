@@ -545,19 +545,22 @@ export const SEED_CLIENTS: Client[] = [
   { id: "c-angela-calegari", name: "Angela Calegari", phone: "", segment: "nuovi", segmentManual: true, stamps: 0 },
 ];
 
+// Bundle aggiornati Maggio 2026
 export const SEED_BUNDLES: Bundle[] = [
-  { id: "b1",  name: "I Monti Bianchi",        ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 250g", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 7.40, availability: "Sempre attivo", active: true, channel: "Vetrina", targetSegment: "abituali" },
-  { id: "b2",  name: "Il Tagliere di Sciorio", ingredients: ["Mozzarella bufala 500g", "Provolone Monaco DOP 200g", "Salame Napoli 200g", "Taralli 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.00, availability: "Sempre attivo", active: true, channel: "Banco + WhatsApp", targetSegment: "top" },
-  { id: "b3",  name: "La Tavola da Pranzo",    ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 250g"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.20, availability: "Venerdì e Sabato", active: true },
-  { id: "b4",  name: "Freschi Senza Lattosio", ingredients: ["Mozzarella s/lattosio 500g", "Ricotta pecora 2pz", "Marzolina pecora bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.50, availability: "Sempre attivo", active: true },
-  { id: "b5",  name: "Il Panino dello Chef",   ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.10, availability: "Martedì e Giovedì", active: true, channel: "Banco pranzo", targetSegment: "occasionali" },
-  { id: "b6",  name: "Il Banco dello Chef",    ingredients: ["Ricotta bufala 250g", "Pasta di Gragnano 2 formati", "Marzolina condita 1pz"], fullPrice: 12.60, offerPrice: 9.90, estimatedCost: 8.00, availability: "Venerdì e Sabato", active: true },
-  { id: "b7",  name: "La Bufala Pontina",      ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 250g", "Taralli 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 10.00, availability: "Weekend", active: true },
-  { id: "b8",  name: "La Merenda di Sciorio",  ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli 1pz", "Chianti 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: 11.00, availability: "Martedì e Giovedì", active: true },
-  { id: "b9",  name: "Box Famiglia",           ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane 500g", "Ricotta 250g", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, estimatedCost: 9.40, availability: "Sabato", active: true },
-  { id: "b10", name: "Il Sacco di Sciorio",    ingredients: ["4 Panini", "Salame Napoli 200g", "Marzolina Sottovuoto 3pz"], fullPrice: 13.60, offerPrice: 10.90, estimatedCost: 8.70, availability: "Martedì-Venerdì", active: true },
-  { id: "b11", name: "La Grigliata di Sciorio",ingredients: ["Salsiccia Paesana 400g", "Caciotta Mediterranea 200g", "Peperoni grigliati 300g"], fullPrice: 23.10, offerPrice: 16.90, estimatedCost: 13.20, availability: "Campagna stagionale", active: true },
+  { id: "b1",  name: "I Monti Bianchi",         ingredients: ["Mozzarella bufala 500g", "Ricotta bufala 1pz", "Marzolina condita 1pz"], fullPrice: 11.10, offerPrice: 9.50, estimatedCost: 6.70, availability: "Fisso sempre attivo", active: true, channel: "Vetrina", targetSegment: "abituali" },
+  { id: "b2",  name: "Il Tagliere di Sciorio",  ingredients: ["Mozzarella bufala 500g", "Provolone del Monaco DOP 200g", "Salame Napoli 200g", "Taralli classici 1pz"], fullPrice: 20.90, offerPrice: 16.90, estimatedCost: 13.06, availability: "Fisso sempre attivo", active: true, channel: "Banco + WhatsApp", targetSegment: "top" },
+  { id: "b3",  name: "La Tavola da Pranzo",     ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 1pz"], fullPrice: 13.50, offerPrice: 10.90, estimatedCost: 8.19, availability: "Rotante venerdì e sabato", active: true },
+  { id: "b4",  name: "Freschi Senza Lattosio",  ingredients: ["Mozzarella s/lattosio 500g", "Ricotta di pecora 2pz", "Marzolina bianca 1pz"], fullPrice: 13.00, offerPrice: 10.90, estimatedCost: 8.55, availability: "Fisso sempre attivo", active: true },
+  { id: "b5",  name: "Il Panino dello Chef",    ingredients: ["Pane casareccio 250g", "Cotto Gran Tenerone 150g", "Marzolina condita 1pz"], fullPrice: 6.65, offerPrice: 4.90, estimatedCost: 3.14, availability: "Rotante martedì e giovedì", active: true, channel: "Banco pranzo", targetSegment: "occasionali" },
+  { id: "b6",  name: "Il Banco dello Chef",     ingredients: ["Ricotta bufala 1pz", "Mozzarella bufala 250g", "Pane casareccio 500g", "Marzolina condita 1pz"], fullPrice: 12.50, offerPrice: 9.90, estimatedCost: 5.08, availability: "Rotante venerdì e sabato", active: true },
+  { id: "b7",  name: "La Bufala Pontina",       ingredients: ["Mozzarella bufala 500g", "Caciocavallo Dolce 200g", "Ricotta bufala 1pz", "Taralli classici 1pz"], fullPrice: 16.50, offerPrice: 11.90, estimatedCost: 9.28, availability: "Rotante weekend", active: true },
+  { id: "b8",  name: "La Merenda di Sciorio",   ingredients: ["Speck 150g", "Marzolina Sottovuoto 1pz", "Taralli classici 1pz", "Aglianico Campania DOC 1 bottiglia"], fullPrice: 16.30, offerPrice: null, estimatedCost: undefined, availability: "Rotante martedì e giovedì — prezzo da chiudere appena verificato costo Aglianico", active: true },
+  { id: "b9",  name: "Box Famiglia",            ingredients: ["Mozzarella bufala 500g", "Mortadella 200g", "Pane casareccio 500g", "Ricotta bufala 1pz", "Coca-Cola 1 lattina"], fullPrice: 15.50, offerPrice: 11.90, estimatedCost: 8.69, availability: "Rotante sabato", active: true },
+  { id: "b10", name: "Il Sacco di Sciorio",     ingredients: ["Panini 4pz", "Salame Napoli 200g", "Marzolina Condita 2pz"], fullPrice: 13.60, offerPrice: 10.90, estimatedCost: 7.19, availability: "Rotante martedì-venerdì", active: true },
+  { id: "b11", name: "La Grigliata di Sciorio", ingredients: ["Salsiccia Paesana SV 400g", "Scamorza Affumicata 200g", "Peperoni grigliati Casa Marrazzo 300g"], fullPrice: 23.10, offerPrice: 16.90, estimatedCost: undefined, availability: "Temporaneo campagna estiva — margine min 20%", active: true },
+  { id: "b12", name: "Il Tagliere Estivo",      ingredients: ["Burrata bufala 250g", "Provolone del Monaco DOP 150g", "Salame Napoli 100g", "Taralli classici 1pz"], fullPrice: 19.50, offerPrice: 13.90, estimatedCost: 8.15, availability: "Nuovo — estate 2026", active: true },
 ];
+
 
 const today = new Date();
 const isoToday = (h: number, m: number, dayOffset = 0) => {
