@@ -2,8 +2,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/store";
 
-type NavItem = { to: string; label: string; short: string };
+type NavItem = { to: string; label: string; short: string; wip?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
+
+export const WIP_ROUTES = new Set<string>(["/produzione", "/food-safety", "/b2b", "/ecommerce"]);
 
 const NAV_GROUPS: NavGroup[] = [
   { label: "Operativo", items: [
@@ -11,29 +13,30 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/ordini", label: "Ordini", short: "Ordini" },
     { to: "/consegne", label: "Consegne", short: "Conseg." },
     { to: "/clienti", label: "Clienti", short: "Clienti" },
-    { to: "/produzione", label: "Produzione", short: "Prod." },
-  ]},
-  { label: "Magazzino & Qualità", items: [
-    { to: "/magazzino", label: "Magazzino", short: "Mag." },
-    { to: "/food-safety", label: "Food Safety", short: "Food" },
     { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
-    { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
+    { to: "/b2b", label: "B2B", short: "B2B", wip: true },
   ]},
-  { label: "Vendite", items: [
-    { to: "/ecommerce", label: "E-commerce", short: "Ecom" },
-    { to: "/b2b", label: "B2B", short: "B2B" },
+  { label: "Magazzino e Prodotti", items: [
+    { to: "/magazzino", label: "Magazzino", short: "Mag." },
+    { to: "/prodotti", label: "Prodotti", short: "Prod." },
+    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
   ]},
-  { label: "Finanza", items: [
+  { label: "Vendite Online", items: [
+    { to: "/ecommerce", label: "E-commerce", short: "Ecom", wip: true },
+  ]},
+  { label: "Finanza e Amministrazione", items: [
+    { to: "/incassi", label: "Cassa e Incassi", short: "Cassa" },
+    { to: "/pagamenti", label: "Pagamenti Fornitori", short: "Pag." },
     { to: "/finanza", label: "Finanza", short: "Fin." },
-    { to: "/incassi", label: "Cassa & Incassi", short: "Cassa" },
-    { to: "/pagamenti", label: "Pagamenti", short: "Pag." },
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
-    { to: "/fiscale", label: "Riepilogo fiscale", short: "Fisc." },
+    { to: "/fiscale", label: "Riepilogo Fiscale", short: "Fisc." },
     { to: "/report", label: "Report", short: "Report" },
-  ]},
-  { label: "Sistema", items: [
     { to: "/admin", label: "Amministrazione", short: "Admin" },
+  ]},
+  { label: "Altro", items: [
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/produzione", label: "Produzione", short: "Prod.", wip: true },
+    { to: "/food-safety", label: "Food Safety", short: "Food", wip: true },
   ]},
 ];
 
@@ -42,7 +45,7 @@ const MOBILE_PRIMARY: NavItem[] = [
   { to: "/ordini", label: "Ordini", short: "Ordini" },
   { to: "/consegne", label: "Consegne", short: "Conseg." },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
-  { to: "/food-safety", label: "Food Safety", short: "Food" },
+  { to: "/magazzino", label: "Magazzino", short: "Mag." },
 ];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
