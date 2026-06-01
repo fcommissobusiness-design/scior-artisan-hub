@@ -2,8 +2,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/store";
 
-type NavItem = { to: string; label: string; short: string };
+type NavItem = { to: string; label: string; short: string; wip?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
+
+export const WIP_ROUTES = new Set<string>(["/produzione", "/food-safety", "/b2b", "/ecommerce"]);
 
 const NAV_GROUPS: NavGroup[] = [
   { label: "Operativo", items: [
@@ -11,29 +13,30 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/ordini", label: "Ordini", short: "Ordini" },
     { to: "/consegne", label: "Consegne", short: "Conseg." },
     { to: "/clienti", label: "Clienti", short: "Clienti" },
-    { to: "/produzione", label: "Produzione", short: "Prod." },
-  ]},
-  { label: "Magazzino & Qualità", items: [
-    { to: "/magazzino", label: "Magazzino", short: "Mag." },
-    { to: "/food-safety", label: "Food Safety", short: "Food" },
     { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
-    { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
+    { to: "/b2b", label: "B2B", short: "B2B", wip: true },
   ]},
-  { label: "Vendite", items: [
-    { to: "/ecommerce", label: "E-commerce", short: "Ecom" },
-    { to: "/b2b", label: "B2B", short: "B2B" },
+  { label: "Magazzino e Prodotti", items: [
+    { to: "/magazzino", label: "Magazzino", short: "Mag." },
+    { to: "/prodotti", label: "Prodotti", short: "Prod." },
+    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
   ]},
-  { label: "Finanza", items: [
+  { label: "Vendite Online", items: [
+    { to: "/ecommerce", label: "E-commerce", short: "Ecom", wip: true },
+  ]},
+  { label: "Finanza e Amministrazione", items: [
+    { to: "/incassi", label: "Cassa e Incassi", short: "Cassa" },
+    { to: "/pagamenti", label: "Pagamenti Fornitori", short: "Pag." },
     { to: "/finanza", label: "Finanza", short: "Fin." },
-    { to: "/incassi", label: "Cassa & Incassi", short: "Cassa" },
-    { to: "/pagamenti", label: "Pagamenti", short: "Pag." },
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
-    { to: "/fiscale", label: "Riepilogo fiscale", short: "Fisc." },
+    { to: "/fiscale", label: "Riepilogo Fiscale", short: "Fisc." },
     { to: "/report", label: "Report", short: "Report" },
-  ]},
-  { label: "Sistema", items: [
     { to: "/admin", label: "Amministrazione", short: "Admin" },
+  ]},
+  { label: "Altro", items: [
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/produzione", label: "Produzione", short: "Prod.", wip: true },
+    { to: "/food-safety", label: "Food Safety", short: "Food", wip: true },
   ]},
 ];
 
@@ -42,7 +45,7 @@ const MOBILE_PRIMARY: NavItem[] = [
   { to: "/ordini", label: "Ordini", short: "Ordini" },
   { to: "/consegne", label: "Consegne", short: "Conseg." },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
-  { to: "/food-safety", label: "Food Safety", short: "Food" },
+  { to: "/magazzino", label: "Magazzino", short: "Mag." },
 ];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
@@ -87,6 +90,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
 
+  const isWip = WIP_ROUTES.has(path);
+
   return (
     <div className="min-h-screen bg-brand-cream md:flex">
       {/* Sidebar desktop */}
@@ -103,9 +108,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {g.items.map((n) => {
                   const active = isActive(n.to);
                   return (
-                    <Link key={n.to} to={n.to}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"}`}>
-                      {n.label}
+                    <Link key={`${g.label}-${n.to}`} to={n.to}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"} ${n.wip ? "opacity-60" : ""}`}>
+                      <span>{n.label}</span>
+                      {n.wip && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-brand-cream/10 text-brand-cream/70">WIP</span>}
                     </Link>
                   );
                 })}
@@ -116,8 +122,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Contenuto */}
-      <main className="flex-1 pb-24 md:pb-8 md:max-w-6xl md:mx-auto w-full">
-        {children}
+      <main className="flex-1 pb-24 md:pb-8 md:max-w-6xl md:mx-auto w-full relative">
+        <div className={isWip ? "pointer-events-none select-none opacity-40 blur-[1px]" : ""} aria-hidden={isWip}>
+          {children}
+        </div>
+        {isWip && <WipBlocker />}
       </main>
 
       {/* Bottom nav mobile */}
@@ -151,9 +160,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                     {g.items.map(n => {
                       const active = isActive(n.to);
                       return (
-                        <Link key={n.to} to={n.to} onClick={() => setMoreOpen(false)}
-                          className={`px-3 py-2.5 rounded-lg text-sm font-medium ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"}`}>
-                          {n.label}
+                        <Link key={`${g.label}-${n.to}`} to={n.to} onClick={() => setMoreOpen(false)}
+                          className={`px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"} ${n.wip ? "opacity-60" : ""}`}>
+                          <span>{n.label}</span>
+                          {n.wip && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">WIP</span>}
                         </Link>
                       );
                     })}
@@ -164,6 +174,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function WipBlocker() {
+  return (
+    <div className="absolute inset-0 z-30 flex items-start justify-center pt-24 md:pt-32 px-4">
+      <div className="bg-brand-cream border-2 border-brand-gold/40 rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
+        <div className="text-4xl mb-2">🚧</div>
+        <h2 className="font-display text-2xl text-brand-green mb-2">Sezione in lavorazione</h2>
+        <p className="text-sm text-muted-foreground">Sarà presto disponibile.</p>
+      </div>
     </div>
   );
 }
