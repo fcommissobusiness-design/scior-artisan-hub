@@ -3,9 +3,10 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import {
-  PAYMENT_CATEGORIES, type SupplierPayment, type SupplierPaymentStatus,
+  PAYMENT_CATEGORIES, FISCAL_CATEGORIES, type SupplierPayment, type SupplierPaymentStatus,
   type SupplierPaymentRecurrence, type SupplierPaymentBeneficiaryType,
   type PaymentMethod, type SupplierPaymentDocument, type PaymentAttachment,
+  type FiscalCategory,
 } from "@/lib/data";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
@@ -147,6 +148,8 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
   })();
   const [document, setDoc] = useState<SupplierPaymentDocument>(initialDoc);
   const [notes, setNotes] = useState(payment?.notes ?? "");
+  const [deductible, setDeductible] = useState<boolean>(payment?.deductible ?? true);
+  const [fiscalCategory, setFiscalCategory] = useState<FiscalCategory>(payment?.fiscalCategory ?? "Altro");
   const [attachments, setAttachments] = useState<PaymentAttachment[]>(payment?.attachments ?? []);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
@@ -181,6 +184,7 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
       category, amount: Number(amount), method, status,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       recurrence, document, notes: notes.trim() || undefined,
+      deductible, fiscalCategory,
       attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
@@ -252,6 +256,19 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
           <select value={document} onChange={e => setDoc(e.target.value as SupplierPaymentDocument)}
             className="w-full bg-card border border-border rounded-lg p-3">
             {DOC_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Deducibile fiscalmente">
+          <select value={deductible ? "si" : "no"} onChange={e => setDeductible(e.target.value === "si")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="si">Sì</option>
+            <option value="no">No</option>
+          </select>
+        </Field>
+        <Field label="Categoria fiscale">
+          <select value={fiscalCategory} onChange={e => setFiscalCategory(e.target.value as FiscalCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FISCAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </Field>
       </div>

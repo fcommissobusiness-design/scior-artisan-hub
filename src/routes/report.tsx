@@ -31,11 +31,18 @@ function ReportPage() {
   const scontrinoMedio = (ordersF.length + salesF.length) === 0 ? 0 : fatturato / (ordersF.length + salesF.length);
 
   const stats = useMemo(() => productSalesStats(ordersF, salesF, products), [ordersF, salesF, products]);
-  const topProdotti = [...stats].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+  // "Prodotto più acquistato" = max frequenza di acquisto (numero di righe in ordini+scontrini nel periodo)
+  const freqMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const o of ordersF) for (const it of o.items) m.set(it.productId, (m.get(it.productId) ?? 0) + 1);
+    for (const sa of salesF) for (const it of sa.items) m.set(it.productId, (m.get(it.productId) ?? 0) + 1);
+    return m;
+  }, [ordersF, salesF]);
+  const topFreq = useMemo(() => [...stats]
+    .map(s => ({ ...s, freq: freqMap.get(s.product.id) ?? 0 }))
+    .sort((a, b) => b.freq - a.freq).slice(0, 8), [stats, freqMap]);
+  const mostBought = topFreq[0];
   const topMargini = [...stats].sort((a, b) => b.profit - a.profit).slice(0, 8);
-
-  const trendMozza = stats.filter(s => s.product.id.includes("mozzarella"))
-    .reduce((s, x) => s + x.qty, 0);
 
   const topClienti = useMemo(() => clients
     .map(c => ({ c, ltv: clientLTV(orders, casualSales, c.id) }))
@@ -50,7 +57,7 @@ function ReportPage() {
 
   return (
     <div>
-      <TopBar title="Report" subtitle={tf.label}
+      <TopBar title="Report"
         right={
           <select value={tfId} onChange={(e) => setTfId(e.target.value as TimeFrameId)}
             className="bg-brand-green-dark text-brand-cream text-xs rounded-lg px-2 py-2 border border-brand-gold/30">
@@ -64,24 +71,47 @@ function ReportPage() {
           <Kpi label="Fatturato" value={formatEuro(fatturato)} highlight />
           <Kpi label="Margine totale" value={formatEuro(margineTot)} />
           <Kpi label="Scontrino medio" value={formatEuro(scontrinoMedio)} />
-          <Kpi label="Kg mozzarella" value={trendMozza.toFixed(1)} />
+          <Kpi
+            label="Prodotto più acquistato"
+            value={mostBought ? mostBought.product.name : "—"}
+            sub={mostBought ? `${mostBought.qty.toFixed(mostBought.product.unit === "kg" ? 1 : 0)} ${mostBought.product.unit} · ${mostBought.freq}×` : undefined}
+          />
         </section>
 
         <section>
-          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per fatturato</h2>
+          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per frequenza acquisto</h2>
           <div className="bg-card rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-brand-green text-brand-cream text-xs uppercase">
-                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Q.tà</th><th className="text-right p-2">Fatt.</th><th className="text-right p-2">Margine</th></tr>
+                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Acquisti</th><th className="text-right p-2">Q.tà</th></tr>
               </thead>
               <tbody>
-                {topProdotti.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
-                {topProdotti.map(s => (
+                {topFreq.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
+                {topFreq.map(s => (
                   <tr key={s.product.id} className="border-t border-border">
                     <td className="p-2">{s.product.name}</td>
+                    <td className="text-right p-2 font-semibold text-brand-green">{s.freq}×</td>
                     <td className="text-right p-2 font-mono">{s.qty.toFixed(s.product.unit === "kg" ? 1 : 0)} {s.product.unit}</td>
-                    <td className="text-right p-2 font-semibold text-brand-green">{formatEuro(s.revenue)}</td>
-                    <td className="text-right p-2 text-success">{formatEuro(s.profit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per margine generato</h2>
+          <div className="bg-card rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-brand-green text-brand-cream text-xs uppercase">
+                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Margine €</th></tr>
+              </thead>
+              <tbody>
+                {topMargini.length === 0 && <tr><td colSpan={2} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
+                {topMargini.map(s => (
+                  <tr key={s.product.id} className="border-t border-border">
+                    <td className="p-2">{s.product.name}</td>
+                    <td className="text-right p-2 font-semibold text-success">{formatEuro(s.profit)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -109,24 +139,6 @@ function ReportPage() {
           </div>
         </section>
 
-        <section>
-          <h2 className="font-display text-lg text-brand-green mb-2">Top margini prodotto</h2>
-          <div className="bg-card rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-brand-green text-brand-cream text-xs uppercase">
-                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Margine €</th></tr>
-              </thead>
-              <tbody>
-                {topMargini.map(s => (
-                  <tr key={s.product.id} className="border-t border-border">
-                    <td className="p-2">{s.product.name}</td>
-                    <td className="text-right p-2 font-semibold text-success">{formatEuro(s.profit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
 
         {inattivi.length > 0 && (
           <section>
@@ -155,11 +167,12 @@ function ReportPage() {
   );
 }
 
-function Kpi({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Kpi({ label, value, highlight, sub }: { label: string; value: string; highlight?: boolean; sub?: string }) {
   return (
     <div className={`rounded-xl p-4 ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
       <p className={`text-[11px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
       <p className={`font-display text-2xl mt-1 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
+      {sub && <p className={`text-[10px] mt-0.5 ${highlight ? "text-brand-cream/70" : "text-muted-foreground"}`}>{sub}</p>}
     </div>
   );
 }
