@@ -240,6 +240,8 @@ function Dashboard() {
               className="bg-brand-green text-brand-cream rounded-xl py-4 font-semibold">Nuovo ordine</button>
             <button onClick={() => { setPickAction(false); setOpenSale(true); }}
               className="bg-brand-gold text-white rounded-xl py-4 font-semibold">Nuovo scontrino</button>
+            <button onClick={() => { setPickAction(false); setOpenPay(true); }}
+              className="bg-danger text-white rounded-xl py-4 font-semibold">Nuovo pagamento</button>
           </div>
         </Sheet>
       )}
@@ -251,6 +253,12 @@ function Dashboard() {
 
       {editOrderId && (
         <OrderSheet mode="edit" orderId={editOrderId} onClose={() => setEditOrderId(null)} />
+      )}
+
+      {openPay && (
+        <PaySheet mode="new" suppliers={suppliers}
+          onClose={() => setOpenPay(false)}
+          onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); }} />
       )}
 
       <NewSaleSheet
