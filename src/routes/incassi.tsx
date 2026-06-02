@@ -172,54 +172,48 @@ function CassaPage() {
         ))}
       </div>
 
-      <Fab onClick={() => setPickType("entrata")} />
+      <Fab onClick={() => setPickerOpen(true)} />
 
-      {/* Step 1: Entrata o Uscita */}
-      {pickType !== null && !openOrder && !openSale && (
-        <Sheet open={true} onClose={() => setPickType(null)} title="Nuovo movimento">
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setPickType("entrata")}
-              className={`py-6 rounded-xl font-semibold ${pickType === "entrata" ? "bg-success text-white" : "bg-card border border-border"}`}>
-              Entrata
+      {pickerOpen && !openOrder && !openSale && !openPay && (
+        <Sheet open={true} onClose={() => setPickerOpen(false)} title="Nuovo movimento">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button onClick={() => setOpenOrder(true)}
+              className="py-6 rounded-xl bg-brand-green text-brand-cream font-semibold">
+              Nuovo Ordine
             </button>
-            <button onClick={() => { setPickType("uscita"); navigate({ to: "/pagamenti" }); }}
-              className={`py-6 rounded-xl font-semibold ${pickType === "uscita" ? "bg-danger text-white" : "bg-card border border-border"}`}>
-              Uscita
+            <button onClick={() => setOpenSale(true)}
+              className="py-6 rounded-xl bg-brand-gold text-white font-semibold">
+              Nuovo Scontrino
+            </button>
+            <button onClick={() => setOpenPay(true)}
+              className="py-6 rounded-xl bg-danger text-white font-semibold">
+              Nuovo Pagamento
             </button>
           </div>
-          {pickType === "entrata" && (
-            <div className="grid grid-cols-2 gap-3 pt-4">
-              <button onClick={() => { setOpenOrder(true); }}
-                className="py-5 rounded-xl bg-brand-green text-brand-cream font-semibold">
-                Nuovo ordine
-              </button>
-              <button onClick={() => { setOpenSale(true); }}
-                className="py-5 rounded-xl bg-brand-gold text-white font-semibold">
-                Nuovo scontrino
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground pt-2">
-            Le uscite si registrano dalla scheda <strong>Pagamenti Fornitori</strong>.
-          </p>
         </Sheet>
       )}
 
       {openOrder && (
         <OrderSheet mode="new"
-          onClose={() => { setOpenOrder(false); setPickType(null); }}
-          onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickType(null); }} />
+          onClose={() => { setOpenOrder(false); setPickerOpen(false); }}
+          onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickerOpen(false); }} />
       )}
 
       {openSale && (
         <NewSaleSheet open={true}
-          onClose={() => { setOpenSale(false); setPickType(null); }}
+          onClose={() => { setOpenSale(false); setPickerOpen(false); }}
           onSave={(s, newClient) => {
             if (newClient) addClient(newClient);
             addCasualSale(s);
             setOpenSale(false);
-            setPickType(null);
+            setPickerOpen(false);
           }} />
+      )}
+
+      {openPay && (
+        <PaySheet mode="new" suppliers={suppliers}
+          onClose={() => { setOpenPay(false); setPickerOpen(false); }}
+          onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); setPickerOpen(false); }} />
       )}
     </div>
   );
