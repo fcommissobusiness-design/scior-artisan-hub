@@ -57,7 +57,7 @@ function ReportPage() {
 
   return (
     <div>
-      <TopBar title="Report" subtitle={tf.label}
+      <TopBar title="Report"
         right={
           <select value={tfId} onChange={(e) => setTfId(e.target.value as TimeFrameId)}
             className="bg-brand-green-dark text-brand-cream text-xs rounded-lg px-2 py-2 border border-brand-gold/30">
@@ -71,24 +71,47 @@ function ReportPage() {
           <Kpi label="Fatturato" value={formatEuro(fatturato)} highlight />
           <Kpi label="Margine totale" value={formatEuro(margineTot)} />
           <Kpi label="Scontrino medio" value={formatEuro(scontrinoMedio)} />
-          <Kpi label="Kg mozzarella" value={trendMozza.toFixed(1)} />
+          <Kpi
+            label="Prodotto più acquistato"
+            value={mostBought ? mostBought.product.name : "—"}
+            sub={mostBought ? `${mostBought.qty.toFixed(mostBought.product.unit === "kg" ? 1 : 0)} ${mostBought.product.unit} · ${mostBought.freq}×` : undefined}
+          />
         </section>
 
         <section>
-          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per fatturato</h2>
+          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per frequenza acquisto</h2>
           <div className="bg-card rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-brand-green text-brand-cream text-xs uppercase">
-                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Q.tà</th><th className="text-right p-2">Fatt.</th><th className="text-right p-2">Margine</th></tr>
+                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Acquisti</th><th className="text-right p-2">Q.tà</th></tr>
               </thead>
               <tbody>
-                {topProdotti.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
-                {topProdotti.map(s => (
+                {topFreq.length === 0 && <tr><td colSpan={3} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
+                {topFreq.map(s => (
                   <tr key={s.product.id} className="border-t border-border">
                     <td className="p-2">{s.product.name}</td>
+                    <td className="text-right p-2 font-semibold text-brand-green">{s.freq}×</td>
                     <td className="text-right p-2 font-mono">{s.qty.toFixed(s.product.unit === "kg" ? 1 : 0)} {s.product.unit}</td>
-                    <td className="text-right p-2 font-semibold text-brand-green">{formatEuro(s.revenue)}</td>
-                    <td className="text-right p-2 text-success">{formatEuro(s.profit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="font-display text-lg text-brand-green mb-2">Top prodotti per margine generato</h2>
+          <div className="bg-card rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-brand-green text-brand-cream text-xs uppercase">
+                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Margine €</th></tr>
+              </thead>
+              <tbody>
+                {topMargini.length === 0 && <tr><td colSpan={2} className="p-6 text-center text-muted-foreground">Nessun dato.</td></tr>}
+                {topMargini.map(s => (
+                  <tr key={s.product.id} className="border-t border-border">
+                    <td className="p-2">{s.product.name}</td>
+                    <td className="text-right p-2 font-semibold text-success">{formatEuro(s.profit)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -116,24 +139,6 @@ function ReportPage() {
           </div>
         </section>
 
-        <section>
-          <h2 className="font-display text-lg text-brand-green mb-2">Top margini prodotto</h2>
-          <div className="bg-card rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-brand-green text-brand-cream text-xs uppercase">
-                <tr><th className="text-left p-2">Prodotto</th><th className="text-right p-2">Margine €</th></tr>
-              </thead>
-              <tbody>
-                {topMargini.map(s => (
-                  <tr key={s.product.id} className="border-t border-border">
-                    <td className="p-2">{s.product.name}</td>
-                    <td className="text-right p-2 font-semibold text-success">{formatEuro(s.profit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
 
         {inattivi.length > 0 && (
           <section>
