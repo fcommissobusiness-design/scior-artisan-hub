@@ -243,6 +243,12 @@ export interface PaymentAttachment {
   size: number;
   addedAt: string;
 }
+export const FISCAL_CATEGORIES = [
+  "Affitto", "Utenze", "Consulenze", "Commercialista", "Software",
+  "Marketing", "Carburante", "Acquisti merci", "Altro",
+] as const;
+export type FiscalCategory = typeof FISCAL_CATEGORIES[number];
+
 export interface SupplierPayment {
   id: string;
   date: string;            // ISO data registrazione
@@ -258,6 +264,8 @@ export interface SupplierPayment {
   document?: SupplierPaymentDocument;
   supplierId?: string;
   attachments?: PaymentAttachment[];
+  deductible?: boolean;        // deducibile fiscalmente
+  fiscalCategory?: FiscalCategory;
 }
 
 // ============= COSTI FISSI =============
