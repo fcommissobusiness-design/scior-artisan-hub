@@ -79,10 +79,11 @@ function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { authed, login } = useAuth();
+  const { authed, ready, login } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [moreOpen, setMoreOpen] = useState(false);
 
+  if (!ready) return <div className="min-h-screen bg-brand-green" />;
   if (!authed) return <PinScreen onOk={login} />;
 
   const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
