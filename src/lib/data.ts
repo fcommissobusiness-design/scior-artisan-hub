@@ -158,6 +158,7 @@ export interface CasualSale {
   notes?: string;
   source?: OrderSource;
   delivery?: DeliveryMode;
+  paymentMethod?: PaymentMethod;
 }
 
 export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";
