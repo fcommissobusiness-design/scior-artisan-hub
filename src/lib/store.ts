@@ -78,8 +78,12 @@ function migrate(parsed: any): Store {
   const cleanV3 = parsed.__cleanSeedV3 === true;
   // Catalogo Maggio 2026: forza il re-seed di prodotti e bundle col listino aggiornato.
   const catalogV4 = parsed.__catalogV4 === true;
+  // Pulizia dati demo residui (statistiche, costi, pagamenti fittizi).
+  const demoCleanV5 = parsed.__demoCleanV5 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
+  const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
+    demoCleanV5 ? (field ?? seed) : (field ?? []);
   const out: Store = {
     products: productsSource.map((p: Product) => ({
       available: true, seasonal: false, magnet: false, ...p,
@@ -94,26 +98,27 @@ function migrate(parsed: any): Store {
     bundles: bundlesSource,
     casualSales: cleanV3 ? (parsed.casualSales ?? []) : [],
     deliveries: cleanV3 ? (parsed.deliveries ?? []) : [],
-    productions: parsed.productions ?? SEED.productions,
+    productions: keep(parsed.productions, SEED.productions),
     suppliers: parsed.suppliers ?? SEED.suppliers,
-    cashEntries: parsed.cashEntries ?? SEED.cashEntries,
-    b2bClients: parsed.b2bClients ?? SEED.b2bClients,
-    supplierPayments: parsed.supplierPayments ?? SEED.supplierPayments,
-    freshLogs: parsed.freshLogs ?? [],
-    unsoldEntries: parsed.unsoldEntries ?? [],
-    specialDays: parsed.specialDays ?? SEED.specialDays,
+    cashEntries: keep(parsed.cashEntries, SEED.cashEntries),
+    b2bClients: keep(parsed.b2bClients, SEED.b2bClients),
+    supplierPayments: keep(parsed.supplierPayments, SEED.supplierPayments),
+    freshLogs: keep(parsed.freshLogs, []),
+    unsoldEntries: keep(parsed.unsoldEntries, []),
+    specialDays: keep(parsed.specialDays, SEED.specialDays),
     businessHours: parsed.businessHours ?? SEED.businessHours,
-    goodsReceipts: parsed.goodsReceipts ?? SEED.goodsReceipts,
-    fixedCosts: parsed.fixedCosts ?? SEED.fixedCosts,
-    onlineOrders: parsed.onlineOrders ?? SEED.onlineOrders,
-    shipments: parsed.shipments ?? SEED.shipments,
-    lots: parsed.lots ?? SEED.lots,
-    haccpReadings: parsed.haccpReadings ?? SEED.haccpReadings,
-    cleaningTasks: parsed.cleaningTasks ?? SEED.cleaningTasks,
+    goodsReceipts: keep(parsed.goodsReceipts, SEED.goodsReceipts),
+    fixedCosts: keep(parsed.fixedCosts, SEED.fixedCosts),
+    onlineOrders: keep(parsed.onlineOrders, SEED.onlineOrders),
+    shipments: keep(parsed.shipments, SEED.shipments),
+    lots: keep(parsed.lots, SEED.lots),
+    haccpReadings: keep(parsed.haccpReadings, SEED.haccpReadings),
+    cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
   };
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
+  (out as any).__demoCleanV5 = true;
   return out;
 }
 
