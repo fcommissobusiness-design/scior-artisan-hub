@@ -126,6 +126,7 @@ export interface Order {
   delivery?: DeliveryMode;
   address?: string;            // indirizzo consegna (se delivery=domicilio)
   payment?: DeliveryPayment;   // stato pagamento (se delivery=domicilio)
+  paymentMethod?: PaymentMethod;
   timeline?: OrderEvent[];
   deliveryId?: string;
 }
@@ -157,6 +158,7 @@ export interface CasualSale {
   notes?: string;
   source?: OrderSource;
   delivery?: DeliveryMode;
+  paymentMethod?: PaymentMethod;
 }
 
 export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";

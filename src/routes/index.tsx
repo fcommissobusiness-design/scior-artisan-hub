@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
-import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode } from "@/lib/data";
+import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod } from "@/lib/data";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
   lateOrders,
@@ -333,7 +333,7 @@ const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
   ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
 };
 
-function NewSaleSheet({ open, onClose, onSave }: {
+export function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
@@ -347,6 +347,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   const [search, setSearch] = useState("");
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -367,7 +368,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -376,7 +377,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
       items, total,
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
-      source, delivery,
+      source, delivery, paymentMethod,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
@@ -416,6 +417,16 @@ function NewSaleSheet({ open, onClose, onSave }: {
           <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryMode)}
             className="w-full bg-card border border-border rounded-lg p-3">
             {(Object.keys(SALE_DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{SALE_DELIVERY_LABEL[d]}</option>)}
+          </select>
+        </Field>
+        <Field label="Metodo di pagamento">
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="contanti">Contanti</option>
+            <option value="pos">POS</option>
+            <option value="bonifico">Bonifico</option>
+            <option value="carta">Carta</option>
+            <option value="altro">Altro</option>
           </select>
         </Field>
       </div>

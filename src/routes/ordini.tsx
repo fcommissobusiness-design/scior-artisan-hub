@@ -2,7 +2,7 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
@@ -320,6 +320,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [address, setAddress] = useState(existing?.address ?? "");
   const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -403,6 +404,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
       payment: delivery === "domicilio" ? payment : undefined,
+      paymentMethod,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
@@ -544,6 +546,16 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
             <option value="consegnato">Consegnato</option>
             <option value="ritirato">Ritirato</option>
             <option value="annullato">Annullato</option>
+          </select>
+        </Field>
+        <Field label="Metodo di pagamento">
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="contanti">Contanti</option>
+            <option value="pos">POS</option>
+            <option value="bonifico">Bonifico</option>
+            <option value="carta">Carta</option>
+            <option value="altro">Altro</option>
           </select>
         </Field>
       </div>

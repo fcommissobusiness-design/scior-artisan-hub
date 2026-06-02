@@ -176,7 +176,7 @@ function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
           <input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))}
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Metodo">
+        <Field label="Metodo di pagamento">
           <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)}
             className="w-full bg-card border border-border rounded-lg p-3">
             {METHODS.map(m => <option key={m} value={m}>{m}</option>)}

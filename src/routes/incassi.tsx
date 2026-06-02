@@ -1,85 +1,224 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, Sheet, Field, Fab, formatEuro, formatDate } from "@/components/AppShell";
-import { CASH_CATEGORIES, type CashEntry, type CashType, type PaymentMethod } from "@/lib/data";
-import { cashFlowDay, cashFlowMonth } from "@/lib/metrics";
+import { TopBar, Sheet, Fab, formatEuro, formatDate } from "@/components/AppShell";
+import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
+import { orderMargin } from "@/lib/metrics";
+import { OrderSheet } from "@/routes/ordini";
+import { NewSaleSheet } from "@/routes/index";
 
-export const Route = createFileRoute("/incassi")({ component: IncassiPage });
+export const Route = createFileRoute("/incassi")({ component: CassaPage });
 
-const METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
+type Movement = {
+  id: string;
+  date: string;
+  type: "entrata" | "uscita";
+  amount: number;
+  label: string;
+  meta?: string;
+  margin?: number;
+};
 
-function IncassiPage() {
-  const { cashEntries, addCashEntry, updateCashEntry, deleteCashEntry } = useStore();
-  const [tab, setTab] = useState<"day" | "month" | "all">("day");
-  const [openNew, setOpenNew] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+function CassaPage() {
+  const { orders, casualSales, supplierPayments, cashEntries, products, addOrder, addCasualSale, addClient } = useStore();
+  const navigate = useNavigate();
 
-  const today = new Date();
-  const day = cashFlowDay(cashEntries, today);
-  const month = cashFlowMonth(cashEntries, today);
+  const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
+  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
 
-  const list = useMemo(() => {
-    let base = cashEntries;
-    if (tab === "day") {
-      const t = today.toDateString();
-      base = base.filter(e => new Date(e.date).toDateString() === t);
-    } else if (tab === "month") {
-      base = base.filter(e => {
-        const d = new Date(e.date);
-        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+  const [filter, setFilter] = useState<"all" | "entrata" | "uscita">("all");
+  const [pickType, setPickType] = useState<null | "entrata" | "uscita">(null);
+  const [openOrder, setOpenOrder] = useState(false);
+  const [openSale, setOpenSale] = useState(false);
+
+  // ============ Costruzione movimenti dal periodo ============
+  const movements: Movement[] = useMemo(() => {
+    const out: Movement[] = [];
+
+    // Entrate da ordini ritirati
+    for (const o of orders) {
+      if (o.status !== "ritirato") continue;
+      if (!inFrame(o.pickupDate, tf)) continue;
+      out.push({
+        id: `ord_${o.id}`,
+        date: o.pickupDate,
+        type: "entrata",
+        amount: o.total,
+        label: "Ordine",
+        meta: o.paymentMethod ?? "—",
+        margin: orderMargin(o, products),
       });
     }
-    return [...base].sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [cashEntries, tab]);
+
+    // Entrate da scontrini
+    for (const s of casualSales) {
+      if (!inFrame(s.date, tf)) continue;
+      out.push({
+        id: `sale_${s.id}`,
+        date: s.date,
+        type: "entrata",
+        amount: s.total,
+        label: "Scontrino",
+        meta: s.paymentMethod ?? "—",
+        margin: orderMargin({ items: s.items } as any, products),
+      });
+    }
+
+    // Uscite da pagamenti fornitori (esclusi da_pagare)
+    for (const p of supplierPayments) {
+      if (p.status === "da_pagare") continue;
+      if (!inFrame(p.date, tf)) continue;
+      out.push({
+        id: `pay_${p.id}`,
+        date: p.date,
+        type: "uscita",
+        amount: p.amount,
+        label: p.beneficiary || p.category,
+        meta: `${p.category} · ${p.method}`,
+      });
+    }
+
+    // Movimenti manuali residui (cashEntries) — supporto storico
+    for (const e of cashEntries) {
+      if (!inFrame(e.date, tf)) continue;
+      out.push({
+        id: `ce_${e.id}`,
+        date: e.date,
+        type: e.type,
+        amount: e.amount,
+        label: e.category,
+        meta: `${e.method}${e.notes ? ` · ${e.notes}` : ""}`,
+      });
+    }
+
+    return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  }, [orders, casualSales, supplierPayments, cashEntries, products, tf]);
+
+  // ============ KPI ============
+  const kpi = useMemo(() => {
+    let entrate = 0, uscite = 0, ricavi = 0, margine = 0;
+    for (const m of movements) {
+      if (m.type === "entrata") {
+        entrate += m.amount;
+        if (m.id.startsWith("ord_") || m.id.startsWith("sale_")) {
+          ricavi += m.amount;
+          margine += m.margin ?? 0;
+        } else {
+          ricavi += m.amount;
+        }
+      } else {
+        uscite += m.amount;
+      }
+    }
+    const utile = margine - uscite;
+    return { entrate, uscite, ricavi, utile };
+  }, [movements]);
+
+  const visibleList = useMemo(
+    () => filter === "all" ? movements : movements.filter(m => m.type === filter),
+    [movements, filter],
+  );
 
   return (
     <div>
-      <TopBar title="Cassa & Incassi" subtitle={`Oggi: ${formatEuro(day.balance)} · Mese: ${formatEuro(month.balance)}`} />
+      <TopBar title="Cassa" />
+
+      <div className="px-4 md:px-6 pt-4 flex justify-end">
+        <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
+          className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+          {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+      </div>
 
       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Entrate oggi" value={formatEuro(day.in)} />
-        <Kpi label="Uscite oggi" value={formatEuro(day.out)} danger />
-        <Kpi label="Saldo oggi" value={formatEuro(day.balance)} highlight />
-        <Kpi label="Saldo mese" value={formatEuro(month.balance)} />
+        <Kpi label="Entrate" value={formatEuro(kpi.entrate)} />
+        <Kpi label="Uscite" value={formatEuro(kpi.uscite)} danger />
+        <Kpi label="Ricavi" value={formatEuro(kpi.ricavi)} />
+        <Kpi label="Utile" value={formatEuro(kpi.utile)} highlight />
       </div>
 
       <div className="px-4 md:px-6 flex gap-2 pb-2">
-        {(["day", "month", "all"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold ${tab === t ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
-            {t === "day" ? "Oggi" : t === "month" ? "Mese" : "Tutto"}
+        {([
+          { id: "all", label: "Tutti" },
+          { id: "entrata", label: "Entrate" },
+          { id: "uscita", label: "Uscite" },
+        ] as const).map(t => (
+          <button key={t.id} onClick={() => setFilter(t.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold ${filter === t.id ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
+            {t.label}
           </button>
         ))}
       </div>
 
       <div className="p-4 md:p-6 space-y-2">
-        {list.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nessun movimento.</p>}
-        {list.map(e => (
-          <button key={e.id} onClick={() => setEditId(e.id)}
-            className="w-full text-left bg-card rounded-xl p-3 flex justify-between items-center gap-3">
+        {visibleList.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground py-8">Nessun movimento nel periodo.</p>
+        )}
+        {visibleList.map(m => (
+          <div key={m.id} className="bg-card rounded-xl p-3 flex justify-between items-center gap-3">
             <div className="min-w-0">
-              <p className={`font-display text-base ${e.type === "entrata" ? "text-success" : "text-danger"}`}>
-                {e.type === "entrata" ? "+" : "−"} {formatEuro(e.amount)}
+              <p className={`font-display text-base ${m.type === "entrata" ? "text-success" : "text-danger"}`}>
+                {m.type === "entrata" ? "+" : "−"} {formatEuro(m.amount)}
               </p>
-              <p className="text-xs text-muted-foreground truncate">{e.category} · {e.method}{e.notes ? ` · ${e.notes}` : ""}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {m.label}{m.meta ? ` · ${m.meta}` : ""}
+                {m.margin !== undefined && ` · margine ${formatEuro(m.margin)}`}
+              </p>
             </div>
-            <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(e.date)}</p>
-          </button>
+            <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(m.date)}</p>
+          </div>
         ))}
       </div>
 
-      <Fab onClick={() => setOpenNew(true)} />
+      <Fab onClick={() => setPickType("entrata")} />
 
-      {openNew && <CashSheet mode="new" onClose={() => setOpenNew(false)}
-        onSave={(d) => { addCashEntry(d as Omit<CashEntry, "id">); setOpenNew(false); }} />}
-      {editId && (() => {
-        const e = cashEntries.find(x => x.id === editId);
-        if (!e) return null;
-        return <CashSheet mode="edit" entry={e} onClose={() => setEditId(null)}
-          onSave={(p) => { updateCashEntry(e.id, p); setEditId(null); }}
-          onDelete={() => { if (confirm("Eliminare?")) { deleteCashEntry(e.id); setEditId(null); } }} />;
-      })()}
+      {/* Step 1: Entrata o Uscita */}
+      {pickType !== null && !openOrder && !openSale && (
+        <Sheet open={true} onClose={() => setPickType(null)} title="Nuovo movimento">
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setPickType("entrata")}
+              className={`py-6 rounded-xl font-semibold ${pickType === "entrata" ? "bg-success text-white" : "bg-card border border-border"}`}>
+              Entrata
+            </button>
+            <button onClick={() => { setPickType("uscita"); navigate({ to: "/pagamenti" }); }}
+              className={`py-6 rounded-xl font-semibold ${pickType === "uscita" ? "bg-danger text-white" : "bg-card border border-border"}`}>
+              Uscita
+            </button>
+          </div>
+          {pickType === "entrata" && (
+            <div className="grid grid-cols-2 gap-3 pt-4">
+              <button onClick={() => { setOpenOrder(true); }}
+                className="py-5 rounded-xl bg-brand-green text-brand-cream font-semibold">
+                Nuovo ordine
+              </button>
+              <button onClick={() => { setOpenSale(true); }}
+                className="py-5 rounded-xl bg-brand-gold text-white font-semibold">
+                Nuovo scontrino
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground pt-2">
+            Le uscite si registrano dalla scheda <strong>Pagamenti Fornitori</strong>.
+          </p>
+        </Sheet>
+      )}
+
+      {openOrder && (
+        <OrderSheet mode="new"
+          onClose={() => { setOpenOrder(false); setPickType(null); }}
+          onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickType(null); }} />
+      )}
+
+      {openSale && (
+        <NewSaleSheet open={true}
+          onClose={() => { setOpenSale(false); setPickType(null); }}
+          onSave={(s, newClient) => {
+            if (newClient) addClient(newClient);
+            addCasualSale(s);
+            setOpenSale(false);
+            setPickType(null);
+          }} />
+      )}
     </div>
   );
 }
@@ -90,69 +229,5 @@ function Kpi({ label, value, highlight, danger }: { label: string; value: string
       <p className={`text-[10px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
       <p className={`font-display text-xl mt-1 ${danger ? "text-danger" : highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
     </div>
-  );
-}
-
-function CashSheet({ mode, entry, onClose, onSave, onDelete }: {
-  mode: "new" | "edit"; entry?: CashEntry;
-  onClose: () => void; onSave: (d: Omit<CashEntry, "id"> | Partial<CashEntry>) => void;
-  onDelete?: () => void;
-}) {
-  const [type, setType] = useState<CashType>(entry?.type ?? "entrata");
-  const [amount, setAmount] = useState(entry?.amount ?? 0);
-  const [category, setCategory] = useState(entry?.category ?? CASH_CATEGORIES[0]);
-  const [method, setMethod] = useState<PaymentMethod>(entry?.method ?? "contanti");
-  const [notes, setNotes] = useState(entry?.notes ?? "");
-
-  const save = () => {
-    if (!amount) return;
-    onSave({
-      date: entry?.date ?? new Date().toISOString(),
-      type, amount: Number(amount), category, method,
-      notes: notes.trim() || undefined,
-      refType: entry?.refType ?? "manual", refId: entry?.refId,
-    });
-  };
-
-  return (
-    <Sheet open={true} onClose={onClose}
-      title={mode === "new" ? "Nuovo movimento" : "Modifica movimento"}
-      footer={
-        <div className="flex gap-3">
-          {mode === "edit" && onDelete && (
-            <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
-          )}
-          <button onClick={save} className="flex-1 bg-brand-gold text-white rounded-xl py-3 font-semibold">Salva</button>
-        </div>
-      }>
-      <div className="grid grid-cols-2 gap-2">
-        <button onClick={() => setType("entrata")}
-          className={`py-3 rounded-xl font-semibold ${type === "entrata" ? "bg-success text-white" : "bg-card border border-border"}`}>Entrata</button>
-        <button onClick={() => setType("uscita")}
-          className={`py-3 rounded-xl font-semibold ${type === "uscita" ? "bg-danger text-white" : "bg-card border border-border"}`}>Uscita</button>
-      </div>
-      <Field label="Importo (€)">
-        <input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))}
-          className="w-full bg-card border border-border rounded-lg p-3 text-lg" />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Categoria">
-          <select value={category} onChange={e => setCategory(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            {CASH_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </Field>
-        <Field label="Metodo">
-          <select value={method} onChange={e => setMethod(e.target.value as PaymentMethod)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-        </Field>
-      </div>
-      <Field label="Note">
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
-      </Field>
-    </Sheet>
   );
 }
