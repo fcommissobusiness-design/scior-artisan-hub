@@ -22,16 +22,16 @@ type Movement = {
 };
 
 function CassaPage() {
-  const { orders, casualSales, supplierPayments, cashEntries, products, addOrder, addCasualSale, addClient } = useStore();
-  const navigate = useNavigate();
+  const { orders, casualSales, supplierPayments, cashEntries, products, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
 
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
 
   const [filter, setFilter] = useState<"all" | "entrata" | "uscita">("all");
-  const [pickType, setPickType] = useState<null | "entrata" | "uscita">(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [openOrder, setOpenOrder] = useState(false);
   const [openSale, setOpenSale] = useState(false);
+  const [openPay, setOpenPay] = useState(false);
 
   // ============ Costruzione movimenti dal periodo ============
   const movements: Movement[] = useMemo(() => {
