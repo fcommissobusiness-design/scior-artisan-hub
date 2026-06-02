@@ -31,11 +31,18 @@ function ReportPage() {
   const scontrinoMedio = (ordersF.length + salesF.length) === 0 ? 0 : fatturato / (ordersF.length + salesF.length);
 
   const stats = useMemo(() => productSalesStats(ordersF, salesF, products), [ordersF, salesF, products]);
-  const topProdotti = [...stats].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+  // "Prodotto più acquistato" = max frequenza di acquisto (numero di righe in ordini+scontrini nel periodo)
+  const freqMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const o of ordersF) for (const it of o.items) m.set(it.productId, (m.get(it.productId) ?? 0) + 1);
+    for (const sa of salesF) for (const it of sa.items) m.set(it.productId, (m.get(it.productId) ?? 0) + 1);
+    return m;
+  }, [ordersF, salesF]);
+  const topFreq = useMemo(() => [...stats]
+    .map(s => ({ ...s, freq: freqMap.get(s.product.id) ?? 0 }))
+    .sort((a, b) => b.freq - a.freq).slice(0, 8), [stats, freqMap]);
+  const mostBought = topFreq[0];
   const topMargini = [...stats].sort((a, b) => b.profit - a.profit).slice(0, 8);
-
-  const trendMozza = stats.filter(s => s.product.id.includes("mozzarella"))
-    .reduce((s, x) => s + x.qty, 0);
 
   const topClienti = useMemo(() => clients
     .map(c => ({ c, ltv: clientLTV(orders, casualSales, c.id) }))
