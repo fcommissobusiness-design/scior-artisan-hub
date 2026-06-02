@@ -320,6 +320,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [address, setAddress] = useState(existing?.address ?? "");
   const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
