@@ -419,6 +419,16 @@ export function NewSaleSheet({ open, onClose, onSave }: {
             {(Object.keys(SALE_DELIVERY_LABEL) as DeliveryMode[]).map(d => <option key={d} value={d}>{SALE_DELIVERY_LABEL[d]}</option>)}
           </select>
         </Field>
+        <Field label="Metodo di pagamento">
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="contanti">Contanti</option>
+            <option value="pos">POS</option>
+            <option value="bonifico">Bonifico</option>
+            <option value="carta">Carta</option>
+            <option value="altro">Altro</option>
+          </select>
+        </Field>
       </div>
 
       <Field label="Cliente (facoltativo)">
