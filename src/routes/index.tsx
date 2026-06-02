@@ -128,19 +128,21 @@ function Dashboard() {
         )}
 
         {/* QUICK ACTIONS */}
-        <section className="grid grid-cols-3 gap-2">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Quick onClick={() => setOpenOrder(true)} label="Nuovo ordine" />
           <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
+          <Quick onClick={() => setOpenPay(true)} label="Nuovo pagamento" />
           <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
         </section>
 
         {/* KPI CASSA */}
         <section>
           <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Cassa</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
             <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
             <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
+            <Kpi to={{ to: "/pagamenti" }} label="Uscite" value={formatEuro(usciteFrame)} sub="periodo" danger />
             <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
           </div>
         </section>
