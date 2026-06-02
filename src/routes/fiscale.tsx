@@ -105,13 +105,22 @@ function FiscalePage() {
 
   const matches = (iso: string) => mode === "month" ? inMonthYear(iso, month) : inYear(iso, year);
 
+  // Costi fissi mensili normalizzati (configurati qui, condivisi con Finanziario)
+  const fissiMese = useMemo(() => monthlyFixedCostsTotal(fixedCosts), [fixedCosts]);
+  // Quota fissi sul periodo selezionato (mese = 1×, anno = 12×)
+  const fissiPeriodo = mode === "month" ? fissiMese : fissiMese * 12;
+
   const data = useMemo(() => {
     const ord = orders.filter(o => o.status === "ritirato" && matches(o.pickupDate));
     const sal = casualSales.filter(s => matches(s.date));
-    const pay = supplierPayments.filter(p => p.status === "pagato" && matches(p.date));
+    // Uscite pagate + deducibili (default: undefined = deducibile per back-compat)
+    const pay = supplierPayments.filter(p =>
+      p.status === "pagato" && matches(p.date) && (p.deductible !== false),
+    );
 
     const ricavi = ord.reduce((s, o) => s + o.total, 0) + sal.reduce((s, x) => s + x.total, 0);
-    const costi = pay.reduce((s, p) => s + p.amount, 0);
+    const costiVariabili = pay.reduce((s, p) => s + p.amount, 0);
+    const costi = costiVariabili + fissiPeriodo;
 
     // margini reali dagli ordini/scontrini (lordo materie prime)
     const margFromItems = (items: { productId: string; qty: number }[]) =>
@@ -125,8 +134,9 @@ function FiscalePage() {
 
     const utile = margineLordo - costi;
 
-    return { ricavi, costi, utile, margineLordo, ordersCount: ord.length, salesCount: sal.length, paymentsCount: pay.length };
-  }, [orders, casualSales, supplierPayments, products, mode, month, year]);
+    return { ricavi, costi, costiVariabili, utile, margineLordo,
+      ordersCount: ord.length, salesCount: sal.length, paymentsCount: pay.length };
+  }, [orders, casualSales, supplierPayments, products, mode, month, year, fissiPeriodo]);
 
   const stima = useMemo(() => config ? stimaFiscale(config, data.ricavi, data.costi) : null, [config, data]);
 
