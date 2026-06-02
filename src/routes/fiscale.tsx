@@ -200,10 +200,15 @@ function FiscalePage() {
         </div>
 
         {/* KPI principali */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Kpi label="Fatturato" value={formatEuro(data.ricavi)} />
-          <Kpi label="Costi (uscite)" value={formatEuro(data.costi)} danger />
+          <Kpi label="Margine lordo" value={formatEuro(data.margineLordo)} />
+          <Kpi label="Costi totali" value={formatEuro(data.costi)} danger />
           <Kpi label="Utile stimato" value={formatEuro(data.utile)} highlight />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Kpi label={`Uscite deducibili (${mode === "month" ? "mese" : "anno"})`} value={formatEuro(data.costiVariabili)} danger />
+          <Kpi label={`Costi fissi (${mode === "month" ? "mese" : "anno"})`} value={formatEuro(fissiPeriodo)} danger />
         </div>
 
         {/* Stima fiscale */}
@@ -224,19 +229,29 @@ function FiscalePage() {
           </section>
         )}
 
+        {/* Costi fissi configurabili (unica fonte, condivisa con Finanziario) */}
+        <FixedCostsSection
+          fixedCosts={fixedCosts}
+          fissiMese={fissiMese}
+          onAdd={(d) => addFixedCost(d as Omit<FixedCost, "id">)}
+          onUpdate={(id, p) => updateFixedCost(id, p)}
+          onDelete={(id) => deleteFixedCost(id)}
+        />
+
         {/* Riepilogo dati operativi */}
         <section className="bg-card rounded-xl p-4">
           <p className="text-xs uppercase font-bold text-brand-green mb-3">Dati del periodo</p>
           <div className="grid grid-cols-3 gap-3 text-sm">
             <Info label="Ordini ritirati" value={String(data.ordersCount)} />
             <Info label="Scontrini" value={String(data.salesCount)} />
-            <Info label="Uscite pagate" value={String(data.paymentsCount)} />
+            <Info label="Uscite deducibili" value={String(data.paymentsCount)} />
           </div>
           <p className="text-[11px] text-muted-foreground mt-3">
-            Dati letti automaticamente da Ordini, Scontrini e Uscite. Ogni nuova registrazione aggiorna la stima fiscale.
+            Dati letti automaticamente da Ordini, Scontrini, Uscite (solo deducibili) e Costi fissi. Ogni nuova registrazione aggiorna la stima fiscale.
           </p>
         </section>
       </div>
+
 
       <Fab onClick={() => setPickerOpen(true)} />
 
