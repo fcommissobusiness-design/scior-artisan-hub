@@ -404,6 +404,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
       payment: delivery === "domicilio" ? payment : undefined,
+      paymentMethod,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
