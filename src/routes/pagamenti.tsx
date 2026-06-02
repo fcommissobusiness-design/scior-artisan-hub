@@ -148,6 +148,8 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
   })();
   const [document, setDoc] = useState<SupplierPaymentDocument>(initialDoc);
   const [notes, setNotes] = useState(payment?.notes ?? "");
+  const [deductible, setDeductible] = useState<boolean>(payment?.deductible ?? true);
+  const [fiscalCategory, setFiscalCategory] = useState<FiscalCategory>(payment?.fiscalCategory ?? "Altro");
   const [attachments, setAttachments] = useState<PaymentAttachment[]>(payment?.attachments ?? []);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
