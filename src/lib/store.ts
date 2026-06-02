@@ -792,12 +792,15 @@ export function setPin(newPin: string) {
 }
 
 export function useAuth() {
-  const [authed, setAuthed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(PIN_KEY) === "1";
-  });
+  const [authed, setAuthed] = useState<boolean>(false);
+  const [ready, setReady] = useState<boolean>(false);
+  useEffect(() => {
+    setAuthed(localStorage.getItem(PIN_KEY) === "1");
+    setReady(true);
+  }, []);
   return {
     authed,
+    ready,
     login: (pin: string) => {
       if (pin === getPin()) {
         localStorage.setItem(PIN_KEY, "1");
