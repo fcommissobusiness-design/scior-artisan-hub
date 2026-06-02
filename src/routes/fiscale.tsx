@@ -5,7 +5,11 @@ import { TopBar, Sheet, Fab, Field, formatEuro } from "@/components/AppShell";
 import { OrderSheet } from "@/routes/ordini";
 import { NewSaleSheet } from "@/routes/index";
 import { PaySheet } from "@/routes/pagamenti";
-import type { SupplierPayment } from "@/lib/data";
+import { monthlyFixedCostsTotal } from "@/lib/metrics";
+import {
+  FIXED_COST_CATEGORIES, type FixedCost, type FixedCostCategory,
+  type FixedCostFrequency, type FixedCostStatus, type SupplierPayment,
+} from "@/lib/data";
 
 export const Route = createFileRoute("/fiscale")({ component: FiscalePage });
 
