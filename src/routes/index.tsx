@@ -39,6 +39,9 @@ function Dashboard() {
 
   const ordersInFrame = orders.filter((o) => inFrame(o.pickupDate, tf));
   const salesInFrame = casualSales.filter((s) => inFrame(s.date, tf));
+  const usciteFrame = supplierPayments
+    .filter((p) => p.status !== "da_pagare" && inFrame(p.date, tf))
+    .reduce((s, p) => s + p.amount, 0);
 
   const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa" || o.status === "pronto" || o.status === "da_consegnare").reduce((s, o) => s + o.total, 0);
   const fattGenerato =
