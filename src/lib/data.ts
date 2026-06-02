@@ -288,13 +288,7 @@ export interface FixedCost {
   notes?: string;
 }
 
-export const SEED_FIXED_COSTS: FixedCost[] = [
-  { id: "fc1", name: "Affitto negozio", category: "affitto", amount: 850, frequency: "mensile", status: "attivo" },
-  { id: "fc2", name: "Enel — luce", category: "utenze", amount: 280, frequency: "mensile", status: "attivo" },
-  { id: "fc3", name: "Commercialista", category: "commercialista", amount: 1200, frequency: "annuale", status: "attivo" },
-  { id: "fc4", name: "Gestionale software", category: "software", amount: 29, frequency: "mensile", status: "attivo" },
-  { id: "fc5", name: "Assicurazione attività", category: "assicurazioni", amount: 480, frequency: "annuale", status: "attivo" },
-];
+export const SEED_FIXED_COSTS: FixedCost[] = [];
 
 export const CASH_CATEGORIES = [
   "Vendita banco", "Vendita ordine", "Vendita consegna", "B2B", "Altro",
@@ -597,11 +591,7 @@ const isoDay = (dayOffset = 0) => {
   return d.toISOString();
 };
 
-export const SEED_PRODUCTIONS: Production[] = [
-  { id: "pr1", date: isoToday(7, 0), productId: "mozzarella-di-bufala-campana-dop", qtyPlanned: 12, qtyActual: 11.5, status: "completato", orderIds: ["o1", "o2", "o4"] },
-  { id: "pr2", date: isoToday(7, 0), productId: "ricotta-di-bufala", qtyPlanned: 8, status: "da_preparare", notes: "Per ordine famiglia Rossi" },
-  { id: "pr3", date: isoToday(7, 0, 1), productId: "mozzarella-di-bufala-campana-dop", qtyPlanned: 15, status: "da_preparare" },
-];
+export const SEED_PRODUCTIONS: Production[];
 
 // ============= FRESH / UNSOLD / CALENDAR =============
 
@@ -671,21 +661,11 @@ export interface SpecialDay {
   notes?: string;
 }
 
-export const SEED_FRESH_LOGS: FreshLog[] = [
-  { id: "fl1", date: isoDay(-1), productId: "mozzarella-di-bufala-campana-dop", qtyStart: 16, qtySold: 14, qtyRecovered: 1, qtyDiscarded: 0.5, qtyLeft: 0.5, notes: "Buona giornata" },
-  { id: "fl2", date: isoDay(-2), productId: "mozzarella-di-bufala-campana-dop", qtyStart: 18, qtySold: 15, qtyRecovered: 2, qtyDiscarded: 1, qtyLeft: 0 },
-  { id: "fl3", date: isoDay(-1), productId: "ricotta-di-bufala", qtyStart: 10, qtySold: 8, qtyRecovered: 1, qtyDiscarded: 1, qtyLeft: 0 },
-];
+export const SEED_FRESH_LOGS: FreshLog[] = [];
 
-export const SEED_UNSOLD_ENTRIES: UnsoldEntry[] = [
-  { id: "un1", date: isoDay(-1), productId: "mozzarella-di-bufala-campana-dop", qty: 1, destination: "tgtg", valueLost: 15, valueRecovered: 6, tgtgBoxes: 2 },
-  { id: "un2", date: isoDay(-1), productId: "ricotta-di-bufala", qty: 1, destination: "scontato", valueLost: 1.6, valueRecovered: 1.0 },
-];
+export const SEED_UNSOLD_ENTRIES: UnsoldEntry[] = [];
 
-export const SEED_SPECIAL_DAYS: SpecialDay[] = [
-  { id: "sd1", date: "2026-08-15", name: "Ferragosto", impact: "alto", multiplier: 0.5, notes: "Negozio aperto solo mattina" },
-  { id: "sd2", date: "2026-12-24", name: "Vigilia di Natale", impact: "alto", multiplier: 2.0, notes: "Picco mozzarella" },
-];
+export const SEED_SPECIAL_DAYS: SpecialDay[] = [];
 
 export const SEED_SUPPLIERS: Supplier[] = [
   { id: "sup1", name: "Tucciarone Salumi", category: "Salumi", phone: "+39 0771 555111", contactName: "Antonio", productIds: ["salsiccia-paesana-sottovuoto-tucciarone"], lastOrderDate: isoDay(-7) },
@@ -695,26 +675,11 @@ export const SEED_SUPPLIERS: Supplier[] = [
   { id: "sup5", name: "Renzini Norcineria", category: "Salumi", phone: "+39 075 555888", productIds: ["guanciale-del-norcino-renzini", "crudo-lui-renzini", "lonza-di-norcia-renzini"], lastOrderDate: isoDay(-10) },
 ];
 
-export const SEED_CASH_ENTRIES: CashEntry[] = [
-  { id: "ce1", date: isoToday(11, 0), type: "entrata", category: "Vendita banco", amount: 6.9, method: "contanti", refType: "casual", refId: "s1" },
-  { id: "ce2", date: isoToday(11, 15), type: "entrata", category: "Vendita banco", amount: 4.8, method: "contanti", refType: "casual", refId: "s2" },
-  { id: "ce3", date: isoToday(9, 0, -1), type: "uscita", category: "Merce", amount: 145.0, method: "bonifico", notes: "Carico salumi Tucciarone" },
-  { id: "ce4", date: isoToday(15, 0, -3), type: "uscita", category: "Utenze", amount: 78.0, method: "bonifico", notes: "Bolletta luce" },
-];
+export const SEED_CASH_ENTRIES: CashEntry[] = [];
 
-export const SEED_B2B_CLIENTS: B2BClient[] = [
-  { id: "b2b1", name: "Lido Azzurro", contactName: "Roberto", phone: "+39 333 9990001", zone: "Sperlonga", deliveryDays: ["mar", "ven"], status: "attivo", history: [{ date: isoDay(-7), total: 320 }, { date: isoDay(-14), total: 280 }], notes: "Ordine standard mozzarella + ricotta" },
-  { id: "b2b2", name: "Ristorante La Pergola", contactName: "Luigi", phone: "+39 333 9990002", zone: "Formia", deliveryDays: ["lun", "gio"], status: "attivo", history: [{ date: isoDay(-3), total: 195 }] },
-  { id: "b2b3", name: "Pizzeria Vesuvio", contactName: "Gino", phone: "+39 333 9990003", zone: "Gaeta", deliveryDays: ["mer", "sab"], status: "prospect", history: [], notes: "In valutazione preventivo" },
-];
+export const SEED_B2B_CLIENTS: B2BClient[];
 
-export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [
-  { id: "sp1", date: isoDay(-7), beneficiary: "Tucciarone Salumi", beneficiaryType: "fornitore", category: "Merce", amount: 145.0, method: "bonifico", status: "pagato", recurrence: "una_tantum", document: "fattura", supplierId: "sup1" },
-  { id: "sp2", date: isoDay(-3), beneficiary: "Enel Energia", beneficiaryType: "servizio", category: "Utenze", amount: 178.50, method: "bonifico", status: "pagato", dueDate: isoDay(-3), recurrence: "mensile", document: "fattura" },
-  { id: "sp3", date: isoDay(0), beneficiary: "Studio Bianchi Commercialista", beneficiaryType: "consulente", category: "Commercialista", amount: 250.0, method: "bonifico", status: "da_pagare", dueDate: isoDay(7), recurrence: "mensile", document: "fattura" },
-  { id: "sp4", date: isoDay(-15), beneficiary: "Affittuario Locale", beneficiaryType: "altro", category: "Affitto", amount: 850.0, method: "bonifico", status: "pagato", dueDate: isoDay(-15), recurrence: "mensile" },
-  { id: "sp5", date: isoDay(-30), beneficiary: "Marketing Web Srl", beneficiaryType: "consulente", category: "Consulenza marketing", amount: 350.0, method: "bonifico", status: "scaduto", dueDate: isoDay(-5), recurrence: "una_tantum", document: "fattura" },
-];
+export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [];
 
 // ============= GOODS RECEIPTS / ENTRATE MERCI =============
 
@@ -777,38 +742,7 @@ export const INVOICE_STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
   non_applicabile: "N/A",
 };
 
-export const SEED_GOODS_RECEIPTS: GoodsReceipt[] = [
-  {
-    id: "gr1", date: isoDay(-1), supplierId: "sup3", status: "verificata",
-    items: [
-      { productId: "pane-casareccio-d-alise", qty: 8, unitCost: 2.0 },
-      { productId: "panini-d-alise", qty: 6, unitCost: 2.5 },
-    ],
-    totalCost: 31.0, carrier: "Consegna diretta", paymentMethod: "contanti",
-    invoiceNumber: "DDT-2026-184", invoiceDate: isoDay(-1),
-    taxableAmount: 28.18, vatAmount: 2.82, documentTotal: 31.0,
-    paymentStatus: "pagato", createdAt: isoDay(-1),
-  },
-  {
-    id: "gr2", date: isoDay(-7), supplierId: "sup1", status: "archiviata",
-    items: [{ productId: "salsiccia-paesana-sottovuoto-tucciarone", qty: 5, unitCost: 16.0 }],
-    totalCost: 145.0, paymentMethod: "bonifico",
-    invoiceNumber: "F-2026-0098", invoiceDate: isoDay(-7),
-    taxableAmount: 131.82, vatAmount: 13.18, documentTotal: 145.0,
-    paymentDueDate: isoDay(23), paymentStatus: "pagato", createdAt: isoDay(-7),
-  },
-  {
-    id: "gr3", date: isoDay(-3), supplierId: "sup4", status: "ricevuta",
-    items: [
-      { productId: "latte-intero-latte-sano", qty: 24, unitCost: 1.91 },
-      { productId: "latte-alta-digeribilita-latte-sano", qty: 12, unitCost: 1.91 },
-    ],
-    totalCost: 68.76, paymentMethod: "bonifico",
-    invoiceNumber: "F-LS-2026-412", invoiceDate: isoDay(-3),
-    taxableAmount: 62.51, vatAmount: 6.25, documentTotal: 68.76,
-    paymentDueDate: isoDay(27), paymentStatus: "da_pagare", createdAt: isoDay(-3),
-  },
-];
+export const SEED_GOODS_RECEIPTS: GoodsReceipt[];
 
 export function calcReceiptTotal(r: GoodsReceipt): number {
   if (typeof r.totalCost === "number") return r.totalCost;
@@ -906,46 +840,9 @@ export const ECOM_PLATFORM_LABEL: Record<EcomPlatform, string> = {
   altro: "Altro",
 };
 
-export const SEED_ONLINE_ORDERS: OnlineOrder[] = [
-  {
-    id: "eo1", date: isoDay(-2), platform: "shopify", externalNumber: "#1042",
-    customerName: "Giulia Romano", email: "giulia.r@email.it", phone: "+39 333 1234567",
-    shippingAddress: "Via Verdi 12, 00100 Roma RM",
-    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 2, unitPrice: 15 }],
-    total: 38.5, estimatedCost: 21, shippingCost: 8.5,
-    status: "spedito", paymentStatus: "pagato", createdAt: isoDay(-2),
-  },
-  {
-    id: "eo2", date: isoDay(-1), platform: "woocommerce", externalNumber: "WC-2587",
-    customerName: "Marco Bianchi", email: "m.bianchi@email.it", phone: "+39 339 7654321",
-    shippingAddress: "Via Roma 5, 80100 Napoli NA",
-    items: [
-      { productId: "ricotta-di-bufala", qty: 4, unitPrice: 1.6 },
-      { productId: "mozzarella-di-bufala-campana-dop", qty: 1, unitPrice: 15 },
-    ],
-    total: 28.4, estimatedCost: 14.5, shippingCost: 7,
-    status: "in_preparazione", paymentStatus: "pagato", createdAt: isoDay(-1),
-  },
-  {
-    id: "eo3", date: isoDay(0), platform: "shopify", externalNumber: "#1043",
-    customerName: "Anna Ferrari", email: "anna.f@email.it",
-    shippingAddress: "Corso Italia 88, 20100 Milano MI",
-    items: [{ productId: "mozzarella-di-bufala-campana-dop", qty: 1, unitPrice: 15 }],
-    total: 22, estimatedCost: 10.5, shippingCost: 7,
-    status: "ricevuto", paymentStatus: "pagato", createdAt: isoDay(0),
-  },
-];
+export const SEED_ONLINE_ORDERS: OnlineOrder[];
 
-export const SEED_SHIPMENTS: Shipment[] = [
-  {
-    id: "sh1", orderId: "eo1", customerName: "Giulia Romano",
-    address: "Via Verdi 12, 00100 Roma RM",
-    carrier: "BRT", trackingNumber: "BRT12345678",
-    trackingUrl: "https://vas.brt.it/vas/sped_det_show.htm?Nspediz=BRT12345678",
-    shippingCost: 8.5, status: "in_transito",
-    shippedDate: isoDay(-2), expectedDelivery: isoDay(1), createdAt: isoDay(-2),
-  },
-];
+export const SEED_SHIPMENTS: Shipment[] = [];
 
 export function calcOnlineOrderCost(o: OnlineOrder, products: Product[]): number {
   if (typeof o.estimatedCost === "number") return o.estimatedCost;
@@ -1049,48 +946,8 @@ export interface CleaningTask {
 
 // ============= SEED minimi =============
 
-export const SEED_LOTS: Lot[] = [
-  {
-    id: "lt1", code: "20260516-01",
-    productId: "mozzarella-di-bufala-campana-dop",
-    productionDate: isoDay(-1), expiryDate: isoDay(1),
-    qtyInitial: 12, qtyRemaining: 6,
-    supplierId: undefined, productionId: "pr1",
-    notes: "Produzione mattutina", createdAt: isoDay(-1),
-  },
-  {
-    id: "lt2", code: "20260515-01",
-    productId: "mozzarella-di-bufala-campana-dop",
-    productionDate: isoDay(-2), expiryDate: isoDay(0),
-    qtyInitial: 10, qtyRemaining: 1.5,
-    createdAt: isoDay(-2),
-  },
-  {
-    id: "lt3", code: "20260516-02",
-    productId: "ricotta-di-bufala",
-    productionDate: isoDay(-1), expiryDate: isoDay(2),
-    qtyInitial: 8, qtyRemaining: 5,
-    createdAt: isoDay(-1),
-  },
-  {
-    id: "lt4", code: "20260514-01",
-    productId: "pane-casareccio-d-alise",
-    productionDate: isoDay(-3), expiryDate: isoDay(-1),
-    qtyInitial: 8, qtyRemaining: 2,
-    supplierId: "sup3", receiptId: "gr1",
-    createdAt: isoDay(-3),
-  },
-];
+export const SEED_LOTS: Lot[] = [];
 
-export const SEED_HACCP_READINGS: HaccpReading[] = [
-  { id: "hr1", date: isoToday(8, 0), area: "frigo", temperature: 3.2, operator: "Daniele", outOfRange: false },
-  { id: "hr2", date: isoToday(8, 5), area: "banco", temperature: 4.5, operator: "Daniele", outOfRange: false },
-  { id: "hr3", date: isoToday(14, 0), area: "frigo", temperature: 5.8, operator: "Daniele", outOfRange: true, notes: "Verificato chiusura porta" },
-  { id: "hr4", date: isoToday(9, 0, -1), area: "trasporto", temperature: 4.0, operator: "Mario", outOfRange: false },
-];
+export const SEED_HACCP_READINGS: HaccpReading[] = [];
 
-export const SEED_CLEANING_TASKS: CleaningTask[] = [
-  { id: "cl1", date: isoToday(20, 0, -1), area: "Banco vendita", operation: "Sanificazione fine giornata", operator: "Daniele", completed: true },
-  { id: "cl2", date: isoToday(7, 30), area: "Frigo bufala", operation: "Controllo e pulizia", operator: "Daniele", completed: true },
-  { id: "cl3", date: isoToday(20, 0), area: "Laboratorio", operation: "Lavaggio attrezzature", completed: false },
-];
+export const SEED_CLEANING_TASKS: CleaningTask[] = [];
