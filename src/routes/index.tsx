@@ -13,16 +13,19 @@ import {
 
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
+import { PaySheet } from "@/routes/pagamenti";
+import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
-  const { orders, products, clients, casualSales, deliveries, supplierPayments, productions, updateOrder, addCasualSale, addClient, addOrder } = useStore();
+  const { orders, products, clients, casualSales, deliveries, supplierPayments, suppliers, productions, updateOrder, addCasualSale, addClient, addOrder, addSupplierPayment } = useStore();
   const [tfId, setTfId] = useState<TimeFrameId>("today");
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
   const [openSale, setOpenSale] = useState(false);
   const [openOrder, setOpenOrder] = useState(false);
+  const [openPay, setOpenPay] = useState(false);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [openQuick, setOpenQuick] = useState(false);
   const [pickAction, setPickAction] = useState(false);
@@ -36,6 +39,9 @@ function Dashboard() {
 
   const ordersInFrame = orders.filter((o) => inFrame(o.pickupDate, tf));
   const salesInFrame = casualSales.filter((s) => inFrame(s.date, tf));
+  const usciteFrame = supplierPayments
+    .filter((p) => p.status !== "da_pagare" && inFrame(p.date, tf))
+    .reduce((s, p) => s + p.amount, 0);
 
   const fattStimato = ordersInFrame.filter((o) => o.status === "in_attesa" || o.status === "pronto" || o.status === "da_consegnare").reduce((s, o) => s + o.total, 0);
   const fattGenerato =
@@ -122,19 +128,21 @@ function Dashboard() {
         )}
 
         {/* QUICK ACTIONS */}
-        <section className="grid grid-cols-3 gap-2">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Quick onClick={() => setOpenOrder(true)} label="Nuovo ordine" />
           <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
+          <Quick onClick={() => setOpenPay(true)} label="Nuovo pagamento" />
           <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
         </section>
 
         {/* KPI CASSA */}
         <section>
           <h2 className="font-display text-sm uppercase tracking-wide text-muted-foreground mb-2">Cassa</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
             <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
             <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
+            <Kpi to={{ to: "/pagamenti" }} label="Uscite" value={formatEuro(usciteFrame)} sub="periodo" danger />
             <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
           </div>
         </section>
@@ -232,6 +240,8 @@ function Dashboard() {
               className="bg-brand-green text-brand-cream rounded-xl py-4 font-semibold">Nuovo ordine</button>
             <button onClick={() => { setPickAction(false); setOpenSale(true); }}
               className="bg-brand-gold text-white rounded-xl py-4 font-semibold">Nuovo scontrino</button>
+            <button onClick={() => { setPickAction(false); setOpenPay(true); }}
+              className="bg-danger text-white rounded-xl py-4 font-semibold">Nuovo pagamento</button>
           </div>
         </Sheet>
       )}
@@ -243,6 +253,12 @@ function Dashboard() {
 
       {editOrderId && (
         <OrderSheet mode="edit" orderId={editOrderId} onClose={() => setEditOrderId(null)} />
+      )}
+
+      {openPay && (
+        <PaySheet mode="new" suppliers={suppliers}
+          onClose={() => setOpenPay(false)}
+          onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); }} />
       )}
 
       <NewSaleSheet

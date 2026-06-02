@@ -13,7 +13,6 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/ordini", label: "Ordini", short: "Ordini" },
     { to: "/consegne", label: "Consegne", short: "Conseg." },
     { to: "/clienti", label: "Clienti", short: "Clienti" },
-    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
     { to: "/b2b", label: "B2B", short: "B2B", wip: true },
   ]},
@@ -21,22 +20,20 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/magazzino", label: "Magazzino", short: "Mag." },
     { to: "/prodotti", label: "Prodotti", short: "Prod." },
     { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
+    { to: "/fornitori", label: "Fornitori", short: "Forn." },
+    { to: "/produzione", label: "Produzione", short: "Prod.", wip: true },
+    { to: "/food-safety", label: "Food Safety", short: "Food", wip: true },
   ]},
   { label: "Vendite Online", items: [
     { to: "/ecommerce", label: "E-commerce", short: "Ecom", wip: true },
   ]},
   { label: "Finanza e Amministrazione", items: [
     { to: "/incassi", label: "Cassa", short: "Cassa" },
-    { to: "/pagamenti", label: "Pagamenti Fornitori", short: "Pag." },
+    { to: "/pagamenti", label: "Uscite", short: "Uscite" },
     { to: "/finanza", label: "Finanza", short: "Fin." },
     { to: "/fiscale", label: "Riepilogo Fiscale", short: "Fisc." },
     { to: "/report", label: "Report", short: "Report" },
     { to: "/admin", label: "Amministrazione", short: "Admin" },
-  ]},
-  { label: "Altro", items: [
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
-    { to: "/produzione", label: "Produzione", short: "Prod.", wip: true },
-    { to: "/food-safety", label: "Food Safety", short: "Food", wip: true },
   ]},
 ];
 

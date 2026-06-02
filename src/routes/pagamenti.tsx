@@ -1,15 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import {
   PAYMENT_CATEGORIES, type SupplierPayment, type SupplierPaymentStatus,
   type SupplierPaymentRecurrence, type SupplierPaymentBeneficiaryType,
-  type PaymentMethod, type SupplierPaymentDocument,
+  type PaymentMethod, type SupplierPaymentDocument, type PaymentAttachment,
 } from "@/lib/data";
-import { supplierPaymentsOverdue, paymentsTotalMonth, recurringMonthlyPayments } from "@/lib/metrics";
+import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
+import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
 
-export const Route = createFileRoute("/pagamenti")({ component: PagamentiPage });
+export const Route = createFileRoute("/pagamenti")({ component: UscitePage });
 
 const STATUS_LABEL: Record<SupplierPaymentStatus, string> = { da_pagare: "Da pagare", pagato: "Pagato", scaduto: "Scaduto" };
 const STATUS_STYLE: Record<SupplierPaymentStatus, string> = {
@@ -18,43 +19,56 @@ const STATUS_STYLE: Record<SupplierPaymentStatus, string> = {
   scaduto: "bg-danger/15 text-danger",
 };
 
-function PagamentiPage() {
+function UscitePage() {
   const { supplierPayments, suppliers, addSupplierPayment, updateSupplierPayment, deleteSupplierPayment } = useStore();
-  const [tab, setTab] = useState<"all" | SupplierPaymentStatus>("da_pagare");
+  const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
+  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
-  const overdue = supplierPaymentsOverdue(supplierPayments);
-  const monthTotal = paymentsTotalMonth(supplierPayments);
-  const recurring = recurringMonthlyPayments(supplierPayments);
+  // riferimento data: dueDate se presente, altrimenti date
+  const refIso = (p: SupplierPayment) => p.dueDate ?? p.date;
 
-  const list = useMemo(() => supplierPayments
-    .filter(p => tab === "all" || p.status === tab)
-    .sort((a, b) => +new Date(b.dueDate ?? b.date) - +new Date(a.dueDate ?? a.date)),
-    [supplierPayments, tab]);
+  const inPeriod = useMemo(() => supplierPayments.filter(p => inFrame(refIso(p), tf)), [supplierPayments, tf]);
+
+  const nowTs = Date.now();
+  const isOverdue = (p: SupplierPayment) =>
+    p.status === "scaduto" || (p.status === "da_pagare" && p.dueDate && +new Date(p.dueDate) < nowTs);
+
+  const kpi = useMemo(() => {
+    let daPagare = 0, scaduti = 0, saldato = 0;
+    for (const p of inPeriod) {
+      if (p.status === "pagato") saldato += p.amount;
+      else if (isOverdue(p)) scaduti += p.amount;
+      else if (p.status === "da_pagare") daPagare += p.amount;
+    }
+    return { daPagare, scaduti, saldato };
+  }, [inPeriod]);
+
+  const list = useMemo(
+    () => [...inPeriod].sort((a, b) => +new Date(refIso(b)) - +new Date(refIso(a))),
+    [inPeriod],
+  );
 
   return (
     <div>
-      <TopBar title="Pagamenti" subtitle={`${overdue.length} scaduti · ${recurring.length} ricorrenti`} />
+      <TopBar title="Uscite" />
 
-      <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Da pagare" value={String(supplierPayments.filter(p => p.status === "da_pagare").length)} warn />
-        <Kpi label="Scaduti" value={String(overdue.length)} danger={overdue.length > 0} />
-        <Kpi label="Pagato mese" value={formatEuro(monthTotal)} />
-        <Kpi label="Ricorrenti" value={String(recurring.length)} />
+      <div className="px-4 md:px-6 pt-4 flex justify-end">
+        <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
+          className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+          {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
       </div>
 
-      <div className="px-4 md:px-6 flex gap-2 pb-2 overflow-x-auto">
-        {(["da_pagare", "scaduto", "pagato", "all"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${tab === t ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
-            {t === "all" ? "Tutti" : STATUS_LABEL[t]}
-          </button>
-        ))}
+      <div className="p-4 md:p-6 grid grid-cols-3 gap-3">
+        <Kpi label="Da Pagare" value={formatEuro(kpi.daPagare)} warn />
+        <Kpi label="Scaduti" value={formatEuro(kpi.scaduti)} danger />
+        <Kpi label="Saldato" value={formatEuro(kpi.saldato)} ok />
       </div>
 
       <div className="p-4 md:p-6 space-y-2">
-        {list.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nessun pagamento.</p>}
+        {list.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nessuna uscita nel periodo.</p>}
         {list.map(p => (
           <div key={p.id} className="bg-card rounded-xl p-3">
             <button onClick={() => setEditId(p.id)} className="w-full text-left flex justify-between items-start gap-3">
@@ -62,6 +76,7 @@ function PagamentiPage() {
                 <p className="font-display text-base text-brand-green truncate">{p.beneficiary}</p>
                 <p className="text-xs text-muted-foreground">
                   {p.category} · {p.beneficiaryType}{p.recurrence !== "una_tantum" ? ` · ${p.recurrence}` : ""}
+                  {p.attachments && p.attachments.length > 0 && ` · 📎 ${p.attachments.length}`}
                 </p>
                 {p.dueDate && <p className="text-[11px] text-muted-foreground mt-0.5">Scadenza: {formatDate(p.dueDate)}</p>}
               </div>
@@ -93,11 +108,11 @@ function PagamentiPage() {
   );
 }
 
-function Kpi({ label, value, warn, danger }: { label: string; value: string; warn?: boolean; danger?: boolean }) {
+function Kpi({ label, value, warn, danger, ok }: { label: string; value: string; warn?: boolean; danger?: boolean; ok?: boolean }) {
   return (
     <div className="bg-card rounded-xl p-3">
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={`font-display text-xl mt-1 ${danger ? "text-danger" : warn ? "text-warning" : "text-brand-green"}`}>{value}</p>
+      <p className={`font-display text-xl mt-1 ${danger ? "text-danger" : warn ? "text-warning" : ok ? "text-success" : "text-brand-green"}`}>{value}</p>
     </div>
   );
 }
@@ -105,9 +120,14 @@ function Kpi({ label, value, warn, danger }: { label: string; value: string; war
 const METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
 const RECS: SupplierPaymentRecurrence[] = ["una_tantum", "settimanale", "mensile", "annuale"];
 const TYPES: SupplierPaymentBeneficiaryType[] = ["fornitore", "consulente", "servizio", "altro"];
-const DOCS: SupplierPaymentDocument[] = ["fattura", "ricevuta", "preventivo", "nessuno"];
+const DOC_OPTIONS: { value: SupplierPaymentDocument; label: string }[] = [
+  { value: "fattura", label: "Fattura" },
+  { value: "preventivo", label: "Preventivo" },
+  { value: "contratto", label: "Contratto" },
+  { value: "nessuno", label: "Nessuno" },
+];
 
-function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
+export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
   mode: "new" | "edit"; payment?: SupplierPayment; suppliers: { id: string; name: string }[];
   onClose: () => void; onSave: (d: Omit<SupplierPayment, "id"> | Partial<SupplierPayment>) => void;
   onDelete?: () => void;
@@ -121,8 +141,37 @@ function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
   const [status, setStatus] = useState<SupplierPaymentStatus>(payment?.status ?? "da_pagare");
   const [dueDate, setDueDate] = useState(payment?.dueDate?.slice(0, 10) ?? "");
   const [recurrence, setRecurrence] = useState<SupplierPaymentRecurrence>(payment?.recurrence ?? "una_tantum");
-  const [document, setDoc] = useState<SupplierPaymentDocument>(payment?.document ?? "nessuno");
+  const initialDoc: SupplierPaymentDocument = (() => {
+    const d = payment?.document ?? "nessuno";
+    return d === "ricevuta" ? "nessuno" : d;
+  })();
+  const [document, setDoc] = useState<SupplierPaymentDocument>(initialDoc);
   const [notes, setNotes] = useState(payment?.notes ?? "");
+  const [attachments, setAttachments] = useState<PaymentAttachment[]>(payment?.attachments ?? []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadErr(null);
+    setUploading(true);
+    try {
+      const added: PaymentAttachment[] = [];
+      for (const f of Array.from(files)) {
+        if (f.size > 10 * 1024 * 1024) { setUploadErr(`${f.name}: file > 10MB ignorato.`); continue; }
+        const meta = await putAttachment(f);
+        added.push(meta);
+      }
+      setAttachments(prev => [...prev, ...added]);
+    } catch (e) { setUploadErr((e as Error).message); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  const removeAttachment = async (id: string) => {
+    try { await deleteAttachment(id); } catch { /* ignore */ }
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
 
   const save = () => {
     if (!beneficiary.trim() || !amount) return;
@@ -132,12 +181,13 @@ function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
       category, amount: Number(amount), method, status,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       recurrence, document, notes: notes.trim() || undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
 
   return (
     <Sheet open={true} onClose={onClose}
-      title={mode === "new" ? "Nuovo pagamento" : "Modifica pagamento"}
+      title={mode === "new" ? "Nuova uscita" : "Modifica uscita"}
       footer={
         <div className="flex gap-3">
           {mode === "edit" && onDelete && (
@@ -198,17 +248,64 @@ function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }: {
             {RECS.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
-        <Field label="Documento">
+        <Field label="Tipo documento">
           <select value={document} onChange={e => setDoc(e.target.value as SupplierPaymentDocument)}
             className="w-full bg-card border border-border rounded-lg p-3">
-            {DOCS.map(d => <option key={d} value={d}>{d}</option>)}
+            {DOC_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
           </select>
         </Field>
       </div>
+
+      <Field label={`Carica allegato (${attachments.length}) — PDF, JPG, PNG`}>
+        <div className="space-y-2">
+          <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png,image/jpg" multiple
+            onChange={e => onPickFiles(e.target.files)} className="text-xs" />
+          {uploading && <p className="text-xs text-muted-foreground">Caricamento in corso...</p>}
+          {uploadErr && <p className="text-xs text-danger">{uploadErr}</p>}
+          <div className="space-y-1.5">
+            {attachments.map(a => (
+              <AttachmentRow key={a.id} att={a} onDelete={() => removeAttachment(a.id)} />
+            ))}
+            {attachments.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessun allegato. Max 10MB per file.</p>
+            )}
+          </div>
+        </div>
+      </Field>
+
       <Field label="Note">
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
     </Sheet>
+  );
+}
+
+function AttachmentRow({ att, onDelete }: { att: PaymentAttachment; onDelete: () => void }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImg = att.type.startsWith("image/");
+  useEffect(() => {
+    let alive = true; let url: string | null = null;
+    if (isImg) getAttachmentUrl(att.id).then(u => { if (alive) { url = u; setPreviewUrl(u); } });
+    return () => { alive = false; if (url) URL.revokeObjectURL(url); };
+  }, [att.id, isImg]);
+  const open = async () => { const u = await getAttachmentUrl(att.id); if (u) window.open(u, "_blank"); };
+  return (
+    <div className="flex items-center gap-2 bg-card border border-border rounded-lg p-2">
+      {isImg && previewUrl ? (
+        <img src={previewUrl} alt="" className="w-10 h-10 object-cover rounded" />
+      ) : (
+        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-[10px] font-semibold text-foreground/60">
+          {att.type.includes("pdf") ? "PDF" : "FILE"}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{att.name}</p>
+        <p className="text-[10px] text-muted-foreground">{(att.size / 1024).toFixed(0)} KB</p>
+      </div>
+      <button onClick={open} className="text-xs text-brand-green font-semibold px-2">Apri</button>
+      <button onClick={() => downloadAttachment(att)} className="text-xs text-brand-green font-semibold px-2">Scarica</button>
+      <button onClick={onDelete} className="text-xs text-danger font-semibold px-2">×</button>
+    </div>
   );
 }

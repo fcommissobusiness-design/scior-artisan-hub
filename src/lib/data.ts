@@ -235,7 +235,14 @@ export interface B2BClient {
 export type SupplierPaymentStatus = "da_pagare" | "pagato" | "scaduto";
 export type SupplierPaymentRecurrence = "una_tantum" | "settimanale" | "mensile" | "annuale";
 export type SupplierPaymentBeneficiaryType = "fornitore" | "consulente" | "servizio" | "altro";
-export type SupplierPaymentDocument = "fattura" | "ricevuta" | "preventivo" | "nessuno";
+export type SupplierPaymentDocument = "fattura" | "ricevuta" | "preventivo" | "contratto" | "nessuno";
+export interface PaymentAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  addedAt: string;
+}
 export interface SupplierPayment {
   id: string;
   date: string;            // ISO data registrazione
@@ -250,6 +257,7 @@ export interface SupplierPayment {
   notes?: string;
   document?: SupplierPaymentDocument;
   supplierId?: string;
+  attachments?: PaymentAttachment[];
 }
 
 // ============= COSTI FISSI =============
