@@ -13,6 +13,8 @@ import {
 
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
+import { PaySheet } from "@/routes/pagamenti";
+import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
