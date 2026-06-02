@@ -77,7 +77,7 @@ function inYear(iso: string, y: string) {
   return iso.slice(0, 4) === y;
 }
 
-const MONTH_LABELS = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+
 
 // ============================================================
 
