@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
-import { TopBar, formatEuro, Sheet, Field } from "@/components/AppShell";
-import { calcMargin } from "@/lib/data";
-import { makeTimeFrame, inFrame } from "@/lib/timeframe";
+import { TopBar, Sheet, Field } from "@/components/AppShell";
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
@@ -13,8 +11,6 @@ import {
   getStorageStats,
 } from "@/lib/backup";
 import { CRM_DEFAULTS, loadCrmSettings, saveCrmSettings, resetCrmSettings, type CrmSettings } from "@/lib/crm-settings";
-import { buildOrdersTodayText, buildDeliveriesTodayText, buildRecoverableText, copyText, downloadText } from "@/lib/whatsapp";
-import { recoverableClients } from "@/lib/metrics";
 
 const APP_VERSION = "0.4.0";
 
@@ -39,42 +35,6 @@ function AdminPage() {
   const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
   const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
-  const tfMonth = makeTimeFrame("thisMonth");
-  const tfLastMonth = makeTimeFrame("lastMonth");
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-  const stats = useMemo(() => {
-    const ordersM = orders.filter(o => inFrame(o.pickupDate, tfMonth));
-    const salesM = casualSales.filter(s => inFrame(s.date, tfMonth));
-    const productById = (id: string) => products.find(p => p.id === id);
-    const marginFromItems = (items: { productId: string; qty: number }[]) =>
-      items.reduce((sum, i) => {
-        const p = productById(i.productId);
-        if (!p || p.cost == null) return sum;
-        return sum + (p.price - p.cost) * i.qty;
-      }, 0);
-
-    const generato = ordersM.filter(o => o.status === "ritirato").reduce((s, o) => s + o.total, 0)
-                   + salesM.reduce((s, o) => s + o.total, 0);
-    const stimato = ordersM.filter(o => o.status === "in_attesa" || o.status === "pronto").reduce((s, o) => s + o.total, 0);
-    const marginGenerato = ordersM.filter(o => o.status === "ritirato").reduce((s, o) => s + marginFromItems(o.items), 0)
-                         + salesM.reduce((s, o) => s + marginFromItems(o.items), 0);
-    const proiezione = dayOfMonth > 0 ? (generato / dayOfMonth) * totalDaysInMonth : 0;
-    const proiezioneMargine = dayOfMonth > 0 ? (marginGenerato / dayOfMonth) * totalDaysInMonth : 0;
-
-    const ordersLM = orders.filter(o => inFrame(o.pickupDate, tfLastMonth));
-    const salesLM = casualSales.filter(s => inFrame(s.date, tfLastMonth));
-    const generatoLM = ordersLM.filter(o => o.status === "ritirato").reduce((s, o) => s + o.total, 0)
-                     + salesLM.reduce((s, o) => s + o.total, 0);
-
-    return { generato, stimato, marginGenerato, proiezione, proiezioneMargine, generatoLM,
-             ordersM: ordersM.length, salesM: salesM.length };
-  }, [orders, casualSales, products, dayOfMonth, totalDaysInMonth]);
-
-  const sottoCosto = products.filter(p => { const m = calcMargin(p); return m !== null && m < 0; });
-  const monthLabel = now.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const info = storageInfo();
 
   const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
@@ -112,28 +72,10 @@ function AdminPage() {
 
   return (
     <div>
-      <TopBar title="Amministrazione" subtitle={`Quadro fiscale e contabile · ${monthLabel}`} />
+      <TopBar title="Amministrazione" />
 
       <div className="p-4 md:p-6 space-y-6">
         {msg && <div className="bg-success/15 text-success rounded-lg p-3 text-sm">{msg}</div>}
-
-        <section>
-          <h2 className="font-display text-lg text-brand-green mb-3">Mese in corso</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <BigCard label="Fatturato generato" value={formatEuro(stats.generato)} sub={`${stats.ordersM} ordini · ${stats.salesM} scontrini`} highlight />
-            <BigCard label="Proiezione fine mese" value={formatEuro(stats.proiezione)} sub={`giorno ${dayOfMonth}/${totalDaysInMonth}`} />
-            <BigCard label="Margine progressivo" value={formatEuro(stats.marginGenerato)} sub={`proiezione: ${formatEuro(stats.proiezioneMargine)}`} />
-            <BigCard label="Fatt. stimato in attesa" value={formatEuro(stats.stimato)} sub="ordini in attesa + pronti" />
-            <BigCard label="Mese precedente" value={formatEuro(stats.generatoLM)} sub="riferimento" />
-            <BigCard label="Clienti totali" value={clients.length.toString()} sub={`${clients.filter(c => c.segment === "top").length} top`} />
-          </div>
-        </section>
-
-        {sottoCosto.length > 0 && (
-          <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
-            <strong>Alert margini:</strong> {sottoCosto.length} prodotto/i sotto costo: {sottoCosto.map(p => p.name).join(", ")}.
-          </div>
-        )}
 
         <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Manutenzione</h2>
@@ -168,8 +110,6 @@ function AdminPage() {
             <CsvBtn label="Entrate merci" n={goodsReceipts.length} onClick={() => exportGoodsReceipts(goodsReceipts, suppliers, products)} />
           </div>
         </section>
-
-        <OperativeExportSection onMsg={flash} />
 
         <CrmSettingsSection onMsg={flash} />
 
@@ -325,15 +265,6 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BigCard({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
-  return (
-    <div className={`rounded-xl p-4 shadow-sm ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
-      <p className={`text-[11px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
-      <p className={`font-display text-3xl mt-1 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${highlight ? "text-brand-cream/70" : "text-muted-foreground"}`}>{sub}</p>}
-    </div>
-  );
-}
 
 function CsvBtn({ label, n, onClick }: { label: string; n: number; onClick: () => void }) {
   return (
@@ -409,59 +340,3 @@ function CrmSettingsSection({ onMsg }: { onMsg: (m: string) => void }) {
   );
 }
 
-function OperativeExportSection({ onMsg }: { onMsg: (m: string) => void }) {
-  const { orders, clients, products, deliveries, casualSales } = useStore();
-  const settings = loadCrmSettings();
-
-  const builders = [
-    {
-      key: "ordini-oggi",
-      label: "Ordini di oggi",
-      build: () => buildOrdersTodayText(orders, clients, products),
-      file: `ordini-${new Date().toISOString().slice(0, 10)}.txt`,
-    },
-    {
-      key: "consegne-oggi",
-      label: "Consegne di oggi",
-      build: () => buildDeliveriesTodayText(deliveries, clients, orders),
-      file: `consegne-${new Date().toISOString().slice(0, 10)}.txt`,
-    },
-    {
-      key: "recuperabili",
-      label: "Clienti da recuperare",
-      build: () => buildRecoverableText(recoverableClients(orders, casualSales, clients, settings)),
-      file: `clienti-recuperabili-${new Date().toISOString().slice(0, 10)}.txt`,
-    },
-  ];
-
-  return (
-    <section>
-      <h2 className="font-display text-lg text-brand-green mb-3">Export rapido operativo</h2>
-      <p className="text-xs text-muted-foreground mb-3">Testo leggibile e condivisibile (WhatsApp, note, stampa).</p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {builders.map((b) => (
-          <div key={b.key} className="bg-card rounded-xl p-4 flex flex-col gap-2">
-            <p className="font-display text-base text-brand-green">{b.label}</p>
-            <div className="flex gap-2 mt-auto">
-              <button
-                onClick={async () => {
-                  const ok = await copyText(b.build());
-                  onMsg(ok ? `${b.label}: copiato.` : "Copia non riuscita.");
-                }}
-                className="flex-1 bg-brand-green text-brand-cream rounded-lg py-2 text-sm font-semibold"
-              >
-                Copia
-              </button>
-              <button
-                onClick={() => { downloadText(b.file, b.build()); onMsg(`${b.label}: file scaricato.`); }}
-                className="flex-1 bg-card border border-border rounded-lg py-2 text-sm font-semibold"
-              >
-                Scarica
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}

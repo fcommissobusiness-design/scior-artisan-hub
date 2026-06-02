@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Fab, formatEuro, formatDate } from "@/components/AppShell";
@@ -6,6 +6,8 @@ import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/
 import { orderMargin } from "@/lib/metrics";
 import { OrderSheet } from "@/routes/ordini";
 import { NewSaleSheet } from "@/routes/index";
+import { PaySheet } from "@/routes/pagamenti";
+import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/incassi")({ component: CassaPage });
 
@@ -20,16 +22,16 @@ type Movement = {
 };
 
 function CassaPage() {
-  const { orders, casualSales, supplierPayments, cashEntries, products, addOrder, addCasualSale, addClient } = useStore();
-  const navigate = useNavigate();
+  const { orders, casualSales, supplierPayments, cashEntries, products, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
 
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
 
   const [filter, setFilter] = useState<"all" | "entrata" | "uscita">("all");
-  const [pickType, setPickType] = useState<null | "entrata" | "uscita">(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [openOrder, setOpenOrder] = useState(false);
   const [openSale, setOpenSale] = useState(false);
+  const [openPay, setOpenPay] = useState(false);
 
   // ============ Costruzione movimenti dal periodo ============
   const movements: Movement[] = useMemo(() => {
@@ -170,54 +172,48 @@ function CassaPage() {
         ))}
       </div>
 
-      <Fab onClick={() => setPickType("entrata")} />
+      <Fab onClick={() => setPickerOpen(true)} />
 
-      {/* Step 1: Entrata o Uscita */}
-      {pickType !== null && !openOrder && !openSale && (
-        <Sheet open={true} onClose={() => setPickType(null)} title="Nuovo movimento">
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setPickType("entrata")}
-              className={`py-6 rounded-xl font-semibold ${pickType === "entrata" ? "bg-success text-white" : "bg-card border border-border"}`}>
-              Entrata
+      {pickerOpen && !openOrder && !openSale && !openPay && (
+        <Sheet open={true} onClose={() => setPickerOpen(false)} title="Nuovo movimento">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <button onClick={() => setOpenOrder(true)}
+              className="py-6 rounded-xl bg-brand-green text-brand-cream font-semibold">
+              Nuovo Ordine
             </button>
-            <button onClick={() => { setPickType("uscita"); navigate({ to: "/pagamenti" }); }}
-              className={`py-6 rounded-xl font-semibold ${pickType === "uscita" ? "bg-danger text-white" : "bg-card border border-border"}`}>
-              Uscita
+            <button onClick={() => setOpenSale(true)}
+              className="py-6 rounded-xl bg-brand-gold text-white font-semibold">
+              Nuovo Scontrino
+            </button>
+            <button onClick={() => setOpenPay(true)}
+              className="py-6 rounded-xl bg-danger text-white font-semibold">
+              Nuovo Pagamento
             </button>
           </div>
-          {pickType === "entrata" && (
-            <div className="grid grid-cols-2 gap-3 pt-4">
-              <button onClick={() => { setOpenOrder(true); }}
-                className="py-5 rounded-xl bg-brand-green text-brand-cream font-semibold">
-                Nuovo ordine
-              </button>
-              <button onClick={() => { setOpenSale(true); }}
-                className="py-5 rounded-xl bg-brand-gold text-white font-semibold">
-                Nuovo scontrino
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground pt-2">
-            Le uscite si registrano dalla scheda <strong>Pagamenti Fornitori</strong>.
-          </p>
         </Sheet>
       )}
 
       {openOrder && (
         <OrderSheet mode="new"
-          onClose={() => { setOpenOrder(false); setPickType(null); }}
-          onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickType(null); }} />
+          onClose={() => { setOpenOrder(false); setPickerOpen(false); }}
+          onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickerOpen(false); }} />
       )}
 
       {openSale && (
         <NewSaleSheet open={true}
-          onClose={() => { setOpenSale(false); setPickType(null); }}
+          onClose={() => { setOpenSale(false); setPickerOpen(false); }}
           onSave={(s, newClient) => {
             if (newClient) addClient(newClient);
             addCasualSale(s);
             setOpenSale(false);
-            setPickType(null);
+            setPickerOpen(false);
           }} />
+      )}
+
+      {openPay && (
+        <PaySheet mode="new" suppliers={suppliers}
+          onClose={() => { setOpenPay(false); setPickerOpen(false); }}
+          onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); setPickerOpen(false); }} />
       )}
     </div>
   );
