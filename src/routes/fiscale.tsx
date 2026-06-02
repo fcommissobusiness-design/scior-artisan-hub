@@ -86,7 +86,9 @@ function inYear(iso: string, y: string) {
 // ============================================================
 
 function FiscalePage() {
-  const { orders, casualSales, supplierPayments, suppliers, products, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, products, fixedCosts,
+    addOrder, addCasualSale, addClient, addSupplierPayment,
+    addFixedCost, updateFixedCost, deleteFixedCost } = useStore();
 
   const [config, setConfig] = useState<FiscalConfig | null>(() => loadConfig());
   const [openConfig, setOpenConfig] = useState(false);
