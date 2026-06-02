@@ -591,7 +591,7 @@ const isoDay = (dayOffset = 0) => {
   return d.toISOString();
 };
 
-export const SEED_PRODUCTIONS: Production[];
+export const SEED_PRODUCTIONS: Production[] = [];
 
 // ============= FRESH / UNSOLD / CALENDAR =============
 
@@ -742,7 +742,7 @@ export const INVOICE_STATUS_LABEL: Record<InvoicePaymentStatus, string> = {
   non_applicabile: "N/A",
 };
 
-export const SEED_GOODS_RECEIPTS: GoodsReceipt[];
+export const SEED_GOODS_RECEIPTS: GoodsReceipt[] = [];
 
 export function calcReceiptTotal(r: GoodsReceipt): number {
   if (typeof r.totalCost === "number") return r.totalCost;
@@ -840,7 +840,7 @@ export const ECOM_PLATFORM_LABEL: Record<EcomPlatform, string> = {
   altro: "Altro",
 };
 
-export const SEED_ONLINE_ORDERS: OnlineOrder[];
+export const SEED_ONLINE_ORDERS: OnlineOrder[] = [];
 
 export const SEED_SHIPMENTS: Shipment[] = [];
 
