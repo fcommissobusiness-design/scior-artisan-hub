@@ -184,6 +184,7 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
       category, amount: Number(amount), method, status,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       recurrence, document, notes: notes.trim() || undefined,
+      deductible, fiscalCategory,
       attachments: attachments.length > 0 ? attachments : undefined,
     });
   };
