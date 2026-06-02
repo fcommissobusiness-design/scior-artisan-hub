@@ -2,7 +2,7 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod } from "@/lib/data";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
