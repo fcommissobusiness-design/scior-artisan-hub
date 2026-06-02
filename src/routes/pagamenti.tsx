@@ -258,6 +258,19 @@ export function PaySheet({ mode, payment, suppliers, onClose, onSave, onDelete }
             {DOC_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
           </select>
         </Field>
+        <Field label="Deducibile fiscalmente">
+          <select value={deductible ? "si" : "no"} onChange={e => setDeductible(e.target.value === "si")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="si">Sì</option>
+            <option value="no">No</option>
+          </select>
+        </Field>
+        <Field label="Categoria fiscale">
+          <select value={fiscalCategory} onChange={e => setFiscalCategory(e.target.value as FiscalCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FISCAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
       </div>
 
       <Field label={`Carica allegato (${attachments.length}) — PDF, JPG, PNG`}>
