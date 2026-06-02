@@ -333,7 +333,7 @@ const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
   ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
 };
 
-function NewSaleSheet({ open, onClose, onSave }: {
+export function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
@@ -347,6 +347,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   const [search, setSearch] = useState("");
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -367,7 +368,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -376,7 +377,7 @@ function NewSaleSheet({ open, onClose, onSave }: {
       items, total,
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
-      source, delivery,
+      source, delivery, paymentMethod,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
