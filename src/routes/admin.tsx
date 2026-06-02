@@ -265,15 +265,6 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function BigCard({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
-  return (
-    <div className={`rounded-xl p-4 shadow-sm ${highlight ? "bg-brand-green text-brand-cream" : "bg-card"}`}>
-      <p className={`text-[11px] uppercase tracking-wide ${highlight ? "text-brand-gold" : "text-muted-foreground"}`}>{label}</p>
-      <p className={`font-display text-3xl mt-1 ${highlight ? "text-brand-gold" : "text-brand-green"}`}>{value}</p>
-      {sub && <p className={`text-xs mt-1 ${highlight ? "text-brand-cream/70" : "text-muted-foreground"}`}>{sub}</p>}
-    </div>
-  );
-}
 
 function CsvBtn({ label, n, onClick }: { label: string; n: number; onClick: () => void }) {
   return (
