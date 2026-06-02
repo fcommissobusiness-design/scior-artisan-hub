@@ -35,42 +35,6 @@ function AdminPage() {
   const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
   const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
-  const tfMonth = makeTimeFrame("thisMonth");
-  const tfLastMonth = makeTimeFrame("lastMonth");
-  const now = new Date();
-  const dayOfMonth = now.getDate();
-  const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-  const stats = useMemo(() => {
-    const ordersM = orders.filter(o => inFrame(o.pickupDate, tfMonth));
-    const salesM = casualSales.filter(s => inFrame(s.date, tfMonth));
-    const productById = (id: string) => products.find(p => p.id === id);
-    const marginFromItems = (items: { productId: string; qty: number }[]) =>
-      items.reduce((sum, i) => {
-        const p = productById(i.productId);
-        if (!p || p.cost == null) return sum;
-        return sum + (p.price - p.cost) * i.qty;
-      }, 0);
-
-    const generato = ordersM.filter(o => o.status === "ritirato").reduce((s, o) => s + o.total, 0)
-                   + salesM.reduce((s, o) => s + o.total, 0);
-    const stimato = ordersM.filter(o => o.status === "in_attesa" || o.status === "pronto").reduce((s, o) => s + o.total, 0);
-    const marginGenerato = ordersM.filter(o => o.status === "ritirato").reduce((s, o) => s + marginFromItems(o.items), 0)
-                         + salesM.reduce((s, o) => s + marginFromItems(o.items), 0);
-    const proiezione = dayOfMonth > 0 ? (generato / dayOfMonth) * totalDaysInMonth : 0;
-    const proiezioneMargine = dayOfMonth > 0 ? (marginGenerato / dayOfMonth) * totalDaysInMonth : 0;
-
-    const ordersLM = orders.filter(o => inFrame(o.pickupDate, tfLastMonth));
-    const salesLM = casualSales.filter(s => inFrame(s.date, tfLastMonth));
-    const generatoLM = ordersLM.filter(o => o.status === "ritirato").reduce((s, o) => s + o.total, 0)
-                     + salesLM.reduce((s, o) => s + o.total, 0);
-
-    return { generato, stimato, marginGenerato, proiezione, proiezioneMargine, generatoLM,
-             ordersM: ordersM.length, salesM: salesM.length };
-  }, [orders, casualSales, products, dayOfMonth, totalDaysInMonth]);
-
-  const sottoCosto = products.filter(p => { const m = calcMargin(p); return m !== null && m < 0; });
-  const monthLabel = now.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
   const info = storageInfo();
 
   const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
