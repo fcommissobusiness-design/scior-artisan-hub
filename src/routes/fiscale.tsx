@@ -380,3 +380,127 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// ============ Costi fissi (config unica, condivisa con Finanziario) ============
+
+const FC_FREQS: FixedCostFrequency[] = ["mensile", "annuale", "una_tantum"];
+
+function FixedCostsSection({ fixedCosts, fissiMese, onAdd, onUpdate, onDelete }: {
+  fixedCosts: FixedCost[]; fissiMese: number;
+  onAdd: (d: Omit<FixedCost, "id">) => void;
+  onUpdate: (id: string, patch: Partial<FixedCost>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [openNew, setOpenNew] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const list = useMemo(
+    () => [...fixedCosts].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
+    [fixedCosts],
+  );
+
+  return (
+    <section className="bg-card rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs uppercase font-bold text-brand-green">Costi fissi</p>
+          <p className="text-[11px] text-muted-foreground">Totale mensile: <span className="font-semibold text-brand-green">{formatEuro(fissiMese)}</span> · usati anche in Finanziario.</p>
+        </div>
+        <button onClick={() => setOpenNew(true)} className="bg-brand-gold text-white rounded-full px-3 py-1.5 text-xs font-semibold">+ Nuovo</button>
+      </div>
+
+      {list.length === 0 && <p className="text-sm text-muted-foreground italic">Nessun costo fisso configurato.</p>}
+      <div className="space-y-1.5">
+        {list.map(c => {
+          const monthly = c.frequency === "annuale" ? c.amount / 12 : c.frequency === "mensile" ? c.amount : 0;
+          return (
+            <button key={c.id} onClick={() => setEditId(c.id)}
+              className="w-full text-left bg-background border border-border rounded-lg p-2.5 flex justify-between items-center gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-brand-green truncate">{c.name}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{c.category} · {c.frequency} · {c.status}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-semibold text-brand-green">{formatEuro(c.amount)}</p>
+                {c.frequency !== "mensile" && <p className="text-[10px] text-muted-foreground">{formatEuro(monthly)}/mese</p>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {openNew && <FixedCostSheet mode="new" onClose={() => setOpenNew(false)}
+        onSave={(d) => { onAdd(d as Omit<FixedCost, "id">); setOpenNew(false); }} />}
+      {editId && (() => {
+        const c = fixedCosts.find(x => x.id === editId);
+        if (!c) return null;
+        return <FixedCostSheet mode="edit" cost={c} onClose={() => setEditId(null)}
+          onSave={(p) => { onUpdate(c.id, p); setEditId(null); }}
+          onDelete={() => { if (confirm("Eliminare?")) { onDelete(c.id); setEditId(null); } }} />;
+      })()}
+    </section>
+  );
+}
+
+function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
+  mode: "new" | "edit"; cost?: FixedCost;
+  onClose: () => void; onSave: (d: Omit<FixedCost, "id"> | Partial<FixedCost>) => void;
+  onDelete?: () => void;
+}) {
+  const [name, setName] = useState(cost?.name ?? "");
+  const [category, setCategory] = useState<FixedCostCategory>(cost?.category ?? "altro");
+  const [amount, setAmount] = useState(cost?.amount ?? 0);
+  const [frequency, setFrequency] = useState<FixedCostFrequency>(cost?.frequency ?? "mensile");
+  const [status, setStatus] = useState<FixedCostStatus>(cost?.status ?? "attivo");
+  const [notes, setNotes] = useState(cost?.notes ?? "");
+
+  const save = () => {
+    if (!name.trim() || !amount) return;
+    onSave({ name: name.trim(), category, amount: Number(amount), frequency, status, notes: notes.trim() || undefined });
+  };
+
+  return (
+    <Sheet open={true} onClose={onClose}
+      title={mode === "new" ? "Nuovo costo fisso" : "Modifica costo fisso"}
+      footer={
+        <div className="flex gap-3">
+          {mode === "edit" && onDelete && (
+            <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
+          <button onClick={save} className="flex-1 bg-brand-gold text-white rounded-xl py-3 font-semibold">Salva</button>
+        </div>
+      }>
+      <Field label="Nome">
+        <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Categoria">
+          <select value={category} onChange={e => setCategory(e.target.value as FixedCostCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FIXED_COST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Importo (€)">
+          <input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Frequenza">
+          <select value={frequency} onChange={e => setFrequency(e.target.value as FixedCostFrequency)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FC_FREQS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </Field>
+        <Field label="Stato">
+          <select value={status} onChange={e => setStatus(e.target.value as FixedCostStatus)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="attivo">attivo</option>
+            <option value="inattivo">inattivo</option>
+          </select>
+        </Field>
+      </div>
+      <Field label="Note">
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
+      </Field>
+    </Sheet>
+  );
+}
