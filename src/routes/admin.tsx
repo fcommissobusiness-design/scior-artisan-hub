@@ -112,28 +112,10 @@ function AdminPage() {
 
   return (
     <div>
-      <TopBar title="Amministrazione" subtitle={`Quadro fiscale e contabile · ${monthLabel}`} />
+      <TopBar title="Amministrazione" />
 
       <div className="p-4 md:p-6 space-y-6">
         {msg && <div className="bg-success/15 text-success rounded-lg p-3 text-sm">{msg}</div>}
-
-        <section>
-          <h2 className="font-display text-lg text-brand-green mb-3">Mese in corso</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <BigCard label="Fatturato generato" value={formatEuro(stats.generato)} sub={`${stats.ordersM} ordini · ${stats.salesM} scontrini`} highlight />
-            <BigCard label="Proiezione fine mese" value={formatEuro(stats.proiezione)} sub={`giorno ${dayOfMonth}/${totalDaysInMonth}`} />
-            <BigCard label="Margine progressivo" value={formatEuro(stats.marginGenerato)} sub={`proiezione: ${formatEuro(stats.proiezioneMargine)}`} />
-            <BigCard label="Fatt. stimato in attesa" value={formatEuro(stats.stimato)} sub="ordini in attesa + pronti" />
-            <BigCard label="Mese precedente" value={formatEuro(stats.generatoLM)} sub="riferimento" />
-            <BigCard label="Clienti totali" value={clients.length.toString()} sub={`${clients.filter(c => c.segment === "top").length} top`} />
-          </div>
-        </section>
-
-        {sottoCosto.length > 0 && (
-          <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
-            <strong>Alert margini:</strong> {sottoCosto.length} prodotto/i sotto costo: {sottoCosto.map(p => p.name).join(", ")}.
-          </div>
-        )}
 
         <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Manutenzione</h2>
@@ -168,8 +150,6 @@ function AdminPage() {
             <CsvBtn label="Entrate merci" n={goodsReceipts.length} onClick={() => exportGoodsReceipts(goodsReceipts, suppliers, products)} />
           </div>
         </section>
-
-        <OperativeExportSection onMsg={flash} />
 
         <CrmSettingsSection onMsg={flash} />
 
