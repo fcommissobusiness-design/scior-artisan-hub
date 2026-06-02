@@ -26,7 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/ecommerce", label: "E-commerce", short: "Ecom", wip: true },
   ]},
   { label: "Finanza e Amministrazione", items: [
-    { to: "/incassi", label: "Cassa e Incassi", short: "Cassa" },
+    { to: "/incassi", label: "Cassa", short: "Cassa" },
     { to: "/pagamenti", label: "Pagamenti Fornitori", short: "Pag." },
     { to: "/finanza", label: "Finanza", short: "Fin." },
     { to: "/fiscale", label: "Riepilogo Fiscale", short: "Fisc." },
