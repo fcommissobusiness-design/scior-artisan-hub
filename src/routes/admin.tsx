@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
-import { TopBar, formatEuro, Sheet, Field } from "@/components/AppShell";
-import { calcMargin } from "@/lib/data";
-import { makeTimeFrame, inFrame } from "@/lib/timeframe";
+import { TopBar, Sheet, Field } from "@/components/AppShell";
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
@@ -13,8 +11,6 @@ import {
   getStorageStats,
 } from "@/lib/backup";
 import { CRM_DEFAULTS, loadCrmSettings, saveCrmSettings, resetCrmSettings, type CrmSettings } from "@/lib/crm-settings";
-import { buildOrdersTodayText, buildDeliveriesTodayText, buildRecoverableText, copyText, downloadText } from "@/lib/whatsapp";
-import { recoverableClients } from "@/lib/metrics";
 
 const APP_VERSION = "0.4.0";
 
