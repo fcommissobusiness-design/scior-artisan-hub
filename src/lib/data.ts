@@ -126,6 +126,7 @@ export interface Order {
   delivery?: DeliveryMode;
   address?: string;            // indirizzo consegna (se delivery=domicilio)
   payment?: DeliveryPayment;   // stato pagamento (se delivery=domicilio)
+  paymentMethod?: PaymentMethod;
   timeline?: OrderEvent[];
   deliveryId?: string;
 }
