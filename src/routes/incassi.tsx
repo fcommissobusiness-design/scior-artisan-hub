@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Fab, formatEuro, formatDate } from "@/components/AppShell";
@@ -6,6 +6,8 @@ import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/
 import { orderMargin } from "@/lib/metrics";
 import { OrderSheet } from "@/routes/ordini";
 import { NewSaleSheet } from "@/routes/index";
+import { PaySheet } from "@/routes/pagamenti";
+import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/incassi")({ component: CassaPage });
 
