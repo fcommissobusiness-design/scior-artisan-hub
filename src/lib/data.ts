@@ -677,7 +677,7 @@ export const SEED_SUPPLIERS: Supplier[] = [
 
 export const SEED_CASH_ENTRIES: CashEntry[] = [];
 
-export const SEED_B2B_CLIENTS: B2BClient[];
+export const SEED_B2B_CLIENTS: B2BClient[] = [];
 
 export const SEED_SUPPLIER_PAYMENTS: SupplierPayment[] = [];
 
