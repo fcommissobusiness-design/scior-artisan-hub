@@ -365,6 +365,8 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(undefined);
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
