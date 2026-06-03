@@ -9,40 +9,39 @@ export const WIP_ROUTES = new Set<string>(["/produzione", "/food-safety", "/b2b"
 
 const NAV_GROUPS: NavGroup[] = [
   { label: "Operativo", items: [
-    { to: "/", label: "Dashboard", short: "Home" },
+    { to: "/", label: "Dashboard", short: "Dashboard" },
     { to: "/ordini", label: "Ordini", short: "Ordini" },
-    { to: "/consegne", label: "Consegne", short: "Conseg." },
+    { to: "/consegne", label: "Consegne", short: "Consegne" },
     { to: "/clienti", label: "Clienti", short: "Clienti" },
     { to: "/offerte", label: "Offerte", short: "Offerte" },
     { to: "/b2b", label: "B2B", short: "B2B", wip: true },
   ]},
   { label: "Magazzino e Prodotti", items: [
-    { to: "/magazzino", label: "Magazzino", short: "Mag." },
-    { to: "/prodotti", label: "Prodotti", short: "Prod." },
-    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico" },
-    { to: "/fornitori", label: "Fornitori", short: "Forn." },
-    { to: "/produzione", label: "Produzione", short: "Prod.", wip: true },
-    { to: "/food-safety", label: "Food Safety", short: "Food", wip: true },
+    { to: "/magazzino", label: "Magazzino", short: "Magazzino" },
+    { to: "/prodotti", label: "Prodotti", short: "Prodotti" },
+    { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico Prodotti" },
+    { to: "/fornitori", label: "Fornitori", short: "Fornitori" },
+    { to: "/produzione", label: "Produzione", short: "Produzione", wip: true },
+    { to: "/food-safety", label: "Food Safety", short: "Food Safety", wip: true },
   ]},
   { label: "Vendite Online", items: [
-    { to: "/ecommerce", label: "E-commerce", short: "Ecom", wip: true },
+    { to: "/ecommerce", label: "E-commerce", short: "E-commerce", wip: true },
   ]},
   { label: "Finanza e Amministrazione", items: [
     { to: "/incassi", label: "Cassa", short: "Cassa" },
-    { to: "/pagamenti", label: "Uscite", short: "Uscite" },
-    { to: "/finanza", label: "Finanziario", short: "Fin." },
-    { to: "/fiscale", label: "Fiscalità", short: "Fisc." },
+    { to: "/finanza", label: "Finanziario", short: "Finanziario" },
+    { to: "/fiscale", label: "Fiscalità", short: "Fiscalità" },
     { to: "/report", label: "Report", short: "Report" },
-    { to: "/admin", label: "Amministrazione", short: "Admin" },
+    { to: "/admin", label: "Amministrazione", short: "Amministrazione" },
   ]},
 ];
 
 const MOBILE_PRIMARY: NavItem[] = [
-  { to: "/", label: "Dashboard", short: "Home" },
+  { to: "/", label: "Dashboard", short: "Dashboard" },
   { to: "/ordini", label: "Ordini", short: "Ordini" },
-  { to: "/consegne", label: "Consegne", short: "Conseg." },
+  { to: "/consegne", label: "Consegne", short: "Consegne" },
   { to: "/clienti", label: "Clienti", short: "Clienti" },
-  { to: "/magazzino", label: "Magazzino", short: "Mag." },
+  { to: "/incassi", label: "Cassa", short: "Cassa" },
 ];
 
 function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {

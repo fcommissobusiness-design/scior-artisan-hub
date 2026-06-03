@@ -146,7 +146,6 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
   const [stock, setStock] = useState("");
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [expiry, setExpiry] = useState("");
-  const [stockMin, setStockMin] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const { suppliers } = useStore();
 
@@ -154,13 +153,12 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
     if (!productId) { alert("Seleziona un prodotto"); return; }
     updateProduct(productId, {
       stock: stock ? Number(stock) : 0,
-      stockMin: stockMin ? Number(stockMin) : undefined,
       lastRestock: new Date(entryDate).toISOString(),
       ...(expiry ? { stockExpiry: new Date(expiry).toISOString() } as any : {}),
       ...(supplierId ? { supplierId } : {}),
     });
     // reset per inserimento multiplo
-    setProductId(""); setStock(""); setExpiry(""); setStockMin(""); setSupplierId("");
+    setProductId(""); setStock(""); setExpiry(""); setSupplierId("");
   };
 
   const sorted = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
@@ -188,17 +186,13 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
           <input type="number" step="0.1" value={stock} onChange={e => setStock(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Soglia minima">
-          <input type="number" step="0.1" value={stockMin} onChange={e => setStockMin(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3" />
-        </Field>
         <Field label="Data ingresso">
           <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
         <Field label="Scadenza">
           <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3" />
+            className="w-full bg-card border border-border rounded-lg p-3 col-span-2" />
         </Field>
       </div>
       <Field label="Fornitore (opzionale)">

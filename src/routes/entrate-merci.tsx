@@ -6,6 +6,8 @@ import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
   type PaymentMethod, type Product, type ProductCategory,
+  type FiscalCategory, type SupplierPayment,
+  FISCAL_CATEGORIES,
   GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal,
 } from "@/lib/data";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
@@ -189,7 +191,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, addSupplierPayment } = useStore();
 
   // Corrieri già registrati (da ricevute esistenti)
   const carriers = useMemo(() => {
@@ -217,6 +219,9 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   const [documentTotal, setDocumentTotal] = useState(receipt?.documentTotal?.toString() ?? "");
   const [paymentDueDate, setPaymentDueDate] = useState(receipt?.paymentDueDate?.slice(0, 10) ?? "");
   const [paymentStatus, setPaymentStatus] = useState<InvoicePaymentStatus | "">(receipt?.paymentStatus ?? "");
+  const [deductible, setDeductible] = useState<boolean>(true);
+  const [fiscalCategory, setFiscalCategory] = useState<FiscalCategory>("Acquisti merci");
+  const [autoPayment, setAutoPayment] = useState<boolean>(mode === "new");
 
   const [attachments, setAttachments] = useState<GoodsReceiptAttachment[]>(receipt?.attachments ?? []);
   const [uploading, setUploading] = useState(false);
@@ -299,7 +304,32 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       paymentStatus: paymentStatus || undefined,
       attachments,
     };
-    if (mode === "new") addGoodsReceipt(payload);
+    if (mode === "new") {
+      const created = addGoodsReceipt(payload);
+      // Auto-crea uscita collegata (alimenta Cassa / Fiscalità / Finanziario)
+      const amount = payload.documentTotal ?? payload.totalCost ?? computedTotal;
+      if (autoPayment && amount && amount > 0) {
+        const supName = suppliers.find(s => s.id === supplierId)?.name ?? "Fornitore";
+        const payStatus = (paymentStatus === "pagato") ? "pagato"
+                        : (paymentStatus === "scaduto") ? "scaduto" : "da_pagare";
+        addSupplierPayment({
+          date: created.date,
+          beneficiary: supName,
+          beneficiaryType: "fornitore",
+          supplierId,
+          category: "Merce",
+          amount,
+          method: (paymentMethod || "bonifico") as PaymentMethod,
+          status: payStatus,
+          dueDate: payload.paymentDueDate,
+          recurrence: "una_tantum",
+          document: payload.invoiceNumber ? "fattura" : "nessuno",
+          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""}`,
+          deductible,
+          fiscalCategory,
+        } as Omit<SupplierPayment, "id">);
+      }
+    }
     else if (receipt) updateGoodsReceipt(receipt.id, payload);
     onClose();
   };
@@ -393,7 +423,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
             }
             e.target.value = "";
           }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
-            <option value="">+ Aggiungi prodotto</option>
+            <option value="">+ Scegli prodotto dal listino</option>
             <option value="__new__">+ Aggiungi prodotto nuovo</option>
             {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -458,12 +488,38 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         </Field>
         <Field label="Stato pagamento">
           <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value as InvoicePaymentStatus | "")}
-            className="w-full bg-card border border-border rounded-lg p-3 col-span-2">
+            className="w-full bg-card border border-border rounded-lg p-3">
             <option value="">—</option>
             {PAY_STATUSES.map(s => <option key={s} value={s}>{INVOICE_STATUS_LABEL[s]}</option>)}
           </select>
         </Field>
+        <Field label="Deducibile fiscalmente">
+          <select value={deductible ? "si" : "no"} onChange={e => setDeductible(e.target.value === "si")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="si">Sì</option>
+            <option value="no">No</option>
+          </select>
+        </Field>
+        <Field label="Categoria fiscale">
+          <select value={fiscalCategory} onChange={e => setFiscalCategory(e.target.value as FiscalCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3 col-span-2">
+            {FISCAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
       </div>
+
+      {mode === "new" && (
+        <label className="flex items-start gap-2 bg-muted/40 border border-border rounded-lg p-3 text-xs cursor-pointer">
+          <input type="checkbox" checked={autoPayment} onChange={e => setAutoPayment(e.target.checked)}
+            className="mt-0.5" />
+          <span>
+            <strong>Registra automaticamente l'uscita collegata</strong>
+            <span className="block text-muted-foreground mt-0.5">
+              Crea un movimento in Uscite/Cassa che alimenta Fiscalità e Finanziario senza reinserire i dati.
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* ALLEGATI */}
       <Field label={`Allegati (${attachments.length}) — fattura, DDT, ricevuta, foto...`}>

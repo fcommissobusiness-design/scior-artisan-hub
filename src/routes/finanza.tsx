@@ -94,9 +94,6 @@ function FinanziarioPage() {
           />
         </section>
 
-        <p className="text-[11px] text-muted-foreground italic border-l-2 border-border pl-3 py-1">
-          Costi fissi configurabili in <strong>Fiscalità → Costi fissi</strong>. I costi variabili leggono le uscite registrate nel periodo selezionato.
-        </p>
       </div>
     </div>
   );
