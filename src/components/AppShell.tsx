@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
-import { useAuth } from "@/lib/store";
+import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCloudSync } from "@/lib/cloudSync";
 
 type NavItem = { to: string; label: string; short: string; wip?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
