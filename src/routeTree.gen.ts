@@ -21,6 +21,7 @@ import { Route as FornitoriRouteImport } from './routes/fornitori'
 import { Route as FoodSafetyRouteImport } from './routes/food-safety'
 import { Route as FiscaleRouteImport } from './routes/fiscale'
 import { Route as FinanzaRouteImport } from './routes/finanza'
+import { Route as FattureRouteImport } from './routes/fatture'
 import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
 import { Route as ConsegneRouteImport } from './routes/consegne'
@@ -89,6 +90,11 @@ const FinanzaRoute = FinanzaRouteImport.update({
   path: '/finanza',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FattureRoute = FattureRouteImport.update({
+  id: '/fatture',
+  path: '/fatture',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrateMerciRoute = EntrateMerciRouteImport.update({
   id: '/entrate-merci',
   path: '/entrate-merci',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
+  '/fatture': typeof FattureRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
+  '/fatture': typeof FattureRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
+  '/fatture': typeof FattureRoute
   '/finanza': typeof FinanzaRoute
   '/fiscale': typeof FiscaleRoute
   '/food-safety': typeof FoodSafetyRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
+    | '/fatture'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
+    | '/fatture'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/consegne'
     | '/ecommerce'
     | '/entrate-merci'
+    | '/fatture'
     | '/finanza'
     | '/fiscale'
     | '/food-safety'
@@ -263,6 +275,7 @@ export interface RootRouteChildren {
   ConsegneRoute: typeof ConsegneRoute
   EcommerceRoute: typeof EcommerceRoute
   EntrateMerciRoute: typeof EntrateMerciRoute
+  FattureRoute: typeof FattureRoute
   FinanzaRoute: typeof FinanzaRoute
   FiscaleRoute: typeof FiscaleRoute
   FoodSafetyRoute: typeof FoodSafetyRoute
@@ -363,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanzaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fatture': {
+      id: '/fatture'
+      path: '/fatture'
+      fullPath: '/fatture'
+      preLoaderRoute: typeof FattureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entrate-merci': {
       id: '/entrate-merci'
       path: '/entrate-merci'
@@ -423,6 +443,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConsegneRoute: ConsegneRoute,
   EcommerceRoute: EcommerceRoute,
   EntrateMerciRoute: EntrateMerciRoute,
+  FattureRoute: FattureRoute,
   FinanzaRoute: FinanzaRoute,
   FiscaleRoute: FiscaleRoute,
   FoodSafetyRoute: FoodSafetyRoute,
