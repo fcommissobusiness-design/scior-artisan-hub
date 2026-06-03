@@ -322,6 +322,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [address, setAddress] = useState(existing?.address ?? "");
   const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
