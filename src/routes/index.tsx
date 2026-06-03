@@ -494,6 +494,13 @@ export function NewSaleSheet({ open, onClose, onSave }: {
           })}
         </div>
       </Field>
+
+      <InvoiceField
+        hasInvoice={hasInvoice}
+        onHasInvoiceChange={setHasInvoice}
+        invoice={invoice}
+        onInvoiceChange={setInvoice}
+      />
     </Sheet>
   );
 }
