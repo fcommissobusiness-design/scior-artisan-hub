@@ -387,7 +387,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -397,6 +397,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
       source, delivery, paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
