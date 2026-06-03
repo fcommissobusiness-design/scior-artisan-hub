@@ -304,7 +304,32 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       paymentStatus: paymentStatus || undefined,
       attachments,
     };
-    if (mode === "new") addGoodsReceipt(payload);
+    if (mode === "new") {
+      const created = addGoodsReceipt(payload);
+      // Auto-crea uscita collegata (alimenta Cassa / Fiscalità / Finanziario)
+      const amount = payload.documentTotal ?? payload.totalCost ?? computedTotal;
+      if (autoPayment && amount && amount > 0) {
+        const supName = suppliers.find(s => s.id === supplierId)?.name ?? "Fornitore";
+        const payStatus = (paymentStatus === "pagato") ? "pagato"
+                        : (paymentStatus === "scaduto") ? "scaduto" : "da_pagare";
+        addSupplierPayment({
+          date: created.date,
+          beneficiary: supName,
+          beneficiaryType: "fornitore",
+          supplierId,
+          category: "merci",
+          amount,
+          method: (paymentMethod || "bonifico") as PaymentMethod,
+          status: payStatus,
+          dueDate: payload.paymentDueDate,
+          recurrence: "una_tantum",
+          document: payload.invoiceNumber ? "fattura" : "nessuno",
+          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""}`,
+          deductible,
+          fiscalCategory,
+        } as Omit<SupplierPayment, "id">);
+      }
+    }
     else if (receipt) updateGoodsReceipt(receipt.id, payload);
     onClose();
   };
