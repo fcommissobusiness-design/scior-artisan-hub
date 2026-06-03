@@ -219,6 +219,9 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   const [documentTotal, setDocumentTotal] = useState(receipt?.documentTotal?.toString() ?? "");
   const [paymentDueDate, setPaymentDueDate] = useState(receipt?.paymentDueDate?.slice(0, 10) ?? "");
   const [paymentStatus, setPaymentStatus] = useState<InvoicePaymentStatus | "">(receipt?.paymentStatus ?? "");
+  const [deductible, setDeductible] = useState<boolean>(true);
+  const [fiscalCategory, setFiscalCategory] = useState<FiscalCategory>("Materie prime");
+  const [autoPayment, setAutoPayment] = useState<boolean>(mode === "new");
 
   const [attachments, setAttachments] = useState<GoodsReceiptAttachment[]>(receipt?.attachments ?? []);
   const [uploading, setUploading] = useState(false);
