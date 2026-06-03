@@ -210,6 +210,9 @@ function FiscalePage() {
           <Kpi label={`Uscite deducibili (${mode === "month" ? "mese" : "anno"})`} value={formatEuro(data.costiVariabili)} danger />
           <Kpi label={`Costi fissi (${mode === "month" ? "mese" : "anno"})`} value={formatEuro(fissiPeriodo)} danger />
         </div>
+        <p className="text-[11px] text-muted-foreground italic border-l-2 border-border pl-3 py-1">
+          I costi fissi si configurano qui sotto e vengono usati anche dal <strong>Finanziario</strong>. Le uscite deducibili leggono i pagamenti registrati in <strong>Cassa → Nuovo Pagamento</strong> con flag "Deducibile fiscalmente".
+        </p>
 
         {/* Stima fiscale */}
         {stima && (
