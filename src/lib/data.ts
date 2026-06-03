@@ -129,6 +129,8 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   timeline?: OrderEvent[];
   deliveryId?: string;
+  hasInvoice?: boolean;
+  invoice?: PaymentAttachment;
 }
 
 
