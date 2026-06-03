@@ -47,7 +47,7 @@ const MOBILE_PRIMARY: NavItem[] = [
 ];
 
 function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const mode = "login" as const;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
