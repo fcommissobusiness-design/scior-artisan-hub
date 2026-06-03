@@ -92,18 +92,6 @@ function AuthScreen() {
       <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
         Le registrazioni sono chiuse. Usa le credenziali esistenti — lo stesso account sincronizza i dati su iPhone, PC e tablet.
       </p>
-        <button disabled={busy} type="submit"
-          className="w-full py-2.5 rounded-lg bg-brand-gold text-brand-green font-semibold disabled:opacity-60">
-          {busy ? "…" : mode === "login" ? "Accedi" : "Crea account"}
-        </button>
-        <button type="button" onClick={() => { setErr(null); setInfo(null); setMode(mode === "login" ? "signup" : "login"); }}
-          className="w-full text-xs opacity-80 underline">
-          {mode === "login" ? "Crea un nuovo account" : "Ho già un account"}
-        </button>
-      </form>
-      <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
-        Lo stesso account sincronizza i dati su iPhone, PC e tablet.
-      </p>
     </div>
   );
 }
