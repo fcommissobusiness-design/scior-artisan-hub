@@ -58,18 +58,8 @@ function AuthScreen() {
     e.preventDefault();
     setErr(null); setInfo(null); setBusy(true);
     try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
-        });
-        if (error) throw error;
-        setInfo("Account creato. Ora puoi accedere.");
-        setMode("login");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (e: any) {
       setErr(e?.message ?? "Errore di autenticazione");
     } finally { setBusy(false); }
