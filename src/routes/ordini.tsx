@@ -408,6 +408,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
       payment: delivery === "domicilio" ? payment : undefined,
       paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
