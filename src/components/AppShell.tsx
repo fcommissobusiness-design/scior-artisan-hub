@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
-import { useAuth } from "@/lib/store";
+import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useCloudSync } from "@/lib/cloudSync";
 
 type NavItem = { to: string; label: string; short: string; wip?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
@@ -45,46 +46,96 @@ const MOBILE_PRIMARY: NavItem[] = [
   { to: "/incassi", label: "Cassa", short: "Cassa" },
 ];
 
-function PinScreen({ onOk }: { onOk: (pin: string) => boolean }) {
-  const [pin, setPin] = useState("");
-  const [err, setErr] = useState(false);
-  const press = (d: string) => {
-    setErr(false);
-    const next = (pin + d).slice(0, 4);
-    setPin(next);
-    if (next.length === 4) {
-      if (!onOk(next)) { setErr(true); setTimeout(() => setPin(""), 400); }
-    }
+function AuthScreen() {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null); setInfo(null); setBusy(true);
+    try {
+      if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/` },
+        });
+        if (error) throw error;
+        setInfo("Account creato. Ora puoi accedere.");
+        setMode("login");
+      }
+    } catch (e: any) {
+      setErr(e?.message ?? "Errore di autenticazione");
+    } finally { setBusy(false); }
   };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-brand-green text-brand-cream px-6">
       <h1 className="font-display text-3xl text-brand-gold mb-1">Sciorio HQ</h1>
-      <p className="text-sm opacity-80 mb-10">Caseificio Sciorio dal 1947</p>
-      <p className="mb-4 text-sm">Inserisci il PIN</p>
-      <div className="flex gap-3 mb-8">
-        {[0,1,2,3].map(i => (
-          <div key={i} className={`w-4 h-4 rounded-full border-2 border-brand-gold ${pin.length > i ? "bg-brand-gold" : ""} ${err ? "animate-pulse border-danger" : ""}`} />
-        ))}
-      </div>
-      <div className="grid grid-cols-3 gap-3 w-64">
-        {["1","2","3","4","5","6","7","8","9"].map(d => (
-          <button key={d} onClick={() => press(d)} className="h-16 rounded-xl bg-brand-green-dark text-2xl font-display text-brand-cream active:bg-brand-gold/30">{d}</button>
-        ))}
-        <div />
-        <button onClick={() => press("0")} className="h-16 rounded-xl bg-brand-green-dark text-2xl font-display text-brand-cream active:bg-brand-gold/30">0</button>
-        <button onClick={() => setPin(pin.slice(0, -1))} className="h-16 rounded-xl text-sm text-brand-cream/70">Annulla</button>
-      </div>
+      <p className="text-sm opacity-80 mb-8">Caseificio Sciorio dal 1947</p>
+      <form onSubmit={submit} className="w-full max-w-xs space-y-3 bg-brand-green-dark/40 p-5 rounded-2xl">
+        <div>
+          <label className="text-[11px] uppercase tracking-wider opacity-80">Email</label>
+          <input type="email" autoComplete="email" required value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-brand-cream text-brand-green outline-none" />
+        </div>
+        <div>
+          <label className="text-[11px] uppercase tracking-wider opacity-80">Password</label>
+          <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={6} value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-brand-cream text-brand-green outline-none" />
+        </div>
+        {err && <p className="text-xs text-red-300">{err}</p>}
+        {info && <p className="text-xs text-emerald-300">{info}</p>}
+        <button disabled={busy} type="submit"
+          className="w-full py-2.5 rounded-lg bg-brand-gold text-brand-green font-semibold disabled:opacity-60">
+          {busy ? "…" : mode === "login" ? "Accedi" : "Crea account"}
+        </button>
+        <button type="button" onClick={() => { setErr(null); setInfo(null); setMode(mode === "login" ? "signup" : "login"); }}
+          className="w-full text-xs opacity-80 underline">
+          {mode === "login" ? "Crea un nuovo account" : "Ho già un account"}
+        </button>
+      </form>
+      <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
+        Lo stesso account sincronizza i dati su iPhone, PC e tablet.
+      </p>
     </div>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { authed, ready, login } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [moreOpen, setMoreOpen] = useState(false);
 
-  if (!ready) return <div className="min-h-screen bg-brand-green" />;
-  if (!authed) return <PinScreen onOk={login} />;
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setUserId(data.session?.user?.id ?? null);
+      setAuthReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const syncStatus = useCloudSync(userId);
+
+  if (!authReady) return <div className="min-h-screen bg-brand-green" />;
+  if (!userId) return <AuthScreen />;
+  if (syncStatus === "loading") return (
+    <div className="min-h-screen bg-brand-green text-brand-cream flex items-center justify-center text-sm opacity-80">
+      Sincronizzazione dati…
+    </div>
+  );
 
   const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
 
