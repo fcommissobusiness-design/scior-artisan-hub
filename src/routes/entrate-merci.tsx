@@ -317,7 +317,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
           beneficiary: supName,
           beneficiaryType: "fornitore",
           supplierId,
-          category: "merci",
+          category: "Merce",
           amount,
           method: (paymentMethod || "bonifico") as PaymentMethod,
           status: payStatus,
