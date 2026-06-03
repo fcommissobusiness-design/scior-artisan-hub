@@ -596,6 +596,13 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
 
+      <InvoiceField
+        hasInvoice={hasInvoice}
+        onHasInvoiceChange={setHasInvoice}
+        invoice={invoice}
+        onInvoiceChange={setInvoice}
+      />
+
       {existing?.timeline && existing.timeline.length > 0 && (
         <Field label="Timeline">
           <ul className="text-xs space-y-1 bg-card rounded-lg p-3">
