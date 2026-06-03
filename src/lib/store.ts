@@ -80,10 +80,15 @@ function migrate(parsed: any): Store {
   const catalogV4 = parsed.__catalogV4 === true;
   // Pulizia dati demo residui (statistiche, costi, pagamenti fittizi).
   const demoCleanV5 = parsed.__demoCleanV5 === true;
+  // V6: wipe definitivo di costi fissi demo, pagamenti e cash demo (gestionale "pulito").
+  const demoCleanV6 = parsed.__demoCleanV6 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
     demoCleanV5 ? (field ?? seed) : (field ?? []);
+  // V6: forza azzeramento (una sola volta) di liste transazionali che potrebbero contenere demo.
+  const wipeOnce = <T,>(field: T[] | undefined): T[] =>
+    demoCleanV6 ? (field ?? []) : [];
   const out: Store = {
     products: productsSource.map((p: Product) => ({
       available: true, seasonal: false, magnet: false, ...p,
@@ -100,15 +105,15 @@ function migrate(parsed: any): Store {
     deliveries: cleanV3 ? (parsed.deliveries ?? []) : [],
     productions: keep(parsed.productions, SEED.productions),
     suppliers: parsed.suppliers ?? SEED.suppliers,
-    cashEntries: keep(parsed.cashEntries, SEED.cashEntries),
+    cashEntries: wipeOnce(parsed.cashEntries),
     b2bClients: keep(parsed.b2bClients, SEED.b2bClients),
-    supplierPayments: keep(parsed.supplierPayments, SEED.supplierPayments),
+    supplierPayments: wipeOnce(parsed.supplierPayments),
     freshLogs: keep(parsed.freshLogs, []),
     unsoldEntries: keep(parsed.unsoldEntries, []),
     specialDays: keep(parsed.specialDays, SEED.specialDays),
     businessHours: parsed.businessHours ?? SEED.businessHours,
     goodsReceipts: keep(parsed.goodsReceipts, SEED.goodsReceipts),
-    fixedCosts: keep(parsed.fixedCosts, SEED.fixedCosts),
+    fixedCosts: wipeOnce(parsed.fixedCosts),
     onlineOrders: keep(parsed.onlineOrders, SEED.onlineOrders),
     shipments: keep(parsed.shipments, SEED.shipments),
     lots: keep(parsed.lots, SEED.lots),
@@ -119,6 +124,7 @@ function migrate(parsed: any): Store {
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
   (out as any).__demoCleanV5 = true;
+  (out as any).__demoCleanV6 = true;
   return out;
 }
 
