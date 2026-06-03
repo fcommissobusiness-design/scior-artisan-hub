@@ -78,12 +78,20 @@ function AuthScreen() {
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-wider opacity-80">Password</label>
-          <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={6} value={password}
+          <input type="password" autoComplete="current-password" required minLength={6} value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-brand-cream text-brand-green outline-none" />
         </div>
         {err && <p className="text-xs text-red-300">{err}</p>}
         {info && <p className="text-xs text-emerald-300">{info}</p>}
+        <button disabled={busy} type="submit"
+          className="w-full py-2.5 rounded-lg bg-brand-gold text-brand-green font-semibold disabled:opacity-60">
+          {busy ? "…" : "Accedi"}
+        </button>
+      </form>
+      <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
+        Le registrazioni sono chiuse. Usa le credenziali esistenti — lo stesso account sincronizza i dati su iPhone, PC e tablet.
+      </p>
         <button disabled={busy} type="submit"
           className="w-full py-2.5 rounded-lg bg-brand-gold text-brand-green font-semibold disabled:opacity-60">
           {busy ? "…" : mode === "login" ? "Accedi" : "Crea account"}
