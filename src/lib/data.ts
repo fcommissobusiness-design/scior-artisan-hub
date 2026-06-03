@@ -129,6 +129,8 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   timeline?: OrderEvent[];
   deliveryId?: string;
+  hasInvoice?: boolean;
+  invoice?: PaymentAttachment;
 }
 
 
@@ -159,6 +161,8 @@ export interface CasualSale {
   source?: OrderSource;
   delivery?: DeliveryMode;
   paymentMethod?: PaymentMethod;
+  hasInvoice?: boolean;
+  invoice?: PaymentAttachment;
 }
 
 export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";

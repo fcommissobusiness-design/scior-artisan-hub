@@ -2,7 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
-import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod } from "@/lib/data";
+import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
+import { InvoiceField } from "@/components/InvoiceField";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
   lateOrders,
@@ -364,6 +365,8 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(undefined);
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -384,7 +387,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); };
+  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -394,6 +397,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
       source, delivery, paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
     let newClient: any = undefined;
     if (clientName.trim() && !matched) {
@@ -490,6 +494,13 @@ export function NewSaleSheet({ open, onClose, onSave }: {
           })}
         </div>
       </Field>
+
+      <InvoiceField
+        hasInvoice={hasInvoice}
+        onHasInvoiceChange={setHasInvoice}
+        invoice={invoice}
+        onInvoiceChange={setInvoice}
+      />
     </Sheet>
   );
 }

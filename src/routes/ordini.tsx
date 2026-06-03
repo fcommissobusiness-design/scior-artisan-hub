@@ -2,7 +2,8 @@ import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
-import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod } from "@/lib/data";
+import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod, PaymentAttachment } from "@/lib/data";
+import { InvoiceField } from "@/components/InvoiceField";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
@@ -321,6 +322,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [address, setAddress] = useState(existing?.address ?? "");
   const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -405,6 +408,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
       payment: delivery === "domicilio" ? payment : undefined,
       paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
@@ -591,6 +595,13 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
+
+      <InvoiceField
+        hasInvoice={hasInvoice}
+        onHasInvoiceChange={setHasInvoice}
+        invoice={invoice}
+        onInvoiceChange={setInvoice}
+      />
 
       {existing?.timeline && existing.timeline.length > 0 && (
         <Field label="Timeline">
