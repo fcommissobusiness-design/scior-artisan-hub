@@ -488,12 +488,38 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         </Field>
         <Field label="Stato pagamento">
           <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value as InvoicePaymentStatus | "")}
-            className="w-full bg-card border border-border rounded-lg p-3 col-span-2">
+            className="w-full bg-card border border-border rounded-lg p-3">
             <option value="">—</option>
             {PAY_STATUSES.map(s => <option key={s} value={s}>{INVOICE_STATUS_LABEL[s]}</option>)}
           </select>
         </Field>
+        <Field label="Deducibile fiscalmente">
+          <select value={deductible ? "si" : "no"} onChange={e => setDeductible(e.target.value === "si")}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="si">Sì</option>
+            <option value="no">No</option>
+          </select>
+        </Field>
+        <Field label="Categoria fiscale">
+          <select value={fiscalCategory} onChange={e => setFiscalCategory(e.target.value as FiscalCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3 col-span-2">
+            {FISCAL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
       </div>
+
+      {mode === "new" && (
+        <label className="flex items-start gap-2 bg-muted/40 border border-border rounded-lg p-3 text-xs cursor-pointer">
+          <input type="checkbox" checked={autoPayment} onChange={e => setAutoPayment(e.target.checked)}
+            className="mt-0.5" />
+          <span>
+            <strong>Registra automaticamente l'uscita collegata</strong>
+            <span className="block text-muted-foreground mt-0.5">
+              Crea un movimento in Uscite/Cassa che alimenta Fiscalità e Finanziario senza reinserire i dati.
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* ALLEGATI */}
       <Field label={`Allegati (${attachments.length}) — fattura, DDT, ricevuta, foto...`}>
