@@ -159,11 +159,26 @@ function getStore(): Store {
   return cache;
 }
 
+let _isApplyingRemote = false;
+
 function setStore(next: Store) {
   cache = next;
   if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(next));
   listeners.forEach((l) => l());
 }
+
+// Cloud sync helpers (used by useCloudSync)
+export function getStoreSnapshot(): Store { return getStore(); }
+export function subscribeStore(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+export function applyRemoteStore(next: Store) {
+  _isApplyingRemote = true;
+  try { setStore(next); } finally { _isApplyingRemote = false; }
+}
+export function isApplyingRemote(): boolean { return _isApplyingRemote; }
+export function resetStoreToSeed() { setStore(SEED); }
 
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const nowIso = () => new Date().toISOString();
