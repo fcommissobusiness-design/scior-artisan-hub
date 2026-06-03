@@ -47,7 +47,7 @@ const MOBILE_PRIMARY: NavItem[] = [
 ];
 
 function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const mode = "login" as const;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,18 +58,8 @@ function AuthScreen() {
     e.preventDefault();
     setErr(null); setInfo(null); setBusy(true);
     try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
-        });
-        if (error) throw error;
-        setInfo("Account creato. Ora puoi accedere.");
-        setMode("login");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (e: any) {
       setErr(e?.message ?? "Errore di autenticazione");
     } finally { setBusy(false); }
@@ -88,7 +78,7 @@ function AuthScreen() {
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-wider opacity-80">Password</label>
-          <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={6} value={password}
+          <input type="password" autoComplete="current-password" required minLength={6} value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-brand-cream text-brand-green outline-none" />
         </div>
@@ -96,15 +86,11 @@ function AuthScreen() {
         {info && <p className="text-xs text-emerald-300">{info}</p>}
         <button disabled={busy} type="submit"
           className="w-full py-2.5 rounded-lg bg-brand-gold text-brand-green font-semibold disabled:opacity-60">
-          {busy ? "…" : mode === "login" ? "Accedi" : "Crea account"}
-        </button>
-        <button type="button" onClick={() => { setErr(null); setInfo(null); setMode(mode === "login" ? "signup" : "login"); }}
-          className="w-full text-xs opacity-80 underline">
-          {mode === "login" ? "Crea un nuovo account" : "Ho già un account"}
+          {busy ? "…" : "Accedi"}
         </button>
       </form>
       <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
-        Lo stesso account sincronizza i dati su iPhone, PC e tablet.
+        Le registrazioni sono chiuse. Usa le credenziali esistenti — lo stesso account sincronizza i dati su iPhone, PC e tablet.
       </p>
     </div>
   );
