@@ -6,6 +6,8 @@ import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
   type PaymentMethod, type Product, type ProductCategory,
+  type FiscalCategory, type SupplierPayment,
+  FISCAL_CATEGORIES,
   GOODS_RECEIPT_STATUS_LABEL, INVOICE_STATUS_LABEL, calcReceiptTotal,
 } from "@/lib/data";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
