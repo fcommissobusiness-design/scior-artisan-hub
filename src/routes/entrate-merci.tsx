@@ -423,7 +423,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
             }
             e.target.value = "";
           }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
-            <option value="">+ Aggiungi prodotto</option>
+            <option value="">+ Scegli prodotto dal listino</option>
             <option value="__new__">+ Aggiungi prodotto nuovo</option>
             {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
