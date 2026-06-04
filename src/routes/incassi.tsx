@@ -7,6 +7,7 @@ import { orderMargin } from "@/lib/metrics";
 import { OrderSheet } from "@/routes/ordini";
 import { NewSaleSheet } from "@/routes/index";
 import { PaySheet } from "@/routes/pagamenti";
+import { DeliveryFullSheet } from "@/components/DeliveryFullSheet";
 import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/incassi")({ component: CassaPage });
