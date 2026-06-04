@@ -241,11 +241,12 @@ function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store
   };
 }
 
-// Crea automaticamente un Lot per ogni riga della ricevuta.
+// Crea/aggiorna Lot per ogni riga della ricevuta.
+// Regole: stesso prodotto + stesso lotCode → somma; lotCode diverso o assente → riga separata.
 // Scadenza = data ricevuta + shelfLifeDays prodotto, fallback 72h.
 function applyReceiptLots(store: Store, rec: GoodsReceipt): Store {
+  let lots = [...store.lots];
   const created: Lot[] = [];
-  let existing = [...store.lots];
   for (const it of rec.items) {
     const p = store.products.find(x => x.id === it.productId);
     const baseDate = new Date(rec.date);
@@ -255,22 +256,29 @@ function applyReceiptLots(store: Store, rec: GoodsReceipt): Store {
     } else {
       expiry.setHours(expiry.getHours() + 72);
     }
-    const code = generateLotCode(rec.date, [...existing, ...created]);
-    created.push({
-      id: uid("lt_"),
-      code,
-      productId: it.productId,
-      productionDate: rec.date,
-      expiryDate: expiry.toISOString(),
-      qtyInitial: it.qty,
-      qtyRemaining: it.qty,
-      supplierId: rec.supplierId,
-      receiptId: rec.id,
-      notes: it.notes,
-      createdAt: nowIso(),
-    });
+    const code = (it.lotCode && it.lotCode.trim())
+      ? it.lotCode.trim()
+      : generateLotCode(rec.date, [...lots, ...created]);
+    // Cerca lotto esistente con stesso productId+code (merge)
+    const existingIdx = lots.findIndex(l => l.productId === it.productId && l.code === code);
+    if (existingIdx >= 0) {
+      const ex = lots[existingIdx];
+      lots[existingIdx] = {
+        ...ex,
+        qtyInitial: +(ex.qtyInitial + it.qty).toFixed(3),
+        qtyRemaining: +(ex.qtyRemaining + it.qty).toFixed(3),
+      };
+    } else {
+      created.push({
+        id: uid("lt_"), code, productId: it.productId,
+        productionDate: rec.date, expiryDate: expiry.toISOString(),
+        qtyInitial: it.qty, qtyRemaining: it.qty,
+        supplierId: rec.supplierId, receiptId: rec.id,
+        notes: it.notes, createdAt: nowIso(),
+      });
+    }
   }
-  return { ...store, lots: [...created, ...store.lots] };
+  return { ...store, lots: [...created, ...lots] };
 }
 
 // Rimuove i lotti collegati a una ricevuta (es. annullamento/cancellazione)
