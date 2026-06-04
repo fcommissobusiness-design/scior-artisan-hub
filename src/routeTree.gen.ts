@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as CestinoRouteImport } from './routes/cestino'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as ProduzioneRouteImport } from './routes/produzione'
 import { Route as ProdottiRouteImport } from './routes/prodotti'
@@ -32,6 +31,11 @@ import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const CestinoRoute = CestinoRouteImport.update({
+  id: '/cestino',
+  path: '/cestino',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportRoute = ReportRouteImport.update({
   id: '/report',
   path: '/report',
