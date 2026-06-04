@@ -329,7 +329,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
   const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
   const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
-  const [menuOpen2_unused] = useState(""); // placeholder removed below
+  
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
