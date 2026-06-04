@@ -454,8 +454,13 @@ export function useStore() {
     },
     updateBundle: (id: string, patch: Partial<Bundle>) =>
       setStore({ ...store, bundles: store.bundles.map((b) => b.id === id ? { ...b, ...patch } : b) }),
-    deleteBundle: (id: string) =>
-      setStore({ ...store, bundles: store.bundles.filter((b) => b.id !== id) }),
+    deleteBundle: (id: string) => {
+      const b = store.bundles.find(x => x.id === id);
+      if (!b) return;
+      let next: Store = { ...store, bundles: store.bundles.filter((x) => x.id !== id) };
+      next = pushTrash(next, "bundle", b.id, `Bundle ${b.name}`, b);
+      setStore(next);
+    },
 
     // CLIENTS
     addClient: (c: Omit<Client, "id">) => {
