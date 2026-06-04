@@ -286,6 +286,18 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
 
   const save = () => {
     if (!supplierId) { alert("Seleziona un fornitore"); return; }
+    // Override prezzo costo: se il costo unitario inserito differisce da quello in scheda prodotto, chiedi all'utente
+    for (const it of items) {
+      if (it.unitCost == null) continue;
+      const p = products.find(x => x.id === it.productId);
+      if (!p) continue;
+      const cur = p.cost ?? 0;
+      if (Math.abs(cur - it.unitCost) > 0.005) {
+        if (confirm(`"${p.name}": costo in scheda ${formatEuro(cur)}, costo in questa consegna ${formatEuro(it.unitCost)}.\n\nAggiornare il costo di listino?`)) {
+          updateProduct(p.id, { cost: it.unitCost });
+        }
+      }
+    }
     const payload: Omit<GoodsReceipt, "id" | "createdAt"> = {
       supplierId,
       date: new Date(date).toISOString(),
