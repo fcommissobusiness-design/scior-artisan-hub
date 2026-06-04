@@ -412,6 +412,9 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
+      <p className="text-[11px] text-muted-foreground italic mt-2 px-1">
+        💡 Per associare prodotti, bundle o righe personalizzate a questa consegna, crea un Ordine collegato (sezione Ordini, Delivery "a domicilio"): la consegna verrà generata automaticamente con tutti i contenuti del carrello.
+      </p>
     </Sheet>
   );
 }
