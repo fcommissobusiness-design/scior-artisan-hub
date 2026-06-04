@@ -356,29 +356,6 @@ function Kpi({ label, value, sub, danger, highlight, to }: { label: string; valu
   return inner;
 }
 
-function QuickWhatsAppPicker({ onClose, onPick }: { onClose: () => void; onPick: (c: { id: string; phone: string }) => void }) {
-  const { clients } = useStore();
-  const [q, setQ] = useState("");
-  const filtered = clients.filter((c) => c.phone && c.name.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
-  return (
-    <Sheet open={true} onClose={onClose} title="Scegli cliente">
-      <input autoFocus placeholder="Cerca cliente..." value={q} onChange={(e) => setQ(e.target.value)}
-        className="w-full bg-card border border-border rounded-lg p-3" />
-      <div className="space-y-1 max-h-96 overflow-y-auto">
-        {filtered.map((c) => (
-          <button key={c.id} onClick={() => onPick({ id: c.id, phone: c.phone })}
-            className="w-full text-left bg-card rounded-lg p-3 flex justify-between items-center">
-            <div>
-              <p className="font-semibold text-sm">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.phone}</p>
-            </div>
-            <span className="text-brand-gold text-xs font-semibold">→</span>
-          </button>
-        ))}
-      </div>
-    </Sheet>
-  );
-}
 
 const SALE_SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
 const SALE_SOURCE_LABEL: Record<OrderSource, string> = {
