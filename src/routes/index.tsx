@@ -290,7 +290,7 @@ function Dashboard() {
           context={{
             client: clients.find(c => c.id === waOpen.clientId),
             order: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId) : undefined,
-            productNames: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId)?.items.map(i => products.find(p => p.id === i.productId)?.name ?? "") : undefined,
+            productNames: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId)?.items.map(i => itemDisplayName(i, products, bundles)) : undefined,
           }}
           defaultTemplate={waOpen.orderId ? "promemoria_ritiro" : "libero"}
         />
