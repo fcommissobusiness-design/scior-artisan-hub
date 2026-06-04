@@ -56,6 +56,10 @@ function MagazzinoPage() {
       <div className="px-4 md:px-6 pt-4 flex gap-2 items-center">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca prodotto..."
           className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm" />
+        <Link to="/prodotti"
+          className="bg-card border border-border text-brand-green rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap">
+          + Nuovo prodotto
+        </Link>
         <button onClick={() => setOpenSetup(true)}
           className="bg-brand-green text-brand-cream rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap">
           Imposta Magazzino
