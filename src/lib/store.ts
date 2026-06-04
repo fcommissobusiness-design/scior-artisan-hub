@@ -123,6 +123,7 @@ function migrate(parsed: any): Store {
     lots: keep(parsed.lots, SEED.lots),
     haccpReadings: keep(parsed.haccpReadings, SEED.haccpReadings),
     cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
+    trash: parsed.trash ?? [],
   };
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
