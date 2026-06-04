@@ -255,7 +255,7 @@ function OrdiniPage() {
           <WhatsAppDialog
             open={true} onClose={() => setWaOpen(null)}
             phone={c?.phone ?? ""}
-            context={{ client: c, order: o, productNames: o.items.map(i => productById(i.productId)?.name ?? "") }}
+            context={{ client: c, order: o, productNames: o.items.map(i => itemDisplayName(i, products, bundles)) }}
             defaultTemplate={o.status === "pronto" ? "ordine_pronto" : "promemoria_ritiro"}
             templates={["conferma_ordine", "promemoria_ritiro", "ordine_pronto", "libero"]}
           />
