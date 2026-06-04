@@ -448,13 +448,18 @@ function IngredientPicker({ row, products, onChange, onRemove, onCreateNew }: {
         </select>
         <button onClick={onRemove} className="text-danger text-lg px-2">×</button>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1 items-center">
         {QTY_PRESETS.map(q => (
           <button key={q} onClick={() => onChange({ qtyKg: q })}
             className={`px-2 py-1 rounded text-[11px] font-semibold ${Math.abs(row.qtyKg - q) < 0.001 ? "bg-brand-green text-brand-cream" : "bg-background border border-border"}`}>
             {q.toString().replace(".", ",")} kg
           </button>
         ))}
+        <input type="number" step="0.05" min="0"
+          value={Number.isFinite(row.qtyKg) ? row.qtyKg : 0}
+          onChange={(e) => onChange({ qtyKg: Math.max(0, Number(e.target.value)) })}
+          className="w-20 bg-background border border-border rounded p-1 text-xs ml-1" />
+        <span className="text-[10px] text-muted-foreground">kg</span>
       </div>
       <div className="text-[11px] text-muted-foreground flex justify-between">
         <span>Costo: {row.unitCost == null ? "n.d." : formatEuro(row.unitCost * row.qtyKg)}</span>
