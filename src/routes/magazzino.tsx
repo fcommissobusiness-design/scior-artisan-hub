@@ -119,7 +119,9 @@ function StockEditSheet({ productId, onClose, onSave }: {
   const p = products.find(x => x.id === productId)!;
   const [stock, setStock] = useState<string>(p.stock?.toString() ?? "");
   const [lastRestock, setLastRestock] = useState<string>((p.lastRestock ?? new Date().toISOString()).slice(0, 10));
-  const initialExp = (p as any).stockExpiry ?? computeExpiry(p.lastRestock, p.shelfLifeDays);
+  const initialExp = (p as any).stockExpiry
+    ?? computeExpiry(p.lastRestock, p.shelfLifeDays)
+    ?? defaultExpiryFrom(p.lastRestock ?? new Date().toISOString());
   const [expiry, setExpiry] = useState<string>(initialExp ? initialExp.slice(0, 10) : "");
 
   const save = () => {
