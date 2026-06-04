@@ -721,6 +721,7 @@ export interface GoodsReceiptItem {
   qty: number;
   unitCost?: number;
   notes?: string;
+  lotCode?: string; // Lotto specificato manualmente; se assente viene generato automaticamente
 }
 
 export interface GoodsReceiptAttachment {
