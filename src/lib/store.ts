@@ -505,8 +505,14 @@ export function useStore() {
       setStore({ ...store, casualSales: [sale, ...store.casualSales] });
       return sale;
     },
-    deleteCasualSale: (id: string) =>
-      setStore({ ...store, casualSales: store.casualSales.filter((s) => s.id !== id) }),
+    deleteCasualSale: (id: string) => {
+      const s = store.casualSales.find(x => x.id === id);
+      if (!s) return;
+      const label = `Scontrino · ${new Date(s.date).toLocaleDateString("it-IT")} · €${s.total.toFixed(2)}`;
+      let next: Store = { ...store, casualSales: store.casualSales.filter((x) => x.id !== id) };
+      next = pushTrash(next, "casualSale", s.id, label, s);
+      setStore(next);
+    },
 
     // DELIVERIES
     addDelivery: (d: Omit<Delivery, "id" | "createdAt">) => {
