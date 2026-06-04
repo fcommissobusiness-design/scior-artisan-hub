@@ -31,8 +31,11 @@ function CassaPage() {
   const [filter, setFilter] = useState<"all" | "entrata" | "uscita">("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [openOrder, setOpenOrder] = useState(false);
+  const [editOrderId, setEditOrderId] = useState<string | null>(null);
   const [openSale, setOpenSale] = useState(false);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [openPay, setOpenPay] = useState(false);
+  const [openDeliv, setOpenDeliv] = useState(false);
 
   // ============ Costruzione movimenti dal periodo ============
   const movements: Movement[] = useMemo(() => {
