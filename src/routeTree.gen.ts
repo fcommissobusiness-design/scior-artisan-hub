@@ -142,7 +142,6 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
-  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -166,7 +165,6 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
-  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -191,7 +189,6 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
-  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -217,7 +214,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/cestino'
     | '/b2b'
-    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
@@ -241,7 +237,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/cestino'
     | '/b2b'
-    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
@@ -265,7 +260,6 @@ export interface FileRouteTypes {
     | '/admin'
     | '/cestino'
     | '/b2b'
-    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
