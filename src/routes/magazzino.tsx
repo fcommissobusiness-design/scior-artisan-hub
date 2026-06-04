@@ -202,12 +202,14 @@ function LotEditSheet({ lot, productName, unit, onClose, onSave }: {
   onClose: () => void;
   onSave: (patch: any) => void;
 }) {
+  const [code, setCode] = useState<string>(lot.code);
   const [qty, setQty] = useState<string>(lot.qtyRemaining.toString());
   const [entry, setEntry] = useState<string>(lot.productionDate.slice(0, 10));
   const [expiry, setExpiry] = useState<string>(lot.expiryDate.slice(0, 10));
 
   const save = () => {
     onSave({
+      code: code.trim() || lot.code,
       qtyRemaining: qty === "" ? 0 : Number(qty),
       productionDate: new Date(entry).toISOString(),
       expiryDate: new Date(expiry).toISOString(),
@@ -217,6 +219,10 @@ function LotEditSheet({ lot, productName, unit, onClose, onSave }: {
   return (
     <Sheet open={true} onClose={onClose} title={`${productName} · ${lot.code}`}
       footer={<button onClick={save} className="w-full bg-brand-gold text-white rounded-xl py-3 font-semibold">Salva</button>}>
+      <Field label="Lotto">
+        <input value={code} onChange={e => setCode(e.target.value)}
+          className="w-full bg-card border border-border rounded-lg p-3 font-mono" />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={`Quantità residua (${unit})`}>
           <input type="number" step="0.1" value={qty} onChange={e => setQty(e.target.value)}
