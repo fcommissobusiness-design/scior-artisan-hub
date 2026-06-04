@@ -185,7 +185,7 @@ function OrdiniPage() {
         {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine in questo periodo.</p>}
         {filtered.map((o) => {
           const c = clientById(o.clientId);
-          const m = orderMargin(o, products);
+          const m = orderMargin(o, products, bundles);
           const overdue = o.status === "in_attesa" && +new Date(o.pickupDate) < Date.now() - 86400000;
           return (
             <div key={o.id} className={`bg-card rounded-xl p-4 shadow-sm ${overdue ? "ring-2 ring-danger/40" : ""}`}>
@@ -208,8 +208,9 @@ function OrdiniPage() {
                 </p>
                 <ul className="text-sm space-y-0.5">
                   {o.items.slice(0, 3).map((i, idx) => {
-                    const p = productById(i.productId);
-                    return <li key={idx} className="text-foreground/80">· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
+                    const name = itemDisplayName(i, products, bundles);
+                    const unit = itemDisplayUnit(i, products);
+                    return <li key={idx} className="text-foreground/80">· {name} <span className="text-muted-foreground">x{i.qty}{unit === "kg" ? "kg" : ""}</span></li>;
                   })}
                   {o.items.length > 3 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 3}</li>}
                 </ul>
