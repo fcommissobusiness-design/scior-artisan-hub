@@ -644,7 +644,10 @@ export function useStore() {
       const rec: GoodsReceipt = { ...r, id: uid("gr_"), createdAt: nowIso() };
       let next: Store = { ...store, goodsReceipts: [rec, ...store.goodsReceipts] };
       // Aggiorna stock prodotti se ricevuta/verificata/archiviata
-      if (rec.status !== "attesa") next = applyReceiptStock(next, rec, +1);
+      if (rec.status !== "attesa") {
+        next = applyReceiptStock(next, rec, +1);
+        next = applyReceiptLots(next, rec);
+      }
       // Aggiorna lastOrderDate fornitore
       next = {
         ...next,
@@ -661,15 +664,23 @@ export function useStore() {
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.map((g) => g.id === id ? merged : g) };
       const wasReceived = prev.status !== "attesa";
       const isReceived = merged.status !== "attesa";
-      if (!wasReceived && isReceived) next = applyReceiptStock(next, merged, +1);
-      else if (wasReceived && !isReceived) next = applyReceiptStock(next, prev, -1);
+      if (!wasReceived && isReceived) {
+        next = applyReceiptStock(next, merged, +1);
+        next = applyReceiptLots(next, merged);
+      } else if (wasReceived && !isReceived) {
+        next = applyReceiptStock(next, prev, -1);
+        next = removeReceiptLots(next, prev.id);
+      }
       setStore(next);
     },
     deleteGoodsReceipt: (id: string) => {
       const prev = store.goodsReceipts.find((g) => g.id === id);
       if (!prev) return;
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.filter((g) => g.id !== id) };
-      if (prev.status !== "attesa") next = applyReceiptStock(next, prev, -1);
+      if (prev.status !== "attesa") {
+        next = applyReceiptStock(next, prev, -1);
+        next = removeReceiptLots(next, prev.id);
+      }
       setStore(next);
     },
 
