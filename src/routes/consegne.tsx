@@ -285,7 +285,6 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   };
 
   const save = () => {
-    if (items.length === 0 && false) return; // (placeholder; consegna non gestisce items)
     if (!address.trim()) return;
     let effectiveClientId = clientId;
     const typed = (clientQ ?? "").trim();
