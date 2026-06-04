@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/AppShell";
+import { QtyInput } from "@/components/QtyInput";
 import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
