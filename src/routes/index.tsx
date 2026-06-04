@@ -177,8 +177,9 @@ function Dashboard() {
                     </div>
                     <ul className="text-sm text-foreground/80 mb-3 space-y-0.5">
                       {o.items.slice(0, 4).map((i, idx) => {
+                        const name = itemDisplayName(i, products, bundles);
                         const p = productById(i.productId);
-                        return <li key={idx}>· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
+                        return <li key={idx}>· {name} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
                       })}
                       {o.items.length > 4 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 4}</li>}
                     </ul>
