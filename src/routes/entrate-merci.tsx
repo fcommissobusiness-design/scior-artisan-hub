@@ -192,7 +192,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplierPayment } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplier, addSupplierPayment } = useStore();
 
   // Corrieri già registrati (da ricevute esistenti)
   const carriers = useMemo(() => {
@@ -202,6 +202,8 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   }, [goodsReceipts]);
 
   const [supplierId, setSupplierId] = useState(receipt?.supplierId ?? suppliers[0]?.id ?? "");
+  const [supplierQ, setSupplierQ] = useState<string>("");
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
   const [date, setDate] = useState(receipt?.date.slice(0, 16) ?? new Date().toISOString().slice(0, 16));
   const [status, setStatus] = useState<GoodsReceiptStatus>(receipt?.status ?? "ricevuta");
   const [items, setItems] = useState<GoodsReceiptItem[]>(receipt?.items ?? []);
