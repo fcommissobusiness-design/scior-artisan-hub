@@ -15,6 +15,8 @@ import {
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
+import { QtyInput } from "@/components/QtyInput";
+import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
@@ -407,14 +409,32 @@ export function NewSaleSheet({ open, onClose, onSave }: {
     onSave(sale, newClient);
   };
 
+  const printPreview = () => {
+    if (items.length === 0) return;
+    const fakeSale = {
+      id: "PREVIEW",
+      date: new Date(date).toISOString(),
+      items, total,
+      clientId: matched?.id,
+      clientNameInput: clientName.trim() || undefined,
+      source, delivery, paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
+    } as CasualSale;
+    printComanda(buildSaleComanda(fakeSale, matched, products));
+  };
+
   return (
     <Sheet open={open} onClose={onClose} title="Nuovo scontrino"
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          <button onClick={printPreview} disabled={items.length === 0}
+            className="border border-border bg-card rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">
+            🖨️ Stampa Comanda
+          </button>
           <button onClick={save} disabled={items.length === 0}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
             Conferma scontrino
@@ -482,13 +502,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
                   <p className="text-sm truncate">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => upd(p.id, Math.max(0, +(qty - step).toFixed(2)))}
-                    className="w-7 h-7 rounded-full bg-brand-cream text-brand-green font-bold border border-border">−</button>
-                  <span className="w-10 text-center text-sm font-semibold">{qty || ""}</span>
-                  <button onClick={() => upd(p.id, +(qty + step).toFixed(2))}
-                    className="w-7 h-7 rounded-full bg-brand-green text-brand-cream font-bold">+</button>
-                </div>
+                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => upd(p.id, n)} />
               </div>
             );
           })}

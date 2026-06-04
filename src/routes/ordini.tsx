@@ -7,6 +7,8 @@ import { InvoiceField } from "@/components/InvoiceField";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
+import { QtyInput } from "@/components/QtyInput";
+import { buildOrderComanda, printComanda } from "@/lib/comanda";
 
 interface Search { f?: string }
 
@@ -298,10 +300,12 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   onClose: () => void;
   onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
 }) {
-  const { clients, products, orders, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
+  const { clients, products, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
   const existing = orderId ? orders.find((o) => o.id === orderId) : null;
 
-  const [clientQ, setClientQ] = useState("");
+  // Per il bug "cancellazione nome": clientQ === null => mostra nome del cliente selezionato;
+  // appena l'utente digita (anche stringa vuota) controlla il valore dell'input.
+  const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(existing?.clientId ?? clients[0]?.id ?? "");
   const [label, setLabel] = useState(existing?.label ?? "");
   const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
@@ -373,9 +377,11 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   };
 
   const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const clientSuggestions = clientQ.length >= 1
-    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6)
+  const clientQText = clientQ ?? "";
+  const clientSuggestions = clientQText.length >= 1
+    ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6)
     : [];
+  const typedNotMatchedClient = clientQText.trim().length >= 2 && !clients.some(c => c.name.toLowerCase() === clientQText.trim().toLowerCase());
 
   const persistPhoneIfChanged = () => {
     if (!selectedClient) return;
@@ -398,11 +404,29 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   };
 
   const handleSave = () => {
-    if (!clientId || items.length === 0) return;
-    persistPhoneIfChanged();
-    persistAddressIfChanged();
+    if (items.length === 0) return;
+    // Autocreate nuovo cliente se l'utente ha digitato un nome non corrispondente
+    let effectiveClientId = clientId;
+    const typed = (clientQ ?? "").trim();
+    if (typed && (!selectedClient || selectedClient.name.toLowerCase() !== typed.toLowerCase())) {
+      const exact = clients.find(c => c.name.toLowerCase() === typed.toLowerCase());
+      if (exact) effectiveClientId = exact.id;
+      else {
+        const created = addClient({
+          name: typed,
+          phone: phone.trim(),
+          segment: "nuovi",
+          stamps: 0,
+          addresses: delivery === "domicilio" && address.trim() ? [address.trim()] : undefined,
+          deliveryZone: delivery === "domicilio" && address.trim() ? address.trim() : undefined,
+        } as Omit<import("@/lib/data").Client, "id">);
+        effectiveClientId = created.id;
+      }
+    }
+    if (!effectiveClientId) return;
+    if (effectiveClientId === clientId) { persistPhoneIfChanged(); persistAddressIfChanged(); }
     const payload: Omit<Order, "id" | "createdAt"> = {
-      clientId, label: label.trim() || undefined, items,
+      clientId: effectiveClientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
@@ -412,6 +436,13 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
+  };
+
+  const handlePrintComanda = () => {
+    if (!existing) return;
+    const c = clients.find(x => x.id === existing.clientId);
+    printComanda(buildOrderComanda(existing, c, products));
+    setMenuOpen(false);
   };
 
 
@@ -442,7 +473,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
-          <button onClick={handleSave} disabled={!clientId || items.length === 0}
+          <button onClick={handleSave} disabled={items.length === 0 || (!clientId && !((clientQ ?? "").trim()))}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
             Conferma
           </button>
@@ -458,6 +489,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
               <div className="absolute right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[180px]">
                 <button onClick={handleDuplicate}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream">Duplica ordine</button>
+                <button onClick={handlePrintComanda}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream border-t border-border">🖨️ Stampa Comanda</button>
               </div>
             )}
           </div>
@@ -466,18 +499,22 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Cliente">
-          <input placeholder="Cerca o seleziona..." value={clientQ || selectedClient?.name || ""}
+          <input placeholder="Cerca o seleziona..."
+            value={clientQ !== null ? clientQ : (selectedClient?.name ?? "")}
             onChange={(e) => { setClientQ(e.target.value); }}
             className="w-full bg-card border border-border rounded-lg p-3" />
-          {clientSuggestions.length > 0 && clientQ && (
+          {clientSuggestions.length > 0 && clientQ !== null && (
             <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
               {clientSuggestions.map(c => (
-                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(""); }}
+                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(null); }}
                   className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
                   {c.name} <span className="text-xs text-muted-foreground">{c.phone}</span>
                 </button>
               ))}
             </div>
+          )}
+          {typedNotMatchedClient && (
+            <p className="text-[11px] text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda al salvataggio.</p>
           )}
         </Field>
         <Field label="Telefono">
@@ -578,13 +615,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
                   <p className="text-sm truncate">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => updateItem(p.id, Math.max(0, +(qty - step).toFixed(2)))}
-                    className="w-7 h-7 rounded-full bg-brand-cream text-brand-green font-bold border border-border">−</button>
-                  <span className="w-10 text-center text-sm font-semibold">{qty || ""}</span>
-                  <button onClick={() => updateItem(p.id, +(qty + step).toFixed(2))}
-                    className="w-7 h-7 rounded-full bg-brand-green text-brand-cream font-bold">+</button>
-                </div>
+                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => updateItem(p.id, n)} />
               </div>
             );
           })}

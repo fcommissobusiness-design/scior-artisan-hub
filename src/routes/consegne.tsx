@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Delivery, DeliveryStatus, DeliveryPayment } from "@/lib/data";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { MapsBtn } from "@/components/QuickActions";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
+import { buildDeliveryComanda, printComanda } from "@/lib/comanda";
 
 export const Route = createFileRoute("/consegne")({ component: ConsegnePage });
 
@@ -219,8 +220,8 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   mode: "new" | "edit"; delivery?: Delivery;
   onClose: () => void; onSave: (d: Omit<Delivery, "id" | "createdAt"> | Partial<Delivery>) => void;
 }) {
-  const { clients, updateClient } = useStore();
-  const [clientQ, setClientQ] = useState("");
+  const { clients, products, orders, updateClient, addClient } = useStore();
+  const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(delivery?.clientId ?? clients[0]?.id ?? "");
   const [address, setAddress] = useState(delivery?.address ?? "");
   const [date, setDate] = useState(() => {
@@ -233,6 +234,16 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   const [status, setStatus] = useState<DeliveryStatus>(delivery?.status ?? "da_preparare");
   const [payment, setPayment] = useState<DeliveryPayment>(delivery?.payment ?? "da_pagare");
   const [notes, setNotes] = useState(delivery?.notes ?? "");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    if (menuOpen) document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [menuOpen]);
 
   const selectedClient = clients.find(c => c.id === clientId);
   const [phone, setPhone] = useState(selectedClient?.phone ?? "");
@@ -251,8 +262,9 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
     return Array.from(new Set([selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[]));
   }, [selectedClient]);
 
-  const clientSugg = clientQ.length >= 1
-    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6) : [];
+  const clientQText = clientQ ?? "";
+  const clientSugg = clientQText.length >= 1
+    ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6) : [];
 
   const persistContactsIfChanged = () => {
     if (!selectedClient) return;
@@ -273,10 +285,25 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   };
 
   const save = () => {
-    if (!clientId || !address.trim()) return;
-    persistContactsIfChanged();
+    if (!address.trim()) return;
+    let effectiveClientId = clientId;
+    const typed = (clientQ ?? "").trim();
+    if (typed && (!selectedClient || selectedClient.name.toLowerCase() !== typed.toLowerCase())) {
+      const exact = clients.find(c => c.name.toLowerCase() === typed.toLowerCase());
+      if (exact) effectiveClientId = exact.id;
+      else {
+        const created = addClient({
+          name: typed, phone: phone.trim(), segment: "nuovi", stamps: 0,
+          deliveryZone: address.trim() || undefined,
+          addresses: address.trim() ? [address.trim()] : undefined,
+        } as Omit<import("@/lib/data").Client, "id">);
+        effectiveClientId = created.id;
+      }
+    }
+    if (!effectiveClientId) return;
+    if (effectiveClientId === clientId) persistContactsIfChanged();
     const payload: Omit<Delivery, "id" | "createdAt"> = {
-      clientId, address: address.trim(),
+      clientId: effectiveClientId, address: address.trim(),
       date: new Date(date).toISOString(),
       timeSlot: slot, status, payment,
       orderId: delivery?.orderId,
@@ -285,25 +312,48 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
     onSave(payload);
   };
 
+  const handlePrintComanda = () => {
+    if (!delivery) return;
+    const c = clients.find(x => x.id === delivery.clientId);
+    const linked = delivery.orderId ? orders.find(o => o.id === delivery.orderId) ?? null : null;
+    printComanda(buildDeliveryComanda(delivery, c, linked, products));
+    setMenuOpen(false);
+  };
+
   return (
     <Sheet open={true} onClose={onClose}
       title={mode === "new" ? "Nuova consegna" : "Modifica consegna"}
       footer={
         <div className="flex gap-3">
-          <button onClick={save} disabled={!clientId || !address.trim()}
+          <button onClick={save} disabled={!address.trim() || (!clientId && !((clientQ ?? "").trim()))}
             className="flex-1 bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">Conferma</button>
         </div>
       }
     >
+      {mode === "edit" && (
+        <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
+          <div className="relative">
+            <button onClick={() => setMenuOpen(o => !o)}
+              className="px-3 py-1.5 rounded-lg bg-card border border-border text-lg leading-none" aria-label="Altre azioni">⋮</button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[180px]">
+                <button onClick={handlePrintComanda}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream">🖨️ Stampa Comanda</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Cliente">
-          <input placeholder="Cerca o seleziona..." value={clientQ || selectedClient?.name || ""}
+          <input placeholder="Cerca o seleziona..."
+            value={clientQ !== null ? clientQ : (selectedClient?.name ?? "")}
             onChange={(e) => setClientQ(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
-          {clientSugg.length > 0 && clientQ && (
+          {clientSugg.length > 0 && clientQ !== null && (
             <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
               {clientSugg.map(c => (
-                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(""); if (c.deliveryZone) setAddress(c.deliveryZone); }}
+                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(null); if (c.deliveryZone) setAddress(c.deliveryZone); }}
                   className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
                   {c.name} <span className="text-xs text-muted-foreground">{c.phone}</span>
                 </button>
