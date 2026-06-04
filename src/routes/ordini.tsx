@@ -7,6 +7,8 @@ import { InvoiceField } from "@/components/InvoiceField";
 import { orderMargin } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
+import { QtyInput } from "@/components/QtyInput";
+import { buildOrderComanda, printComanda } from "@/lib/comanda";
 
 interface Search { f?: string }
 
