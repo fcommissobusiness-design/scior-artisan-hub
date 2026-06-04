@@ -220,7 +220,7 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   mode: "new" | "edit"; delivery?: Delivery;
   onClose: () => void; onSave: (d: Omit<Delivery, "id" | "createdAt"> | Partial<Delivery>) => void;
 }) {
-  const { clients, products, orders, updateClient, addClient } = useStore();
+  const { clients, products, bundles, orders, updateClient, addClient } = useStore();
   const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(delivery?.clientId ?? clients[0]?.id ?? "");
   const [address, setAddress] = useState(delivery?.address ?? "");
