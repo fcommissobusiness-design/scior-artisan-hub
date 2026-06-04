@@ -45,6 +45,7 @@ interface Store {
   lots: Lot[];
   haccpReadings: HaccpReading[];
   cleaningTasks: CleaningTask[];
+  trash: TrashEntry[];
 }
 
 const SEED: Store = {
