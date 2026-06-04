@@ -53,7 +53,7 @@ function toDateInput(d: Date) {
 
 function OrdiniPage() {
   const search = useSearch({ from: "/ordini" }) as Search;
-  const { orders, clients, products, addOrder } = useStore();
+  const { orders, clients, products, bundles, addOrder } = useStore();
   const [statusSel, setStatusSel] = useState<Set<OrderStatus>>(new Set());
   const [deliverySel, setDeliverySel] = useState<Set<DeliveryMode>>(new Set());
   const [q, setQ] = useState("");
