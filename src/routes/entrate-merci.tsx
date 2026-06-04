@@ -729,3 +729,30 @@ function NewProductMini({ onClose, onCreate }: {
     </Sheet>
   );
 }
+
+function NewSupplierMini({ initialName, onCancel, onCreate }: {
+  initialName: string;
+  onCancel: () => void;
+  onCreate: (name: string, category: string) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [category, setCategory] = useState("");
+  return (
+    <>
+      <Field label="Nome">
+        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <Field label="Categoria">
+        <input value={category} onChange={e => setCategory(e.target.value)}
+          placeholder="es. Salumi, Pane, Latte..."
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onCancel} className="flex-1 border border-border rounded-lg py-2 text-sm">Annulla</button>
+        <button onClick={() => name.trim() && onCreate(name.trim(), category.trim())}
+          className="flex-1 bg-brand-gold text-white rounded-lg py-2 text-sm font-semibold">Crea</button>
+      </div>
+    </>
+  );
+}
