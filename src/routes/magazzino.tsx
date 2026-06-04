@@ -1,9 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, formatDate } from "@/components/AppShell";
 
 export const Route = createFileRoute("/magazzino")({ component: MagazzinoPage });
+
+const DEFAULT_EXPIRY_HOURS = 72;
+function defaultExpiryFrom(entryISO: string): string {
+  const d = new Date(entryISO);
+  d.setHours(d.getHours() + DEFAULT_EXPIRY_HOURS);
+  return d.toISOString();
+}
 
 interface StockRow {
   productId: string;
