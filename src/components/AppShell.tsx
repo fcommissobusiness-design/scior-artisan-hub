@@ -34,6 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/finanza", label: "Finanziario", short: "Finanziario" },
     { to: "/fiscale", label: "Fiscalità", short: "Fiscalità" },
     { to: "/report", label: "Report", short: "Report" },
+    { to: "/cestino", label: "Cestino", short: "Cestino" },
     { to: "/admin", label: "Amministrazione", short: "Amministrazione" },
   ]},
 ];
