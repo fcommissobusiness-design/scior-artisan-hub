@@ -357,14 +357,13 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products } = useStore();
+  const { clients, products, bundles } = useStore();
   const [date, setDate] = useState(() => {
     const d = new Date(); d.setMinutes(0);
     return d.toISOString().slice(0, 16);
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [clientName, setClientName] = useState("");
-  const [search, setSearch] = useState("");
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
@@ -375,22 +374,9 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   const suggestions = clientName.length >= 2 && !matched
     ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
 
-  const total = items.reduce((s, i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return s + (p ? p.price * i.qty : 0);
-  }, 0);
+  const total = cartTotal(items, products, bundles);
 
-  const upd = (id: string, qty: number) => {
-    setItems((prev) => {
-      const exists = prev.find((p) => p.productId === id);
-      if (qty <= 0) return prev.filter((p) => p.productId !== id);
-      if (exists) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
-      return [...prev, { productId: id, qty }];
-    });
-  };
-
-  const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
+  const reset = () => { setItems([]); setClientName(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
 
   const save = () => {
     if (items.length === 0) return;
