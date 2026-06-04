@@ -71,6 +71,7 @@ const SEED: Store = {
   lots: SEED_LOTS,
   haccpReadings: SEED_HACCP_READINGS,
   cleaningTasks: SEED_CLEANING_TASKS,
+  trash: SEED_TRASH,
 };
 
 function migrate(parsed: any): Store {
