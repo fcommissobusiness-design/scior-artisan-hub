@@ -227,7 +227,7 @@ function Dashboard() {
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{formatTime(s.date)} · {new Date(s.date).toLocaleDateString("it-IT")}</p>
-                  <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => productById(i.productId)?.name ?? i.productId).join(", ")}</p>
+                  <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => itemDisplayName(i, products, bundles)).join(", ")}</p>
                 </div>
               );
             })}
