@@ -26,6 +26,7 @@ import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
+import { Route as CestinoRouteImport } from './routes/cestino'
 import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -115,6 +116,11 @@ const ClientiRoute = ClientiRouteImport.update({
   path: '/clienti',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CestinoRoute = CestinoRouteImport.update({
+  id: '/cestino',
+  path: '/cestino',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const B2bRoute = B2bRouteImport.update({
   id: '/b2b',
   path: '/b2b',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/b2b': typeof B2bRoute
+  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/b2b': typeof B2bRoute
+  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/b2b': typeof B2bRoute
+  '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
   '/ecommerce': typeof EcommerceRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/b2b'
+    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
@@ -226,6 +236,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/b2b'
+    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/b2b'
+    | '/cestino'
     | '/clienti'
     | '/consegne'
     | '/ecommerce'
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   B2bRoute: typeof B2bRoute
+  CestinoRoute: typeof CestinoRoute
   ClientiRoute: typeof ClientiRoute
   ConsegneRoute: typeof ConsegneRoute
   EcommerceRoute: typeof EcommerceRoute
@@ -411,6 +424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cestino': {
+      id: '/cestino'
+      path: '/cestino'
+      fullPath: '/cestino'
+      preLoaderRoute: typeof CestinoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/b2b': {
       id: '/b2b'
       path: '/b2b'
@@ -439,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   B2bRoute: B2bRoute,
+  CestinoRoute: CestinoRoute,
   ClientiRoute: ClientiRoute,
   ConsegneRoute: ConsegneRoute,
   EcommerceRoute: EcommerceRoute,
@@ -460,3 +481,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
