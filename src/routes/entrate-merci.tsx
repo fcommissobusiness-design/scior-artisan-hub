@@ -503,6 +503,18 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
         />
       )}
 
+      {newSupplierOpen && (
+        <Sheet open={true} onClose={() => setNewSupplierOpen(false)} title="Nuovo fornitore">
+          <NewSupplierMini initialName={supplierQ.trim()}
+            onCancel={() => setNewSupplierOpen(false)}
+            onCreate={(name, category) => {
+              const s = addSupplier({ name, category: category || "Altro" });
+              setSupplierId(s.id); setSupplierQ(""); setNewSupplierOpen(false);
+            }} />
+        </Sheet>
+      )}
+
+
 
 
 
