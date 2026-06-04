@@ -404,11 +404,29 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   };
 
   const handleSave = () => {
-    if (!clientId || items.length === 0) return;
-    persistPhoneIfChanged();
-    persistAddressIfChanged();
+    if (items.length === 0) return;
+    // Autocreate nuovo cliente se l'utente ha digitato un nome non corrispondente
+    let effectiveClientId = clientId;
+    const typed = (clientQ ?? "").trim();
+    if (typed && (!selectedClient || selectedClient.name.toLowerCase() !== typed.toLowerCase())) {
+      const exact = clients.find(c => c.name.toLowerCase() === typed.toLowerCase());
+      if (exact) effectiveClientId = exact.id;
+      else {
+        const created = addClient({
+          name: typed,
+          phone: phone.trim(),
+          segment: "nuovi",
+          stamps: 0,
+          addresses: delivery === "domicilio" && address.trim() ? [address.trim()] : undefined,
+          deliveryZone: delivery === "domicilio" && address.trim() ? address.trim() : undefined,
+        } as Omit<import("@/lib/data").Client, "id">);
+        effectiveClientId = created.id;
+      }
+    }
+    if (!effectiveClientId) return;
+    if (effectiveClientId === clientId) { persistPhoneIfChanged(); persistAddressIfChanged(); }
     const payload: Omit<Order, "id" | "createdAt"> = {
-      clientId, label: label.trim() || undefined, items,
+      clientId: effectiveClientId, label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
@@ -418,6 +436,13 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     };
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
+  };
+
+  const handlePrintComanda = () => {
+    if (!existing) return;
+    const c = clients.find(x => x.id === existing.clientId);
+    printComanda(buildOrderComanda(existing, c, products));
+    setMenuOpen(false);
   };
 
 
