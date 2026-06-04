@@ -636,8 +636,14 @@ export function useStore() {
     },
     updateSupplierPayment: (id: string, patch: Partial<SupplierPayment>) =>
       setStore({ ...store, supplierPayments: store.supplierPayments.map((p) => p.id === id ? { ...p, ...patch } : p) }),
-    deleteSupplierPayment: (id: string) =>
-      setStore({ ...store, supplierPayments: store.supplierPayments.filter((p) => p.id !== id) }),
+    deleteSupplierPayment: (id: string) => {
+      const p = store.supplierPayments.find(x => x.id === id);
+      if (!p) return;
+      const label = `Pagamento ${p.beneficiary} · €${p.amount.toFixed(2)}`;
+      let next: Store = { ...store, supplierPayments: store.supplierPayments.filter((x) => x.id !== id) };
+      next = pushTrash(next, "supplierPayment", p.id, label, p);
+      setStore(next);
+    },
 
     // FRESH LOGS
     addFreshLog: (l: Omit<FreshLog, "id">) => {
