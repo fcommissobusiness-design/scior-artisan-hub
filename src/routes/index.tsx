@@ -162,7 +162,7 @@ function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {ritiriFrame.map((o) => {
               const c = clientById(o.clientId);
-              const m = orderMargin(o, products);
+              const m = orderMargin(o, products, bundles);
               return (
                 <div key={o.id} className="bg-card rounded-xl p-4 shadow-sm">
                   <button onClick={() => setEditOrderId(o.id)} className="w-full text-left">
