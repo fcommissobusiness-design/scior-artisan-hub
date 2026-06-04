@@ -409,14 +409,32 @@ export function NewSaleSheet({ open, onClose, onSave }: {
     onSave(sale, newClient);
   };
 
+  const printPreview = () => {
+    if (items.length === 0) return;
+    const fakeSale = {
+      id: "PREVIEW",
+      date: new Date(date).toISOString(),
+      items, total,
+      clientId: matched?.id,
+      clientNameInput: clientName.trim() || undefined,
+      source, delivery, paymentMethod,
+      hasInvoice, invoice: hasInvoice ? invoice : undefined,
+    } as CasualSale;
+    printComanda(buildSaleComanda(fakeSale, matched, products));
+  };
+
   return (
     <Sheet open={open} onClose={onClose} title="Nuovo scontrino"
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          <button onClick={printPreview} disabled={items.length === 0}
+            className="border border-border bg-card rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">
+            🖨️ Stampa Comanda
+          </button>
           <button onClick={save} disabled={items.length === 0}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
             Conferma scontrino
