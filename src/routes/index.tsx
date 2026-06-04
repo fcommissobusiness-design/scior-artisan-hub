@@ -52,7 +52,7 @@ function Dashboard() {
     salesInFrame.reduce((s, o) => s + o.total, 0);
   const ticketMedio = salesInFrame.length === 0 ? 0 : salesInFrame.reduce((s, x) => s + x.total, 0) / salesInFrame.length;
 
-  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
+  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products, bundles), [orders, casualSales, products, bundles]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
