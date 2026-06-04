@@ -31,10 +31,11 @@ function computeExpiry(lastRestock?: string, shelfLifeDays?: number): string | u
 }
 
 function MagazzinoPage() {
-  const { products, lots, updateProduct, updateLot } = useStore();
+  const { products, lots, updateProduct, updateLot, deleteLot } = useStore();
   const [editId, setEditId] = useState<string | null>(null);
   const [editLotId, setEditLotId] = useState<string | null>(null);
   const [openSetup, setOpenSetup] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<{ kind: "lot" | "product"; id: string; label: string } | null>(null);
   const [q, setQ] = useState("");
 
   const rows: StockRow[] = useMemo(() => {
