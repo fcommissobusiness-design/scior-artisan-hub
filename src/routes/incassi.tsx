@@ -94,7 +94,7 @@ function CassaPage() {
     }
 
     return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [orders, casualSales, supplierPayments, cashEntries, products, tf]);
+  }, [orders, casualSales, supplierPayments, cashEntries, products, bundles, tf]);
 
   // ============ KPI ============
   const kpi = useMemo(() => {
