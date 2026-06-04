@@ -1,7 +1,8 @@
 // Genera una comanda compatta (formato 80mm/post-it) in una nuova finestra
 // e avvia il dialogo di stampa del browser, che permette anche il salvataggio in PDF.
 
-import type { Order, CasualSale, Delivery, Client, Product } from "./data";
+import type { Order, OrderItem, CasualSale, Delivery, Client, Product, Bundle } from "./data";
+import { itemDisplayName, itemKind, itemDisplayUnit } from "./metrics";
 
 export type ComandaKind = "order" | "sale" | "delivery";
 
@@ -28,15 +29,20 @@ function fmtEuro(n: number) {
 }
 function fmtQty(qty: number, unit?: string) {
   const isInt = Number.isInteger(qty) || (unit !== "kg" && unit !== "g");
-  const v = isInt ? Math.round(qty).toString() : qty.toFixed(2).replace(".", ",");
+  const v = isInt ? Math.round(qty).toString() : qty.toFixed(2).replace(",", ",");
   return unit ? `${v} ${unit}` : v;
 }
 
-export function buildOrderComanda(o: Order, c: Client | undefined, products: Product[]): ComandaData {
-  const items = o.items.map((i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return { name: p?.name ?? i.productId, qty: i.qty, unit: p?.unit };
-  });
+function toComandaLines(items: OrderItem[], products: Product[], bundles: Bundle[]): ComandaLine[] {
+  return items.map((i) => ({
+    name: itemDisplayName(i, products, bundles),
+    qty: i.qty,
+    unit: itemDisplayUnit(i, products),
+  }));
+}
+
+export function buildOrderComanda(o: Order, c: Client | undefined, products: Product[], bundles: Bundle[] = []): ComandaData {
+  const items = toComandaLines(o.items, products, bundles);
   const d = new Date(o.pickupDate);
   return {
     kind: "order",
@@ -54,11 +60,8 @@ export function buildOrderComanda(o: Order, c: Client | undefined, products: Pro
   };
 }
 
-export function buildSaleComanda(s: CasualSale, c: Client | undefined, products: Product[]): ComandaData {
-  const items = s.items.map((i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return { name: p?.name ?? i.productId, qty: i.qty, unit: p?.unit };
-  });
+export function buildSaleComanda(s: CasualSale, c: Client | undefined, products: Product[], bundles: Bundle[] = []): ComandaData {
+  const items = toComandaLines(s.items, products, bundles);
   return {
     kind: "sale",
     title: "COMANDA · SCONTRINO",
@@ -70,13 +73,8 @@ export function buildSaleComanda(s: CasualSale, c: Client | undefined, products:
   };
 }
 
-export function buildDeliveryComanda(d: Delivery, c: Client | undefined, linkedOrder: Order | null, products: Product[]): ComandaData {
-  const items: ComandaLine[] = linkedOrder
-    ? linkedOrder.items.map((i) => {
-        const p = products.find((p) => p.id === i.productId);
-        return { name: p?.name ?? i.productId, qty: i.qty, unit: p?.unit };
-      })
-    : [];
+export function buildDeliveryComanda(d: Delivery, c: Client | undefined, linkedOrder: Order | null, products: Product[], bundles: Bundle[] = []): ComandaData {
+  const items: ComandaLine[] = linkedOrder ? toComandaLines(linkedOrder.items, products, bundles) : [];
   return {
     kind: "delivery",
     title: "COMANDA · CONSEGNA",
@@ -92,6 +90,8 @@ export function buildDeliveryComanda(d: Delivery, c: Client | undefined, linkedO
     total: linkedOrder?.total,
   };
 }
+// (void) suppress unused
+void itemKind;
 
 export function printComanda(data: ComandaData) {
   const html = renderHtml(data);

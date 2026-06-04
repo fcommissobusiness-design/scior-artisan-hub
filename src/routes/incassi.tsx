@@ -22,7 +22,7 @@ type Movement = {
 };
 
 function CassaPage() {
-  const { orders, casualSales, supplierPayments, cashEntries, products, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, cashEntries, products, bundles, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
 
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
@@ -48,7 +48,7 @@ function CassaPage() {
         amount: o.total,
         label: "Ordine",
         meta: o.paymentMethod ?? "—",
-        margin: orderMargin(o, products),
+        margin: orderMargin(o, products, bundles),
       });
     }
 
@@ -62,7 +62,7 @@ function CassaPage() {
         amount: s.total,
         label: "Scontrino",
         meta: s.paymentMethod ?? "—",
-        margin: orderMargin({ items: s.items } as any, products),
+        margin: orderMargin({ items: s.items } as any, products, bundles),
       });
     }
 
@@ -94,7 +94,7 @@ function CassaPage() {
     }
 
     return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [orders, casualSales, supplierPayments, cashEntries, products, tf]);
+  }, [orders, casualSales, supplierPayments, cashEntries, products, bundles, tf]);
 
   // ============ KPI ============
   const kpi = useMemo(() => {

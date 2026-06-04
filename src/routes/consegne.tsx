@@ -220,7 +220,7 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   mode: "new" | "edit"; delivery?: Delivery;
   onClose: () => void; onSave: (d: Omit<Delivery, "id" | "createdAt"> | Partial<Delivery>) => void;
 }) {
-  const { clients, products, orders, updateClient, addClient } = useStore();
+  const { clients, products, bundles, orders, updateClient, addClient } = useStore();
   const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(delivery?.clientId ?? clients[0]?.id ?? "");
   const [address, setAddress] = useState(delivery?.address ?? "");
@@ -316,7 +316,7 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
     if (!delivery) return;
     const c = clients.find(x => x.id === delivery.clientId);
     const linked = delivery.orderId ? orders.find(o => o.id === delivery.orderId) ?? null : null;
-    printComanda(buildDeliveryComanda(delivery, c, linked, products));
+    printComanda(buildDeliveryComanda(delivery, c, linked, products, bundles));
     setMenuOpen(false);
   };
 
@@ -412,6 +412,9 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
+      <p className="text-[11px] text-muted-foreground italic mt-2 px-1">
+        💡 Per associare prodotti, bundle o righe personalizzate a questa consegna, crea un Ordine collegato (sezione Ordini, Delivery "a domicilio"): la consegna verrà generata automaticamente con tutti i contenuti del carrello.
+      </p>
     </Sheet>
   );
 }

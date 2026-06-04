@@ -1,6 +1,6 @@
 // Metriche derivate. Nessuno stato — sempre calcolato dai dati store.
 import type {
-  Client, Order, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
+  Client, Order, OrderItem, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
   Production, CashEntry, SupplierPayment, B2BClient,
   FixedCost, GoodsReceipt, UnsoldEntry, BusinessHours, SpecialDay, ProductCategory,
   OnlineOrder, Shipment,
@@ -178,6 +178,72 @@ export function marginColor(pct: number | null): string {
   return "text-success";
 }
 
+// ============= Helper riga carrello (Prodotto / Bundle / Riga personalizzata) =============
+
+export function itemKind(i: OrderItem): "product" | "bundle" | "custom" {
+  return i.kind ?? "product";
+}
+
+export function bundleUnitPrice(b: Bundle): number {
+  return b.offerPrice ?? b.fullPrice ?? 0;
+}
+
+export function itemUnitPrice(i: OrderItem, products: Product[], bundles: Bundle[]): number {
+  if (i.unitPriceOverride != null) return i.unitPriceOverride;
+  const k = itemKind(i);
+  if (k === "custom") return i.customPrice ?? 0;
+  if (k === "bundle") {
+    const b = bundles.find((x) => x.id === i.bundleId);
+    return b ? bundleUnitPrice(b) : 0;
+  }
+  const p = products.find((x) => x.id === i.productId);
+  return p?.price ?? 0;
+}
+
+export function itemUnitCost(i: OrderItem, products: Product[], bundles: Bundle[]): number | null {
+  const k = itemKind(i);
+  if (k === "custom") {
+    if (i.customCost != null) return i.customCost;
+    // Se collegata a un prodotto esistente, usa il suo costo
+    const p = i.productId ? products.find((x) => x.id === i.productId) : undefined;
+    return p?.cost ?? null;
+  }
+  if (k === "bundle") {
+    const b = bundles.find((x) => x.id === i.bundleId);
+    return b?.estimatedCost ?? null;
+  }
+  const p = products.find((x) => x.id === i.productId);
+  return p?.cost ?? null;
+}
+
+export function itemDisplayName(i: OrderItem, products: Product[], bundles: Bundle[]): string {
+  const k = itemKind(i);
+  if (k === "custom") return i.customName?.trim() || "Riga personalizzata";
+  if (k === "bundle") {
+    const b = bundles.find((x) => x.id === i.bundleId);
+    return b ? `📦 ${b.name}` : "Bundle";
+  }
+  const p = products.find((x) => x.id === i.productId);
+  return p?.name ?? i.productId;
+}
+
+export function itemDisplayUnit(i: OrderItem, products: Product[]): string | undefined {
+  const k = itemKind(i);
+  if (k !== "product") return undefined;
+  const p = products.find((x) => x.id === i.productId);
+  return p?.unit;
+}
+
+export function itemLineTotal(i: OrderItem, products: Product[], bundles: Bundle[]): number {
+  return itemUnitPrice(i, products, bundles) * i.qty;
+}
+
+export function cartTotal(items: OrderItem[], products: Product[], bundles: Bundle[]): number {
+  return items.reduce((s, i) => s + itemLineTotal(i, products, bundles), 0);
+}
+
+// ============= Stats prodotti / bundle =============
+
 export function productSalesStats(orders: Order[], sales: CasualSale[], products: Product[]) {
   const map = new Map<string, { qty: number; revenue: number; profit: number }>();
   const add = (id: string, qty: number) => {
@@ -189,26 +255,32 @@ export function productSalesStats(orders: Order[], sales: CasualSale[], products
     cur.profit += (p.cost == null ? 0 : (p.price - p.cost) * qty);
     map.set(id, cur);
   };
-  for (const o of orders) if (o.status === "ritirato") for (const i of o.items) add(i.productId, i.qty);
-  for (const s of sales) for (const i of s.items) add(i.productId, i.qty);
+  const consume = (items: OrderItem[]) => {
+    for (const i of items) {
+      if (itemKind(i) === "product") add(i.productId, i.qty);
+    }
+  };
+  for (const o of orders) if (o.status === "ritirato") consume(o.items);
+  for (const s of sales) consume(s.items);
   return [...map.entries()].map(([id, v]) => ({ product: products.find((p) => p.id === id)!, ...v }))
     .filter((x) => x.product);
 }
 
-export function orderMargin(order: Order, products: Product[]): number {
+export function orderMargin(order: Order, products: Product[], bundles: Bundle[] = []): number {
   return order.items.reduce((s, i) => {
-    const p = products.find((x) => x.id === i.productId);
-    if (!p || p.cost == null) return s;
-    return s + (p.price - p.cost) * i.qty;
+    const unitPrice = itemUnitPrice(i, products, bundles);
+    const unitCost = itemUnitCost(i, products, bundles);
+    if (unitCost == null) return s;
+    return s + (unitPrice - unitCost) * i.qty;
   }, 0);
 }
 
-export function dailyMargin(orders: Order[], sales: CasualSale[], products: Product[]): number {
+export function dailyMargin(orders: Order[], sales: CasualSale[], products: Product[], bundles: Bundle[] = []): number {
   const today = new Date().toDateString();
   const inDay = (iso: string) => new Date(iso).toDateString() === today;
   let m = 0;
-  for (const o of orders) if (o.status === "ritirato" && inDay(o.pickupDate)) m += orderMargin(o, products);
-  for (const s of sales) if (inDay(s.date)) m += orderMargin({ items: s.items } as Order, products);
+  for (const o of orders) if (o.status === "ritirato" && inDay(o.pickupDate)) m += orderMargin(o, products, bundles);
+  for (const s of sales) if (inDay(s.date)) m += orderMargin({ items: s.items } as Order, products, bundles);
   return m;
 }
 
@@ -256,10 +328,41 @@ export function clientBadges(orders: Order[], sales: CasualSale[], client: Clien
   return badges;
 }
 
-export function bundleStatsFromOrders(orders: Order[], _bundles: Bundle[]): Map<string, number> {
-  // Placeholder: i bundle non sono tracciati nelle order items oggi. Si potrà estendere.
-  void orders;
-  return new Map();
+export function bundleSalesStats(orders: Order[], sales: CasualSale[], bundles: Bundle[]) {
+  const map = new Map<string, { qty: number; revenue: number; profit: number }>();
+  const add = (id: string, qty: number) => {
+    const b = bundles.find((x) => x.id === id);
+    if (!b) return;
+    const price = bundleUnitPrice(b);
+    const cost = b.estimatedCost ?? 0;
+    const cur = map.get(id) ?? { qty: 0, revenue: 0, profit: 0 };
+    cur.qty += qty;
+    cur.revenue += price * qty;
+    cur.profit += (price - cost) * qty;
+    map.set(id, cur);
+  };
+  const consume = (items: OrderItem[]) => {
+    for (const i of items) {
+      if (itemKind(i) === "bundle" && i.bundleId) add(i.bundleId, i.qty);
+    }
+  };
+  for (const o of orders) if (o.status === "ritirato") consume(o.items);
+  for (const s of sales) consume(s.items);
+  return [...map.entries()].map(([id, v]) => ({ bundle: bundles.find((b) => b.id === id)!, ...v }))
+    .filter((x) => x.bundle);
+}
+
+export function bundleStatsFromOrders(orders: Order[], bundles: Bundle[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const o of orders) {
+    if (o.status !== "ritirato") continue;
+    for (const i of o.items) {
+      if (itemKind(i) === "bundle" && i.bundleId) {
+        m.set(i.bundleId, (m.get(i.bundleId) ?? 0) + i.qty);
+      }
+    }
+  }
+  return m;
 }
 
 // ============= NUOVE METRICHE v4 =============

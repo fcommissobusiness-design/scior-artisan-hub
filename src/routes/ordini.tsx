@@ -4,10 +4,10 @@ import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod, PaymentAttachment } from "@/lib/data";
 import { InvoiceField } from "@/components/InvoiceField";
-import { orderMargin } from "@/lib/metrics";
+import { orderMargin, itemDisplayName, itemDisplayUnit, cartTotal } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
-import { QtyInput } from "@/components/QtyInput";
+import { CartEditor } from "@/components/CartEditor";
 import { buildOrderComanda, printComanda } from "@/lib/comanda";
 
 interface Search { f?: string }
@@ -53,7 +53,7 @@ function toDateInput(d: Date) {
 
 function OrdiniPage() {
   const search = useSearch({ from: "/ordini" }) as Search;
-  const { orders, clients, products, addOrder } = useStore();
+  const { orders, clients, products, bundles, addOrder } = useStore();
   const [statusSel, setStatusSel] = useState<Set<OrderStatus>>(new Set());
   const [deliverySel, setDeliverySel] = useState<Set<DeliveryMode>>(new Set());
   const [q, setQ] = useState("");
@@ -185,7 +185,7 @@ function OrdiniPage() {
         {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-12 md:col-span-2">Nessun ordine in questo periodo.</p>}
         {filtered.map((o) => {
           const c = clientById(o.clientId);
-          const m = orderMargin(o, products);
+          const m = orderMargin(o, products, bundles);
           const overdue = o.status === "in_attesa" && +new Date(o.pickupDate) < Date.now() - 86400000;
           return (
             <div key={o.id} className={`bg-card rounded-xl p-4 shadow-sm ${overdue ? "ring-2 ring-danger/40" : ""}`}>
@@ -208,8 +208,9 @@ function OrdiniPage() {
                 </p>
                 <ul className="text-sm space-y-0.5">
                   {o.items.slice(0, 3).map((i, idx) => {
-                    const p = productById(i.productId);
-                    return <li key={idx} className="text-foreground/80">· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
+                    const name = itemDisplayName(i, products, bundles);
+                    const unit = itemDisplayUnit(i, products);
+                    return <li key={idx} className="text-foreground/80">· {name} <span className="text-muted-foreground">x{i.qty}{unit === "kg" ? "kg" : ""}</span></li>;
                   })}
                   {o.items.length > 3 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 3}</li>}
                 </ul>
@@ -254,7 +255,7 @@ function OrdiniPage() {
           <WhatsAppDialog
             open={true} onClose={() => setWaOpen(null)}
             phone={c?.phone ?? ""}
-            context={{ client: c, order: o, productNames: o.items.map(i => productById(i.productId)?.name ?? "") }}
+            context={{ client: c, order: o, productNames: o.items.map(i => itemDisplayName(i, products, bundles)) }}
             defaultTemplate={o.status === "pronto" ? "ordine_pronto" : "promemoria_ritiro"}
             templates={["conferma_ordine", "promemoria_ritiro", "ordine_pronto", "libero"]}
           />
@@ -300,7 +301,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   onClose: () => void;
   onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
 }) {
-  const { clients, products, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
+  const { clients, products, bundles, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
   const existing = orderId ? orders.find((o) => o.id === orderId) : null;
 
   // Per il bug "cancellazione nome": clientQ === null => mostra nome del cliente selezionato;
@@ -328,7 +329,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
   const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
   const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
-  const [search, setSearch] = useState("");
+  
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -361,22 +362,9 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     return () => document.removeEventListener("mousedown", fn);
   }, [menuOpen]);
 
-  const total = items.reduce((s, i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return s + (p ? p.price * i.qty : 0);
-  }, 0);
-  const margin = orderMargin({ items } as Order, products);
+  const total = cartTotal(items, products, bundles);
+  const margin = orderMargin({ items } as Order, products, bundles);
 
-  const updateItem = (id: string, qty: number) => {
-    setItems((prev) => {
-      const ex = prev.find((p) => p.productId === id);
-      if (qty <= 0) return prev.filter((p) => p.productId !== id);
-      if (ex) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
-      return [...prev, { productId: id, qty }];
-    });
-  };
-
-  const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
   const clientQText = clientQ ?? "";
   const clientSuggestions = clientQText.length >= 1
     ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6)
@@ -441,7 +429,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const handlePrintComanda = () => {
     if (!existing) return;
     const c = clients.find(x => x.id === existing.clientId);
-    printComanda(buildOrderComanda(existing, c, products));
+    printComanda(buildOrderComanda(existing, c, products, bundles));
     setMenuOpen(false);
   };
 
@@ -601,25 +589,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
         </Field>
       </div>
 
-      <Field label="Prodotti">
-        <input placeholder="Cerca prodotto..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
-        <div className="max-h-80 overflow-y-auto mt-2 space-y-1">
-          {filteredProducts.map((p) => {
-            const item = items.find((i) => i.productId === p.id);
-            const qty = item?.qty ?? 0;
-            const step = p.unit === "kg" ? 0.1 : 1;
-            return (
-              <div key={p.id} className="bg-card rounded-lg p-2.5 flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
-                </div>
-                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => updateItem(p.id, n)} />
-              </div>
-            );
-          })}
-        </div>
+      <Field label="Prodotti, bundle e righe personalizzate">
+        <CartEditor items={items} onChange={setItems} />
       </Field>
 
       <Field label="Note">

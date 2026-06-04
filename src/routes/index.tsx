@@ -9,20 +9,20 @@ import {
   lateOrders,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
-  productionsForDate,
+  productionsForDate, itemDisplayName, cartTotal,
 } from "@/lib/metrics";
 
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
-import { QtyInput } from "@/components/QtyInput";
+import { CartEditor } from "@/components/CartEditor";
 import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
-  const { orders, products, clients, casualSales, deliveries, supplierPayments, suppliers, productions, updateOrder, addCasualSale, addClient, addOrder, addSupplierPayment } = useStore();
+  const { orders, products, bundles, clients, casualSales, deliveries, supplierPayments, suppliers, productions, updateOrder, addCasualSale, addClient, addOrder, addSupplierPayment } = useStore();
   const [tfId, setTfId] = useState<TimeFrameId>("today");
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
@@ -52,7 +52,7 @@ function Dashboard() {
     salesInFrame.reduce((s, o) => s + o.total, 0);
   const ticketMedio = salesInFrame.length === 0 ? 0 : salesInFrame.reduce((s, x) => s + x.total, 0) / salesInFrame.length;
 
-  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products), [orders, casualSales, products]);
+  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products, bundles), [orders, casualSales, products, bundles]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
@@ -162,7 +162,7 @@ function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {ritiriFrame.map((o) => {
               const c = clientById(o.clientId);
-              const m = orderMargin(o, products);
+              const m = orderMargin(o, products, bundles);
               return (
                 <div key={o.id} className="bg-card rounded-xl p-4 shadow-sm">
                   <button onClick={() => setEditOrderId(o.id)} className="w-full text-left">
@@ -177,8 +177,9 @@ function Dashboard() {
                     </div>
                     <ul className="text-sm text-foreground/80 mb-3 space-y-0.5">
                       {o.items.slice(0, 4).map((i, idx) => {
+                        const name = itemDisplayName(i, products, bundles);
                         const p = productById(i.productId);
-                        return <li key={idx}>· {p?.name ?? i.productId} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
+                        return <li key={idx}>· {name} <span className="text-muted-foreground">x{i.qty}{p?.unit === "kg" ? "kg" : ""}</span></li>;
                       })}
                       {o.items.length > 4 && <li className="text-xs text-muted-foreground">+ altri {o.items.length - 4}</li>}
                     </ul>
@@ -226,7 +227,7 @@ function Dashboard() {
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{formatTime(s.date)} · {new Date(s.date).toLocaleDateString("it-IT")}</p>
-                  <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => productById(i.productId)?.name ?? i.productId).join(", ")}</p>
+                  <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => itemDisplayName(i, products, bundles)).join(", ")}</p>
                 </div>
               );
             })}
@@ -289,7 +290,7 @@ function Dashboard() {
           context={{
             client: clients.find(c => c.id === waOpen.clientId),
             order: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId) : undefined,
-            productNames: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId)?.items.map(i => products.find(p => p.id === i.productId)?.name ?? "") : undefined,
+            productNames: waOpen.orderId ? orders.find(o => o.id === waOpen.orderId)?.items.map(i => itemDisplayName(i, products, bundles)) : undefined,
           }}
           defaultTemplate={waOpen.orderId ? "promemoria_ritiro" : "libero"}
         />
@@ -356,14 +357,13 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products } = useStore();
+  const { clients, products, bundles } = useStore();
   const [date, setDate] = useState(() => {
     const d = new Date(); d.setMinutes(0);
     return d.toISOString().slice(0, 16);
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [clientName, setClientName] = useState("");
-  const [search, setSearch] = useState("");
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
@@ -374,22 +374,9 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   const suggestions = clientName.length >= 2 && !matched
     ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
 
-  const total = items.reduce((s, i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return s + (p ? p.price * i.qty : 0);
-  }, 0);
+  const total = cartTotal(items, products, bundles);
 
-  const upd = (id: string, qty: number) => {
-    setItems((prev) => {
-      const exists = prev.find((p) => p.productId === id);
-      if (qty <= 0) return prev.filter((p) => p.productId !== id);
-      if (exists) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
-      return [...prev, { productId: id, qty }];
-    });
-  };
-
-  const filtered = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const reset = () => { setItems([]); setClientName(""); setSearch(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
+  const reset = () => { setItems([]); setClientName(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
 
   const save = () => {
     if (items.length === 0) return;
@@ -420,7 +407,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     } as CasualSale;
-    printComanda(buildSaleComanda(fakeSale, matched, products));
+    printComanda(buildSaleComanda(fakeSale, matched, products, bundles));
   };
 
   return (
@@ -488,25 +475,8 @@ export function NewSaleSheet({ open, onClose, onSave }: {
         )}
       </Field>
 
-      <Field label="Prodotti">
-        <input placeholder="Cerca prodotto..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
-        <div className="max-h-72 overflow-y-auto mt-2 space-y-1">
-          {filtered.map((p) => {
-            const item = items.find((i) => i.productId === p.id);
-            const qty = item?.qty ?? 0;
-            const step = p.unit === "kg" ? 0.1 : 1;
-            return (
-              <div key={p.id} className="bg-card rounded-lg p-2.5 flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
-                </div>
-                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => upd(p.id, n)} />
-              </div>
-            );
-          })}
-        </div>
+      <Field label="Prodotti, bundle e righe personalizzate">
+        <CartEditor items={items} onChange={setItems} />
       </Field>
 
       <InvoiceField
