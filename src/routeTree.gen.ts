@@ -31,11 +31,6 @@ import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
-const CestinoRoute = CestinoRouteImport.update({
-  id: '/cestino',
-  path: '/cestino',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ReportRoute = ReportRouteImport.update({
   id: '/report',
   path: '/report',
