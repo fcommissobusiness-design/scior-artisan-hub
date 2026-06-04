@@ -316,7 +316,7 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
     if (!delivery) return;
     const c = clients.find(x => x.id === delivery.clientId);
     const linked = delivery.orderId ? orders.find(o => o.id === delivery.orderId) ?? null : null;
-    printComanda(buildDeliveryComanda(delivery, c, linked, products));
+    printComanda(buildDeliveryComanda(delivery, c, linked, products, bundles));
     setMenuOpen(false);
   };
 
