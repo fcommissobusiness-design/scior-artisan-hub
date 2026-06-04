@@ -500,6 +500,22 @@ export function NewSaleSheet({ open, onClose, onSave }: {
         )}
       </Field>
 
+      <Field label="Telefono (facoltativo)">
+        <div className="flex gap-1">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 ..."
+            className="flex-1 bg-card border border-border rounded-lg p-3" />
+          {phoneOptions.length > 1 && (
+            <select value={phone} onChange={(e) => setPhone(e.target.value)}
+              className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli numero">
+              {phoneOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          )}
+        </div>
+        {matched && phone.trim() && phone.trim() !== matched.phone && !(matched.phones ?? []).includes(phone.trim()) && (
+          <p className="text-[11px] text-brand-gold mt-1">Verrà salvato come ulteriore recapito nella scheda cliente.</p>
+        )}
+      </Field>
+
       <Field label="Prodotti, bundle e righe personalizzate">
         <CartEditor items={items} onChange={setItems} />
       </Field>
