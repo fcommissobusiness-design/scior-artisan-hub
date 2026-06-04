@@ -48,7 +48,7 @@ function CassaPage() {
         amount: o.total,
         label: "Ordine",
         meta: o.paymentMethod ?? "—",
-        margin: orderMargin(o, products),
+        margin: orderMargin(o, products, bundles),
       });
     }
 
