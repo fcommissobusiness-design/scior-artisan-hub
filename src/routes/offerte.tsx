@@ -13,7 +13,7 @@ const CATEGORIES: ProductCategory[] = [
   "Salumi", "Dispensa", "Pane", "Latte", "Bevande", "Vini", "Taralli", "Pasta",
 ];
 
-const QTY_PRESETS = [0.1, 0.2, 0.3, 0.4, 0.5];
+const QTY_PRESETS = [0.1, 0.2, 0.3, 0.5, 1, 2];
 
 function OffertePage() {
   const { bundles, updateBundle, addBundle, deleteBundle } = useStore();
