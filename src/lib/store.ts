@@ -226,6 +226,43 @@ function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store
   };
 }
 
+// Crea automaticamente un Lot per ogni riga della ricevuta.
+// Scadenza = data ricevuta + shelfLifeDays prodotto, fallback 72h.
+function applyReceiptLots(store: Store, rec: GoodsReceipt): Store {
+  const created: Lot[] = [];
+  let existing = [...store.lots];
+  for (const it of rec.items) {
+    const p = store.products.find(x => x.id === it.productId);
+    const baseDate = new Date(rec.date);
+    const expiry = new Date(baseDate);
+    if (p?.shelfLifeDays && p.shelfLifeDays > 0) {
+      expiry.setDate(expiry.getDate() + p.shelfLifeDays);
+    } else {
+      expiry.setHours(expiry.getHours() + 72);
+    }
+    const code = generateLotCode(rec.date, [...existing, ...created]);
+    created.push({
+      id: uid("lt_"),
+      code,
+      productId: it.productId,
+      productionDate: rec.date,
+      expiryDate: expiry.toISOString(),
+      qtyInitial: it.qty,
+      qtyRemaining: it.qty,
+      supplierId: rec.supplierId,
+      receiptId: rec.id,
+      notes: it.notes,
+      createdAt: nowIso(),
+    });
+  }
+  return { ...store, lots: [...created, ...store.lots] };
+}
+
+// Rimuove i lotti collegati a una ricevuta (es. annullamento/cancellazione)
+function removeReceiptLots(store: Store, receiptId: string): Store {
+  return { ...store, lots: store.lots.filter(l => l.receiptId !== receiptId) };
+}
+
 function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Store {
   const deltaBy = new Map<string, number>();
   for (const it of o.items) {
