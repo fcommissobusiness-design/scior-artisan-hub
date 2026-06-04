@@ -308,7 +308,6 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
       // Logica lotti: stesso prod+lotto = somma; lotto diverso = riga separata
       const ex = lots.find(l => l.productId === productId && l.code === lotCode.trim());
       if (ex) {
-        const { updateLot } = useStore();
         updateLot(ex.id, {
           qtyInitial: +(ex.qtyInitial + qtyNum).toFixed(3),
           qtyRemaining: +(ex.qtyRemaining + qtyNum).toFixed(3),
