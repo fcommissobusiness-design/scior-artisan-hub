@@ -301,7 +301,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   onClose: () => void;
   onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
 }) {
-  const { clients, products, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
+  const { clients, products, bundles, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
   const existing = orderId ? orders.find((o) => o.id === orderId) : null;
 
   // Per il bug "cancellazione nome": clientQ === null => mostra nome del cliente selezionato;
