@@ -437,10 +437,14 @@ export function useStore() {
     },
     deleteOrder: (id: string) => {
       const o = store.orders.find(x => x.id === id);
-      const nextDeliveries = o?.deliveryId
-        ? store.deliveries.filter(d => d.id !== o.deliveryId)
-        : store.deliveries;
-      setStore({ ...store, orders: store.orders.filter((x) => x.id !== id), deliveries: nextDeliveries });
+      if (!o) return;
+      const client = store.clients.find(c => c.id === o.clientId);
+      const label = `Ordine ${client?.name ?? o.clientId} · ${new Date(o.pickupDate).toLocaleDateString("it-IT")}`;
+      const del = o.deliveryId ? store.deliveries.find(d => d.id === o.deliveryId) : undefined;
+      const nextDeliveries = del ? store.deliveries.filter(d => d.id !== del.id) : store.deliveries;
+      let next: Store = { ...store, orders: store.orders.filter((x) => x.id !== id), deliveries: nextDeliveries };
+      next = pushTrash(next, "order", o.id, label, { order: o, delivery: del });
+      setStore(next);
     },
 
 
