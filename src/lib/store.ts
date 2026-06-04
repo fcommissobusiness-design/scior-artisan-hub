@@ -734,8 +734,53 @@ export function useStore() {
     },
     updateFixedCost: (id: string, patch: Partial<FixedCost>) =>
       setStore({ ...store, fixedCosts: store.fixedCosts.map((f) => f.id === id ? { ...f, ...patch } : f) }),
-    deleteFixedCost: (id: string) =>
-      setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
+    deleteFixedCost: (id: string) => {
+      const f = store.fixedCosts.find(x => x.id === id);
+      if (!f) return;
+      let next: Store = { ...store, fixedCosts: store.fixedCosts.filter((x) => x.id !== id) };
+      next = pushTrash(next, "fixedCost", f.id, `Costo fisso ${f.name}`, f);
+      setStore(next);
+    },
+
+    // TRASH (Cestino)
+    restoreTrash: (trashId: string) => {
+      const e = (store.trash ?? []).find(x => x.id === trashId);
+      if (!e) return;
+      let next: Store = { ...store, trash: store.trash.filter(x => x.id !== trashId) };
+      const data = e.data as any;
+      switch (e.kind) {
+        case "order": {
+          const o = data?.order as Order | undefined;
+          if (!o) break;
+          next = { ...next, orders: [o, ...next.orders.filter(x => x.id !== o.id)] };
+          const d = data?.delivery as Delivery | undefined;
+          if (d) next = { ...next, deliveries: [d, ...next.deliveries.filter(x => x.id !== d.id)] };
+          break;
+        }
+        case "casualSale":
+          next = { ...next, casualSales: [data as CasualSale, ...next.casualSales.filter(x => x.id !== e.refId)] }; break;
+        case "delivery":
+          next = { ...next, deliveries: [data as Delivery, ...next.deliveries.filter(x => x.id !== e.refId)] }; break;
+        case "bundle":
+          next = { ...next, bundles: [data as Bundle, ...next.bundles.filter(x => x.id !== e.refId)] }; break;
+        case "supplier":
+          next = { ...next, suppliers: [data as Supplier, ...next.suppliers.filter(x => x.id !== e.refId)] }; break;
+        case "supplierPayment":
+          next = { ...next, supplierPayments: [data as SupplierPayment, ...next.supplierPayments.filter(x => x.id !== e.refId)] }; break;
+        case "fixedCost":
+          next = { ...next, fixedCosts: [data as FixedCost, ...next.fixedCosts.filter(x => x.id !== e.refId)] }; break;
+        case "client":
+          next = { ...next, clients: [data as Client, ...next.clients.filter(x => x.id !== e.refId)] }; break;
+        case "b2bClient":
+          next = { ...next, b2bClients: [data as B2BClient, ...next.b2bClients.filter(x => x.id !== e.refId)] }; break;
+        case "product":
+          next = { ...next, products: [data as Product, ...next.products.filter(x => x.id !== e.refId)] }; break;
+      }
+      setStore(next);
+    },
+    purgeTrash: (trashId: string) =>
+      setStore({ ...store, trash: store.trash.filter(x => x.id !== trashId) }),
+    emptyTrash: () => setStore({ ...store, trash: [] }),
 
     // ONLINE ORDERS
     addOnlineOrder: (o: Omit<OnlineOrder, "id" | "createdAt">) => {
