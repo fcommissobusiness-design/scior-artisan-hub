@@ -22,7 +22,7 @@ type Movement = {
 };
 
 function CassaPage() {
-  const { orders, casualSales, supplierPayments, cashEntries, products, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, cashEntries, products, bundles, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
 
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
