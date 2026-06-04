@@ -631,7 +631,7 @@ function NewProductMini({ onClose, onCreate }: {
 }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("Dispensa");
-  const [unit, setUnit] = useState<"kg" | "pz">("pz");
+  const [unit, setUnit] = useState<"kg" | "pz">("kg");
   const [cost, setCost] = useState("");
   const [price, setPrice] = useState("");
 
