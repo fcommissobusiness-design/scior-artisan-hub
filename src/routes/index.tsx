@@ -389,29 +389,36 @@ const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
   ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
 };
 
-export function NewSaleSheet({ open, onClose, onSave }: {
-  open: boolean; onClose: () => void;
+export function NewSaleSheet({ open, saleId, onClose, onSave }: {
+  open: boolean;
+  saleId?: string;
+  onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products, bundles, updateClient } = useStore();
+  const { clients, products, bundles, casualSales, updateClient, updateCasualSale, deleteCasualSale } = useStore();
+  const existing = saleId ? casualSales.find(s => s.id === saleId) : null;
+  const isEdit = !!existing;
+
   const [date, setDate] = useState(() => {
-    const d = new Date(); d.setMinutes(0);
+    const d = existing ? new Date(existing.date) : (() => { const x = new Date(); x.setMinutes(0); return x; })();
     return d.toISOString().slice(0, 16);
   });
-  const [items, setItems] = useState<OrderItem[]>([]);
-  const [clientName, setClientName] = useState("");
+  const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
+  const initClientName = existing
+    ? (clients.find(c => c.id === existing.clientId)?.name ?? existing.clientNameInput ?? "")
+    : "";
+  const [clientName, setClientName] = useState(initClientName);
   const [phone, setPhone] = useState("");
-  const [source, setSource] = useState<OrderSource>("negozio");
-  const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
-  const [hasInvoice, setHasInvoice] = useState<boolean>(false);
-  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(undefined);
+  const [source, setSource] = useState<OrderSource>(existing?.source ?? "negozio");
+  const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
-    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
+    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase()) || c.phone.includes(clientName)).slice(0, 6) : [];
 
-  // Autocompleta telefono dal cliente selezionato
   const matchedId = matched?.id;
   const matchedPhone = matched?.phone ?? "";
   useEffect(() => {
@@ -449,6 +456,11 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
+    if (isEdit && existing) {
+      updateCasualSale(existing.id, sale);
+      onClose();
+      return;
+    }
     let newClient: { name: string; phone: string; segment: "nuovi"; stamps: 0 } | undefined;
     if (clientName.trim() && !matched) {
       newClient = { name: clientName.trim(), phone: phone.trim(), segment: "nuovi" as const, stamps: 0 };
@@ -457,10 +469,15 @@ export function NewSaleSheet({ open, onClose, onSave }: {
     onSave(sale, newClient);
   };
 
+  const handleDelete = () => {
+    if (!existing) return;
+    if (confirm("Eliminare questo scontrino?")) { deleteCasualSale(existing.id); onClose(); }
+  };
+
   const printPreview = () => {
     if (items.length === 0) return;
     const fakeSale = {
-      id: "PREVIEW",
+      id: existing?.id ?? "PREVIEW",
       date: new Date(date).toISOString(),
       items, total,
       clientId: matched?.id,
@@ -472,20 +489,24 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Nuovo scontrino"
+    <Sheet open={open} onClose={onClose} title={isEdit ? "Modifica scontrino" : "Nuovo scontrino"}
       footer={
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          {isEdit && (
+            <button onClick={handleDelete}
+              className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
           <button onClick={printPreview} disabled={items.length === 0}
             className="border border-border bg-card rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">
             🖨️ Stampa Comanda
           </button>
           <button onClick={save} disabled={items.length === 0}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
-            Conferma scontrino
+            {isEdit ? "Salva modifiche" : "Conferma scontrino"}
           </button>
         </div>
       }
