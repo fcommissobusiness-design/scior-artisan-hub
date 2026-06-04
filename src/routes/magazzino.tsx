@@ -164,10 +164,12 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
 
   const save = () => {
     if (!productId) { alert("Seleziona un prodotto"); return; }
+    const entryISO = new Date(entryDate).toISOString();
+    const expiryISO = expiry ? new Date(expiry).toISOString() : defaultExpiryFrom(entryISO);
     updateProduct(productId, {
       stock: stock ? Number(stock) : 0,
-      lastRestock: new Date(entryDate).toISOString(),
-      ...(expiry ? { stockExpiry: new Date(expiry).toISOString() } as any : {}),
+      lastRestock: entryISO,
+      ...({ stockExpiry: expiryISO } as any),
       ...(supplierId ? { supplierId } : {}),
     });
     // reset per inserimento multiplo
