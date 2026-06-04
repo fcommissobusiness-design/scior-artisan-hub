@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
+import { TopBar, formatEuro, formatTime, formatDate, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
 import { InvoiceField } from "@/components/InvoiceField";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
@@ -16,6 +16,7 @@ import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
 import { CartEditor } from "@/components/CartEditor";
+import { DeliveryFullSheet } from "@/components/DeliveryFullSheet";
 import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
