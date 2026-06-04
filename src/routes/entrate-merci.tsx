@@ -662,8 +662,8 @@ function NewProductMini({ onClose, onCreate }: {
         <Field label="Unità">
           <select value={unit} onChange={e => setUnit(e.target.value as "kg" | "pz")}
             className="w-full bg-card border border-border rounded-lg p-3">
-            <option value="pz">Pezzo</option>
             <option value="kg">Kg</option>
+            <option value="pz">Pezzo</option>
           </select>
         </Field>
         <Field label="Costo €">
