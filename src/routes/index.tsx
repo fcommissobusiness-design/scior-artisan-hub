@@ -28,10 +28,12 @@ function Dashboard() {
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
   const [openSale, setOpenSale] = useState(false);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [openOrder, setOpenOrder] = useState(false);
   const [openPay, setOpenPay] = useState(false);
+  const [openDeliv, setOpenDeliv] = useState(false);
+  const [editDelivId, setEditDelivId] = useState<string | null>(null);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
-  const [openQuick, setOpenQuick] = useState(false);
   const [pickAction, setPickAction] = useState(false);
   const [waOpen, setWaOpen] = useState<{ phone: string; clientId?: string; orderId?: string } | null>(null);
   const navigate = useNavigate();
