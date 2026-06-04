@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Delivery, DeliveryStatus, DeliveryPayment } from "@/lib/data";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { MapsBtn } from "@/components/QuickActions";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
+import { buildDeliveryComanda, printComanda } from "@/lib/comanda";
 
 export const Route = createFileRoute("/consegne")({ component: ConsegnePage });
 
