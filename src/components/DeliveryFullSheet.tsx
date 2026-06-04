@@ -157,7 +157,7 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
   const handlePrint = () => {
     if (!existing) return;
     const c = clients.find(x => x.id === existing.clientId);
-    printComanda(buildDeliveryComanda(existing, c, linkedOrder, products, bundles));
+    printComanda(buildDeliveryComanda(existing, c, linkedOrder ?? null, products, bundles));
     setMenuOpen(false);
   };
   const handleDelete = () => {
