@@ -284,7 +284,7 @@ function StockEditSheet({ productId, onClose, onSave }: {
 }
 
 function StockSetupSheet({ onClose }: { onClose: () => void }) {
-  const { products, lots, suppliers, updateProduct, addProduct, addLot } = useStore();
+  const { products, lots, suppliers, updateProduct, updateLot, addProduct, addLot } = useStore();
   const [productQ, setProductQ] = useState("");
   const [productId, setProductId] = useState("");
   const [newProductOpen, setNewProductOpen] = useState(false);
