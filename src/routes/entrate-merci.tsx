@@ -192,7 +192,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplierPayment } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplier, addSupplierPayment } = useStore();
 
   // Corrieri già registrati (da ricevute esistenti)
   const carriers = useMemo(() => {
@@ -202,6 +202,8 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   }, [goodsReceipts]);
 
   const [supplierId, setSupplierId] = useState(receipt?.supplierId ?? suppliers[0]?.id ?? "");
+  const [supplierQ, setSupplierQ] = useState<string>("");
+  const [newSupplierOpen, setNewSupplierOpen] = useState(false);
   const [date, setDate] = useState(receipt?.date.slice(0, 16) ?? new Date().toISOString().slice(0, 16));
   const [status, setStatus] = useState<GoodsReceiptStatus>(receipt?.status ?? "ricevuta");
   const [items, setItems] = useState<GoodsReceiptItem[]>(receipt?.items ?? []);
@@ -363,11 +365,37 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       }>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Fornitore">
-          <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            <option value="">— scegli —</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          {(() => {
+            const sel = suppliers.find(s => s.id === supplierId);
+            const sugg = supplierQ.length >= 1
+              ? suppliers.filter(s => s.name.toLowerCase().includes(supplierQ.toLowerCase())).slice(0, 8)
+              : [];
+            return (
+              <div className="relative">
+                <input value={sel ? sel.name : supplierQ}
+                  onChange={e => { setSupplierQ(e.target.value); setSupplierId(""); }}
+                  placeholder="Cerca fornitore…"
+                  className="w-full bg-card border border-border rounded-lg p-3" />
+                {sugg.length > 0 && !sel && (
+                  <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
+                    {sugg.map(s => (
+                      <button key={s.id} type="button"
+                        onClick={() => { setSupplierId(s.id); setSupplierQ(""); }}
+                        className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
+                        {s.name} <span className="text-xs text-muted-foreground">{s.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!sel && supplierQ.trim().length >= 2 && (
+                  <button type="button" onClick={() => setNewSupplierOpen(true)}
+                    className="mt-1 text-xs bg-brand-gold/15 text-brand-gold font-semibold rounded p-2 w-full text-left">
+                    + Aggiungi nuovo fornitore "{supplierQ.trim()}"
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </Field>
         <Field label="Data e ora">
           <input type="datetime-local" value={date} onChange={e => setDate(e.target.value)}
@@ -432,6 +460,17 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
                     className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
                 </label>
                 <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg pb-1">×</button>
+                <label className="col-span-8 text-[10px] text-muted-foreground">
+                  Lotto (opz.) <span className="text-muted-foreground/70">— stesso prodotto + stesso lotto = somma</span>
+                  <input value={it.lotCode ?? ""}
+                    onChange={e => updateItem(i, { lotCode: e.target.value })}
+                    placeholder="auto se vuoto"
+                    className="w-full bg-background border border-border rounded p-2 text-xs mt-1 font-mono" />
+                </label>
+                <label className="col-span-4 text-[10px] text-muted-foreground">
+                  Subtotale
+                  <p className="font-semibold text-sm py-2">{formatEuro((it.unitCost ?? 0) * it.qty)}</p>
+                </label>
               </div>
             </div>
           );})}
@@ -463,6 +502,18 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
           }}
         />
       )}
+
+      {newSupplierOpen && (
+        <Sheet open={true} onClose={() => setNewSupplierOpen(false)} title="Nuovo fornitore">
+          <NewSupplierMini initialName={supplierQ.trim()}
+            onCancel={() => setNewSupplierOpen(false)}
+            onCreate={(name, category) => {
+              const s = addSupplier({ name, category: category || "Altro" });
+              setSupplierId(s.id); setSupplierQ(""); setNewSupplierOpen(false);
+            }} />
+        </Sheet>
+      )}
+
 
 
 
@@ -676,5 +727,32 @@ function NewProductMini({ onClose, onCreate }: {
         </Field>
       </div>
     </Sheet>
+  );
+}
+
+function NewSupplierMini({ initialName, onCancel, onCreate }: {
+  initialName: string;
+  onCancel: () => void;
+  onCreate: (name: string, category: string) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [category, setCategory] = useState("");
+  return (
+    <>
+      <Field label="Nome">
+        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <Field label="Categoria">
+        <input value={category} onChange={e => setCategory(e.target.value)}
+          placeholder="es. Salumi, Pane, Latte..."
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onCancel} className="flex-1 border border-border rounded-lg py-2 text-sm">Annulla</button>
+        <button onClick={() => name.trim() && onCreate(name.trim(), category.trim())}
+          className="flex-1 bg-brand-gold text-white rounded-lg py-2 text-sm font-semibold">Crea</button>
+      </div>
+    </>
   );
 }

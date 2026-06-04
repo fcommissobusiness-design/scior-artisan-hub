@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
+import { TopBar, formatEuro, formatTime, formatDate, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
 import { InvoiceField } from "@/components/InvoiceField";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
@@ -16,6 +16,7 @@ import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
 import { CartEditor } from "@/components/CartEditor";
+import { DeliveryFullSheet } from "@/components/DeliveryFullSheet";
 import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
@@ -27,10 +28,12 @@ function Dashboard() {
   const [customStart, setCustomStart] = useState<string>("2026-01-01");
   const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
   const [openSale, setOpenSale] = useState(false);
+  const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [openOrder, setOpenOrder] = useState(false);
   const [openPay, setOpenPay] = useState(false);
+  const [openDeliv, setOpenDeliv] = useState(false);
+  const [editDelivId, setEditDelivId] = useState<string | null>(null);
   const [editOrderId, setEditOrderId] = useState<string | null>(null);
-  const [openQuick, setOpenQuick] = useState(false);
   const [pickAction, setPickAction] = useState(false);
   const [waOpen, setWaOpen] = useState<{ phone: string; clientId?: string; orderId?: string } | null>(null);
   const navigate = useNavigate();
@@ -135,7 +138,7 @@ function Dashboard() {
           <Quick onClick={() => setOpenOrder(true)} label="Nuovo ordine" />
           <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
           <Quick onClick={() => setOpenPay(true)} label="Nuovo pagamento" />
-          <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
+          <Quick onClick={() => setOpenDeliv(true)} label="Nuova consegna" />
         </section>
 
         {/* KPI CASSA */}
@@ -233,6 +236,34 @@ function Dashboard() {
             })}
           </div>
         </section>
+
+        {/* CONSEGNE */}
+        <section>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-display text-xl text-brand-green">Consegne ({consegneAperte.length})</h2>
+            <Link to="/consegne" className="text-xs text-brand-gold font-semibold">Tutte le consegne →</Link>
+          </div>
+          {consegneAperte.length === 0 && (
+            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessuna consegna aperta.</div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {consegneAperte.slice(0, 8).map((d) => {
+              const c = clientById(d.clientId);
+              const o = d.orderId ? orders.find(x => x.id === d.orderId) : null;
+              return (
+                <button key={d.id} onClick={() => setEditDelivId(d.id)}
+                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm">
+                  <div className="flex justify-between">
+                    <span className="font-semibold">{c?.name ?? "—"}</span>
+                    {o && <span className="text-brand-green font-bold">{formatEuro(o.total)}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{formatDate(d.date)} · {d.timeSlot} · {d.status.replace(/_/g, " ")}</p>
+                  <p className="text-xs text-foreground/70 mt-1 truncate">{d.address}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
       <Fab onClick={() => setPickAction(true)} />
@@ -246,6 +277,8 @@ function Dashboard() {
               className="bg-brand-gold text-white rounded-xl py-4 font-semibold">Nuovo scontrino</button>
             <button onClick={() => { setPickAction(false); setOpenPay(true); }}
               className="bg-danger text-white rounded-xl py-4 font-semibold">Nuovo pagamento</button>
+            <button onClick={() => { setPickAction(false); setOpenDeliv(true); }}
+              className="bg-blue-600 text-white rounded-xl py-4 font-semibold">Nuova consegna</button>
           </div>
         </Sheet>
       )}
@@ -265,9 +298,18 @@ function Dashboard() {
           onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); }} />
       )}
 
+      {openDeliv && (
+        <DeliveryFullSheet mode="new" onClose={() => setOpenDeliv(false)} />
+      )}
+
+      {editDelivId && (
+        <DeliveryFullSheet mode="edit" deliveryId={editDelivId} onClose={() => setEditDelivId(null)} />
+      )}
+
       <NewSaleSheet
         open={openSale}
-        onClose={() => setOpenSale(false)}
+        saleId={editSaleId ?? undefined}
+        onClose={() => { setOpenSale(false); setEditSaleId(null); }}
         onSave={(s, newClient) => {
           if (newClient) addClient(newClient);
           addCasualSale(s);
@@ -275,12 +317,6 @@ function Dashboard() {
         }}
       />
 
-      {openQuick && (
-        <QuickWhatsAppPicker
-          onClose={() => setOpenQuick(false)}
-          onPick={(c) => { setOpenQuick(false); setWaOpen({ phone: c.phone, clientId: c.id }); }}
-        />
-      )}
 
       {waOpen && (
         <WhatsAppDialog
@@ -320,29 +356,6 @@ function Kpi({ label, value, sub, danger, highlight, to }: { label: string; valu
   return inner;
 }
 
-function QuickWhatsAppPicker({ onClose, onPick }: { onClose: () => void; onPick: (c: { id: string; phone: string }) => void }) {
-  const { clients } = useStore();
-  const [q, setQ] = useState("");
-  const filtered = clients.filter((c) => c.phone && c.name.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
-  return (
-    <Sheet open={true} onClose={onClose} title="Scegli cliente">
-      <input autoFocus placeholder="Cerca cliente..." value={q} onChange={(e) => setQ(e.target.value)}
-        className="w-full bg-card border border-border rounded-lg p-3" />
-      <div className="space-y-1 max-h-96 overflow-y-auto">
-        {filtered.map((c) => (
-          <button key={c.id} onClick={() => onPick({ id: c.id, phone: c.phone })}
-            className="w-full text-left bg-card rounded-lg p-3 flex justify-between items-center">
-            <div>
-              <p className="font-semibold text-sm">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.phone}</p>
-            </div>
-            <span className="text-brand-gold text-xs font-semibold">→</span>
-          </button>
-        ))}
-      </div>
-    </Sheet>
-  );
-}
 
 const SALE_SOURCE_OPTIONS: OrderSource[] = ["negozio", "whatsapp", "telefono", "sito", "altro"];
 const SALE_SOURCE_LABEL: Record<OrderSource, string> = {
@@ -353,29 +366,36 @@ const SALE_DELIVERY_LABEL: Record<DeliveryMode, string> = {
   ritiro: "Ritiro in negozio", domicilio: "Consegna a domicilio",
 };
 
-export function NewSaleSheet({ open, onClose, onSave }: {
-  open: boolean; onClose: () => void;
+export function NewSaleSheet({ open, saleId, onClose, onSave }: {
+  open: boolean;
+  saleId?: string;
+  onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products, bundles, updateClient } = useStore();
+  const { clients, products, bundles, casualSales, updateClient, updateCasualSale, deleteCasualSale } = useStore();
+  const existing = saleId ? casualSales.find(s => s.id === saleId) : null;
+  const isEdit = !!existing;
+
   const [date, setDate] = useState(() => {
-    const d = new Date(); d.setMinutes(0);
+    const d = existing ? new Date(existing.date) : (() => { const x = new Date(); x.setMinutes(0); return x; })();
     return d.toISOString().slice(0, 16);
   });
-  const [items, setItems] = useState<OrderItem[]>([]);
-  const [clientName, setClientName] = useState("");
+  const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
+  const initClientName = existing
+    ? (clients.find(c => c.id === existing.clientId)?.name ?? existing.clientNameInput ?? "")
+    : "";
+  const [clientName, setClientName] = useState(initClientName);
   const [phone, setPhone] = useState("");
-  const [source, setSource] = useState<OrderSource>("negozio");
-  const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
-  const [hasInvoice, setHasInvoice] = useState<boolean>(false);
-  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(undefined);
+  const [source, setSource] = useState<OrderSource>(existing?.source ?? "negozio");
+  const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
+  const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
-    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
+    ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase()) || c.phone.includes(clientName)).slice(0, 6) : [];
 
-  // Autocompleta telefono dal cliente selezionato
   const matchedId = matched?.id;
   const matchedPhone = matched?.phone ?? "";
   useEffect(() => {
@@ -413,6 +433,11 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
+    if (isEdit && existing) {
+      updateCasualSale(existing.id, sale);
+      onClose();
+      return;
+    }
     let newClient: { name: string; phone: string; segment: "nuovi"; stamps: 0 } | undefined;
     if (clientName.trim() && !matched) {
       newClient = { name: clientName.trim(), phone: phone.trim(), segment: "nuovi" as const, stamps: 0 };
@@ -421,10 +446,15 @@ export function NewSaleSheet({ open, onClose, onSave }: {
     onSave(sale, newClient);
   };
 
+  const handleDelete = () => {
+    if (!existing) return;
+    if (confirm("Eliminare questo scontrino?")) { deleteCasualSale(existing.id); onClose(); }
+  };
+
   const printPreview = () => {
     if (items.length === 0) return;
     const fakeSale = {
-      id: "PREVIEW",
+      id: existing?.id ?? "PREVIEW",
       date: new Date(date).toISOString(),
       items, total,
       clientId: matched?.id,
@@ -436,20 +466,24 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Nuovo scontrino"
+    <Sheet open={open} onClose={onClose} title={isEdit ? "Modifica scontrino" : "Nuovo scontrino"}
       footer={
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          {isEdit && (
+            <button onClick={handleDelete}
+              className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
           <button onClick={printPreview} disabled={items.length === 0}
             className="border border-border bg-card rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">
             🖨️ Stampa Comanda
           </button>
           <button onClick={save} disabled={items.length === 0}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
-            Conferma scontrino
+            {isEdit ? "Salva modifiche" : "Conferma scontrino"}
           </button>
         </div>
       }

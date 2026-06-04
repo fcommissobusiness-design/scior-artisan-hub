@@ -104,15 +104,25 @@ function SupSheet({ mode, supplier, onClose, onSave, onDelete }: {
   onClose: () => void; onSave: (s: Omit<Supplier, "id"> | Partial<Supplier>) => void;
   onDelete?: () => void;
 }) {
-  const { products } = useStore();
+  const { products, addProduct } = useStore();
   const [name, setName] = useState(supplier?.name ?? "");
   const [category, setCategory] = useState(supplier?.category ?? "");
   const [phone, setPhone] = useState(supplier?.phone ?? "");
   const [contactName, setContactName] = useState(supplier?.contactName ?? "");
   const [productIds, setProductIds] = useState<string[]>(supplier?.productIds ?? []);
   const [notes, setNotes] = useState(supplier?.notes ?? "");
+  const [productQ, setProductQ] = useState("");
+  const [newProductOpen, setNewProductOpen] = useState(false);
 
   const toggle = (id: string) => setProductIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const filteredProducts = useMemo(() => {
+    const q = productQ.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(p => p.name.toLowerCase().includes(q));
+  }, [products, productQ]);
+
+  const exactMatch = products.some(p => p.name.toLowerCase() === productQ.trim().toLowerCase());
 
   const save = () => {
     if (!name.trim()) return;
@@ -151,19 +161,76 @@ function SupSheet({ mode, supplier, onClose, onSave, onDelete }: {
         </Field>
       </div>
       <Field label={`Prodotti collegati (${productIds.length})`}>
+        <input value={productQ} onChange={e => setProductQ(e.target.value)}
+          placeholder="Cerca prodotto…"
+          className="w-full bg-card border border-border rounded-lg p-2 text-sm mb-1" />
+        {productQ.trim().length >= 2 && !exactMatch && (
+          <button type="button" onClick={() => setNewProductOpen(true)}
+            className="mb-1 text-xs bg-brand-gold/15 text-brand-gold font-semibold rounded p-2 w-full text-left">
+            + Aggiungi nuovo prodotto "{productQ.trim()}"
+          </button>
+        )}
         <div className="max-h-48 overflow-y-auto border border-border rounded-lg bg-card divide-y divide-border">
-          {products.map(p => (
+          {filteredProducts.map(p => (
             <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm">
               <input type="checkbox" checked={productIds.includes(p.id)} onChange={() => toggle(p.id)} />
               <span className="truncate">{p.name}</span>
             </label>
           ))}
+          {filteredProducts.length === 0 && (
+            <p className="px-3 py-2 text-xs text-muted-foreground">Nessun prodotto trovato.</p>
+          )}
         </div>
       </Field>
       <Field label="Note">
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
+
+      {newProductOpen && (
+        <Sheet open={true} onClose={() => setNewProductOpen(false)} title="Nuovo prodotto">
+          <SimpleNewProduct initialName={productQ.trim()}
+            onCancel={() => setNewProductOpen(false)}
+            onCreate={(n, u) => {
+              const p = addProduct({
+                name: n, category: "Dispensa", unit: u, cost: null, price: 0,
+                active: true, available: true,
+              });
+              setProductIds(prev => [...prev, p.id]);
+              setProductQ("");
+              setNewProductOpen(false);
+            }} />
+        </Sheet>
+      )}
     </Sheet>
+  );
+}
+
+function SimpleNewProduct({ initialName, onCancel, onCreate }: {
+  initialName: string;
+  onCancel: () => void;
+  onCreate: (name: string, unit: "kg" | "pz") => void;
+}) {
+  const [n, setN] = useState(initialName);
+  const [u, setU] = useState<"kg" | "pz">("kg");
+  return (
+    <>
+      <Field label="Nome prodotto">
+        <input value={n} onChange={e => setN(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <Field label="Unità">
+        <select value={u} onChange={e => setU(e.target.value as "kg" | "pz")}
+          className="w-full bg-card border border-border rounded-lg p-3">
+          <option value="kg">Kg</option>
+          <option value="pz">Pezzo</option>
+        </select>
+      </Field>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onCancel} className="flex-1 border border-border rounded-lg py-2 text-sm">Annulla</button>
+        <button onClick={() => n.trim() && onCreate(n.trim(), u)}
+          className="flex-1 bg-brand-gold text-white rounded-lg py-2 text-sm font-semibold">Crea</button>
+      </div>
+    </>
   );
 }
