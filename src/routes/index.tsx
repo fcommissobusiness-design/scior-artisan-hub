@@ -15,6 +15,8 @@ import {
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
+import { QtyInput } from "@/components/QtyInput";
+import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
