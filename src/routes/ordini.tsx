@@ -300,10 +300,12 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   onClose: () => void;
   onSave?: (o: Omit<Order, "id" | "createdAt">) => void;
 }) {
-  const { clients, products, orders, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
+  const { clients, products, orders, addClient, updateOrder, updateClient, deleteOrder, duplicateOrder } = useStore();
   const existing = orderId ? orders.find((o) => o.id === orderId) : null;
 
-  const [clientQ, setClientQ] = useState("");
+  // Per il bug "cancellazione nome": clientQ === null => mostra nome del cliente selezionato;
+  // appena l'utente digita (anche stringa vuota) controlla il valore dell'input.
+  const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(existing?.clientId ?? clients[0]?.id ?? "");
   const [label, setLabel] = useState(existing?.label ?? "");
   const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
