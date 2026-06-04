@@ -429,7 +429,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   const handlePrintComanda = () => {
     if (!existing) return;
     const c = clients.find(x => x.id === existing.clientId);
-    printComanda(buildOrderComanda(existing, c, products));
+    printComanda(buildOrderComanda(existing, c, products, bundles));
     setMenuOpen(false);
   };
 
