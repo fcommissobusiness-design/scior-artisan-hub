@@ -1,6 +1,6 @@
 // Metriche derivate. Nessuno stato — sempre calcolato dai dati store.
 import type {
-  Client, Order, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
+  Client, Order, OrderItem, CasualSale, Product, Delivery, Bundle, Segment, LoyaltyEvent,
   Production, CashEntry, SupplierPayment, B2BClient,
   FixedCost, GoodsReceipt, UnsoldEntry, BusinessHours, SpecialDay, ProductCategory,
   OnlineOrder, Shipment,
