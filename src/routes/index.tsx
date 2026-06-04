@@ -236,6 +236,34 @@ function Dashboard() {
             })}
           </div>
         </section>
+
+        {/* CONSEGNE */}
+        <section>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-display text-xl text-brand-green">Consegne ({consegneAperte.length})</h2>
+            <Link to="/consegne" className="text-xs text-brand-gold font-semibold">Tutte le consegne →</Link>
+          </div>
+          {consegneAperte.length === 0 && (
+            <div className="bg-card rounded-xl p-6 text-center text-sm text-muted-foreground">Nessuna consegna aperta.</div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {consegneAperte.slice(0, 8).map((d) => {
+              const c = clientById(d.clientId);
+              const o = d.orderId ? orders.find(x => x.id === d.orderId) : null;
+              return (
+                <button key={d.id} onClick={() => setEditDelivId(d.id)}
+                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm">
+                  <div className="flex justify-between">
+                    <span className="font-semibold">{c?.name ?? "—"}</span>
+                    {o && <span className="text-brand-green font-bold">{formatEuro(o.total)}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{formatDate(d.date)} · {d.timeSlot} · {d.status.replace(/_/g, " ")}</p>
+                  <p className="text-xs text-foreground/70 mt-1 truncate">{d.address}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
       <Fab onClick={() => setPickAction(true)} />
@@ -249,6 +277,8 @@ function Dashboard() {
               className="bg-brand-gold text-white rounded-xl py-4 font-semibold">Nuovo scontrino</button>
             <button onClick={() => { setPickAction(false); setOpenPay(true); }}
               className="bg-danger text-white rounded-xl py-4 font-semibold">Nuovo pagamento</button>
+            <button onClick={() => { setPickAction(false); setOpenDeliv(true); }}
+              className="bg-blue-600 text-white rounded-xl py-4 font-semibold">Nuova consegna</button>
           </div>
         </Sheet>
       )}
@@ -268,9 +298,18 @@ function Dashboard() {
           onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); }} />
       )}
 
+      {openDeliv && (
+        <DeliveryFullSheet mode="new" onClose={() => setOpenDeliv(false)} />
+      )}
+
+      {editDelivId && (
+        <DeliveryFullSheet mode="edit" deliveryId={editDelivId} onClose={() => setEditDelivId(null)} />
+      )}
+
       <NewSaleSheet
         open={openSale}
-        onClose={() => setOpenSale(false)}
+        saleId={editSaleId ?? undefined}
+        onClose={() => { setOpenSale(false); setEditSaleId(null); }}
         onSave={(s, newClient) => {
           if (newClient) addClient(newClient);
           addCasualSale(s);
@@ -278,12 +317,6 @@ function Dashboard() {
         }}
       />
 
-      {openQuick && (
-        <QuickWhatsAppPicker
-          onClose={() => setOpenQuick(false)}
-          onPick={(c) => { setOpenQuick(false); setWaOpen({ phone: c.phone, clientId: c.id }); }}
-        />
-      )}
 
       {waOpen && (
         <WhatsAppDialog
