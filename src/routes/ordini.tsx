@@ -589,25 +589,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
         </Field>
       </div>
 
-      <Field label="Prodotti">
-        <input placeholder="Cerca prodotto..." value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-2.5 text-sm" />
-        <div className="max-h-80 overflow-y-auto mt-2 space-y-1">
-          {filteredProducts.map((p) => {
-            const item = items.find((i) => i.productId === p.id);
-            const qty = item?.qty ?? 0;
-            const step = p.unit === "kg" ? 0.1 : 1;
-            return (
-              <div key={p.id} className="bg-card rounded-lg p-2.5 flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
-                </div>
-                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => updateItem(p.id, n)} />
-              </div>
-            );
-          })}
-        </div>
+      <Field label="Prodotti, bundle e righe personalizzate">
+        <CartEditor items={items} onChange={setItems} />
       </Field>
 
       <Field label="Note">
