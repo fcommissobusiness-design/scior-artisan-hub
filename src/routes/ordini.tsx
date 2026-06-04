@@ -473,7 +473,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
-          <button onClick={handleSave} disabled={!clientId || items.length === 0}
+          <button onClick={handleSave} disabled={items.length === 0 || (!clientId && !((clientQ ?? "").trim()))}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
             Conferma
           </button>
@@ -489,6 +489,8 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
               <div className="absolute right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[180px]">
                 <button onClick={handleDuplicate}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream">Duplica ordine</button>
+                <button onClick={handlePrintComanda}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream border-t border-border">🖨️ Stampa Comanda</button>
               </div>
             )}
           </div>
@@ -497,18 +499,22 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Cliente">
-          <input placeholder="Cerca o seleziona..." value={clientQ || selectedClient?.name || ""}
+          <input placeholder="Cerca o seleziona..."
+            value={clientQ !== null ? clientQ : (selectedClient?.name ?? "")}
             onChange={(e) => { setClientQ(e.target.value); }}
             className="w-full bg-card border border-border rounded-lg p-3" />
-          {clientSuggestions.length > 0 && clientQ && (
+          {clientSuggestions.length > 0 && clientQ !== null && (
             <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
               {clientSuggestions.map(c => (
-                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(""); }}
+                <button key={c.id} onClick={() => { setClientId(c.id); setClientQ(null); }}
                   className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
                   {c.name} <span className="text-xs text-muted-foreground">{c.phone}</span>
                 </button>
               ))}
             </div>
+          )}
+          {typedNotMatchedClient && (
+            <p className="text-[11px] text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda al salvataggio.</p>
           )}
         </Field>
         <Field label="Telefono">
