@@ -362,22 +362,9 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     return () => document.removeEventListener("mousedown", fn);
   }, [menuOpen]);
 
-  const total = items.reduce((s, i) => {
-    const p = products.find((p) => p.id === i.productId);
-    return s + (p ? p.price * i.qty : 0);
-  }, 0);
-  const margin = orderMargin({ items } as Order, products);
+  const total = cartTotal(items, products, bundles);
+  const margin = orderMargin({ items } as Order, products, bundles);
 
-  const updateItem = (id: string, qty: number) => {
-    setItems((prev) => {
-      const ex = prev.find((p) => p.productId === id);
-      if (qty <= 0) return prev.filter((p) => p.productId !== id);
-      if (ex) return prev.map((p) => p.productId === id ? { ...p, qty } : p);
-      return [...prev, { productId: id, qty }];
-    });
-  };
-
-  const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
   const clientQText = clientQ ?? "";
   const clientSuggestions = clientQText.length >= 1
     ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6)
