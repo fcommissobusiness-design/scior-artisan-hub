@@ -284,6 +284,13 @@ function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Stor
   };
 }
 
+function pushTrash(store: Store, kind: TrashKind, refId: string, label: string, data: unknown): Store {
+  const entry: TrashEntry = {
+    id: uid("tr_"), kind, refId, label, deletedAt: nowIso(), data,
+  };
+  return { ...store, trash: [entry, ...(store.trash ?? [])] };
+}
+
 export function useStore() {
   const [, setTick] = useState(0);
   useEffect(() => {
