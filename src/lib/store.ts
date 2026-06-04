@@ -598,8 +598,13 @@ export function useStore() {
     },
     updateSupplier: (id: string, patch: Partial<Supplier>) =>
       setStore({ ...store, suppliers: store.suppliers.map((s) => s.id === id ? { ...s, ...patch } : s) }),
-    deleteSupplier: (id: string) =>
-      setStore({ ...store, suppliers: store.suppliers.filter((s) => s.id !== id) }),
+    deleteSupplier: (id: string) => {
+      const s = store.suppliers.find(x => x.id === id);
+      if (!s) return;
+      let next: Store = { ...store, suppliers: store.suppliers.filter((x) => x.id !== id) };
+      next = pushTrash(next, "supplier", s.id, `Fornitore ${s.name}`, s);
+      setStore(next);
+    },
 
     // CASH ENTRIES
     addCashEntry: (e: Omit<CashEntry, "id">) => {
