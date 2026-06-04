@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
@@ -377,10 +377,8 @@ export function NewSaleSheet({ open, onClose, onSave }: {
 
   // Autocompleta telefono dal cliente selezionato
   const matchedId = matched?.id;
-  const matchedPhone = matched?.phone ?? "";
-  useMemo(() => {
+  useEffect(() => {
     setPhone(matchedPhone);
-    return null;
   }, [matchedId, matchedPhone]);
 
   const phoneOptions = matched
