@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
@@ -357,13 +357,14 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   open: boolean; onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products, bundles } = useStore();
+  const { clients, products, bundles, updateClient } = useStore();
   const [date, setDate] = useState(() => {
     const d = new Date(); d.setMinutes(0);
     return d.toISOString().slice(0, 16);
   });
   const [items, setItems] = useState<OrderItem[]>([]);
   const [clientName, setClientName] = useState("");
+  const [phone, setPhone] = useState("");
   const [source, setSource] = useState<OrderSource>("negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>("ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("contanti");
@@ -374,12 +375,36 @@ export function NewSaleSheet({ open, onClose, onSave }: {
   const suggestions = clientName.length >= 2 && !matched
     ? clients.filter((c) => c.name.toLowerCase().includes(clientName.toLowerCase())).slice(0, 4) : [];
 
+  // Autocompleta telefono dal cliente selezionato
+  const matchedId = matched?.id;
+  const matchedPhone = matched?.phone ?? "";
+  useEffect(() => {
+    setPhone(matchedPhone);
+  }, [matchedId, matchedPhone]);
+
+  const phoneOptions = matched
+    ? Array.from(new Set([matched.phone, ...(matched.phones ?? [])].filter(Boolean)))
+    : [];
+
   const total = cartTotal(items, products, bundles);
 
-  const reset = () => { setItems([]); setClientName(""); setSource("negozio"); setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined); };
+  const reset = () => {
+    setItems([]); setClientName(""); setPhone(""); setSource("negozio");
+    setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined);
+  };
+
+  const persistPhoneIfChanged = () => {
+    if (!matched) return;
+    const trimmed = phone.trim();
+    if (!trimmed || trimmed === matched.phone) return;
+    const others = (matched.phones ?? []).filter(p => p && p !== trimmed && p !== matched.phone);
+    const newPhones = [matched.phone, ...others].filter(Boolean);
+    updateClient(matched.id, { phone: trimmed, phones: newPhones });
+  };
 
   const save = () => {
     if (items.length === 0) return;
+    if (matched) persistPhoneIfChanged();
     const sale: Omit<CasualSale, "id"> = {
       date: new Date(date).toISOString(),
       items, total,
@@ -388,9 +413,9 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
-    let newClient: any = undefined;
+    let newClient: { name: string; phone: string; segment: "nuovi"; stamps: 0 } | undefined;
     if (clientName.trim() && !matched) {
-      newClient = { name: clientName.trim(), phone: "", segment: "nuovi" as const, stamps: 0 };
+      newClient = { name: clientName.trim(), phone: phone.trim(), segment: "nuovi" as const, stamps: 0 };
     }
     reset();
     onSave(sale, newClient);
@@ -472,6 +497,22 @@ export function NewSaleSheet({ open, onClose, onSave }: {
                 className="text-xs bg-brand-cream border border-border rounded-full px-2 py-1">{c.name}</button>
             ))}
           </div>
+        )}
+      </Field>
+
+      <Field label="Telefono (facoltativo)">
+        <div className="flex gap-1">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+39 ..."
+            className="flex-1 bg-card border border-border rounded-lg p-3" />
+          {phoneOptions.length > 1 && (
+            <select value={phone} onChange={(e) => setPhone(e.target.value)}
+              className="bg-card border border-border rounded-lg px-2 text-sm" aria-label="Scegli numero">
+              {phoneOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          )}
+        </div>
+        {matched && phone.trim() && phone.trim() !== matched.phone && !(matched.phones ?? []).includes(phone.trim()) && (
+          <p className="text-[11px] text-brand-gold mt-1">Verrà salvato come ulteriore recapito nella scheda cliente.</p>
         )}
       </Field>
 

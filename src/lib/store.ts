@@ -14,6 +14,7 @@ import {
   type Lot, type HaccpReading, type CleaningTask,
   type TrashEntry, type TrashKind,
 } from "./data";
+import { applyClientImportV7 } from "./client-import";
 
 const KEY = "sciorio-hq-v4";
 const LEGACY_V3 = "sciorio-hq-v3";
@@ -86,6 +87,8 @@ function migrate(parsed: any): Store {
   const demoCleanV5 = parsed.__demoCleanV5 === true;
   // V6: wipe definitivo di costi fissi demo, pagamenti e cash demo (gestionale "pulito").
   const demoCleanV6 = parsed.__demoCleanV6 === true;
+  // V7: import lista clienti ufficiale (segmento + telefoni) — applicato una sola volta.
+  const clientsImportV7 = parsed.__clientsImportV7 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -125,11 +128,16 @@ function migrate(parsed: any): Store {
     cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
     trash: parsed.trash ?? [],
   };
+  // V7: applica una sola volta l'import della lista clienti ufficiale.
+  if (!clientsImportV7) {
+    out.clients = applyClientImportV7(out.clients);
+  }
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
   (out as any).__demoCleanV5 = true;
   (out as any).__demoCleanV6 = true;
+  (out as any).__clientsImportV7 = true;
   return out;
 }
 
@@ -152,8 +160,11 @@ function load(): Store {
       return m;
     }
   } catch {}
-  localStorage.setItem(KEY, JSON.stringify(SEED));
-  return SEED;
+  // Prima installazione: applica anche qui l'import lista clienti V7.
+  const fresh: Store = { ...SEED, clients: applyClientImportV7(SEED.clients) };
+  (fresh as any).__clientsImportV7 = true;
+  localStorage.setItem(KEY, JSON.stringify(fresh));
+  return fresh;
 }
 
 const listeners = new Set<() => void>();
