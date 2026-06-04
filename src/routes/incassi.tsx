@@ -160,39 +160,43 @@ function CassaPage() {
         {visibleList.length === 0 && (
           <p className="text-center text-sm text-muted-foreground py-8">Nessun movimento nel periodo.</p>
         )}
-        {visibleList.map(m => (
-          <div key={m.id} className="bg-card rounded-xl p-3 flex justify-between items-center gap-3">
-            <div className="min-w-0">
-              <p className={`font-display text-base ${m.type === "entrata" ? "text-success" : "text-danger"}`}>
-                {m.type === "entrata" ? "+" : "−"} {formatEuro(m.amount)}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {m.label}{m.meta ? ` · ${m.meta}` : ""}
-                {m.margin !== undefined && ` · margine ${formatEuro(m.margin)}`}
-              </p>
-            </div>
-            <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(m.date)}</p>
-          </div>
-        ))}
+        {visibleList.map(m => {
+          const openable = m.id.startsWith("sale_") || m.id.startsWith("ord_");
+          const onOpen = () => {
+            if (m.id.startsWith("sale_")) { setEditSaleId(m.id.replace(/^sale_/, "")); setOpenSale(true); }
+            else if (m.id.startsWith("ord_")) { setEditOrderId(m.id.replace(/^ord_/, "")); }
+          };
+          return (
+            <button key={m.id} disabled={!openable} onClick={onOpen}
+              className="w-full text-left bg-card rounded-xl p-3 flex justify-between items-center gap-3 disabled:cursor-default">
+              <div className="min-w-0">
+                <p className={`font-display text-base ${m.type === "entrata" ? "text-success" : "text-danger"}`}>
+                  {m.type === "entrata" ? "+" : "−"} {formatEuro(m.amount)}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {m.label}{m.meta ? ` · ${m.meta}` : ""}
+                  {m.margin !== undefined && ` · margine ${formatEuro(m.margin)}`}
+                </p>
+              </div>
+              <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(m.date)}</p>
+            </button>
+          );
+        })}
       </div>
 
       <Fab onClick={() => setPickerOpen(true)} />
 
-      {pickerOpen && !openOrder && !openSale && !openPay && (
+      {pickerOpen && !openOrder && !openSale && !openPay && !openDeliv && !editOrderId && !editSaleId && (
         <Sheet open={true} onClose={() => setPickerOpen(false)} title="Nuovo movimento">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <button onClick={() => setOpenOrder(true)}
-              className="py-6 rounded-xl bg-brand-green text-brand-cream font-semibold">
-              Nuovo Ordine
-            </button>
+              className="py-6 rounded-xl bg-brand-green text-brand-cream font-semibold">Nuovo Ordine</button>
             <button onClick={() => setOpenSale(true)}
-              className="py-6 rounded-xl bg-brand-gold text-white font-semibold">
-              Nuovo Scontrino
-            </button>
+              className="py-6 rounded-xl bg-brand-gold text-white font-semibold">Nuovo Scontrino</button>
             <button onClick={() => setOpenPay(true)}
-              className="py-6 rounded-xl bg-danger text-white font-semibold">
-              Nuovo Pagamento
-            </button>
+              className="py-6 rounded-xl bg-danger text-white font-semibold">Nuovo Pagamento</button>
+            <button onClick={() => setOpenDeliv(true)}
+              className="py-6 rounded-xl bg-blue-600 text-white font-semibold">Nuova Consegna</button>
           </div>
         </Sheet>
       )}
@@ -203,9 +207,14 @@ function CassaPage() {
           onSave={(payload) => { addOrder(payload); setOpenOrder(false); setPickerOpen(false); }} />
       )}
 
+      {editOrderId && (
+        <OrderSheet mode="edit" orderId={editOrderId}
+          onClose={() => setEditOrderId(null)} />
+      )}
+
       {openSale && (
-        <NewSaleSheet open={true}
-          onClose={() => { setOpenSale(false); setPickerOpen(false); }}
+        <NewSaleSheet open={true} saleId={editSaleId ?? undefined}
+          onClose={() => { setOpenSale(false); setEditSaleId(null); setPickerOpen(false); }}
           onSave={(s, newClient) => {
             if (newClient) addClient(newClient);
             addCasualSale(s);
@@ -218,6 +227,10 @@ function CassaPage() {
         <PaySheet mode="new" suppliers={suppliers}
           onClose={() => { setOpenPay(false); setPickerOpen(false); }}
           onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenPay(false); setPickerOpen(false); }} />
+      )}
+
+      {openDeliv && (
+        <DeliveryFullSheet mode="new" onClose={() => { setOpenDeliv(false); setPickerOpen(false); }} />
       )}
     </div>
   );
