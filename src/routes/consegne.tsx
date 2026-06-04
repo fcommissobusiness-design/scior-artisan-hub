@@ -220,8 +220,8 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   mode: "new" | "edit"; delivery?: Delivery;
   onClose: () => void; onSave: (d: Omit<Delivery, "id" | "createdAt"> | Partial<Delivery>) => void;
 }) {
-  const { clients, updateClient } = useStore();
-  const [clientQ, setClientQ] = useState("");
+  const { clients, products, orders, updateClient, addClient } = useStore();
+  const [clientQ, setClientQ] = useState<string | null>(null);
   const [clientId, setClientId] = useState(delivery?.clientId ?? clients[0]?.id ?? "");
   const [address, setAddress] = useState(delivery?.address ?? "");
   const [date, setDate] = useState(() => {
@@ -234,6 +234,16 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
   const [status, setStatus] = useState<DeliveryStatus>(delivery?.status ?? "da_preparare");
   const [payment, setPayment] = useState<DeliveryPayment>(delivery?.payment ?? "da_pagare");
   const [notes, setNotes] = useState(delivery?.notes ?? "");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    if (menuOpen) document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [menuOpen]);
 
   const selectedClient = clients.find(c => c.id === clientId);
   const [phone, setPhone] = useState(selectedClient?.phone ?? "");
@@ -252,8 +262,9 @@ function DeliverySheet({ mode, delivery, onClose, onSave }: {
     return Array.from(new Set([selectedClient.deliveryZone, ...(selectedClient.addresses ?? [])].filter(Boolean) as string[]));
   }, [selectedClient]);
 
-  const clientSugg = clientQ.length >= 1
-    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6) : [];
+  const clientQText = clientQ ?? "";
+  const clientSugg = clientQText.length >= 1
+    ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6) : [];
 
   const persistContactsIfChanged = () => {
     if (!selectedClient) return;
