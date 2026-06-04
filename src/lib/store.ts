@@ -567,10 +567,15 @@ export function useStore() {
     },
     deleteDelivery: (id: string) => {
       const d = store.deliveries.find(x => x.id === id);
-      const nextOrders = d?.orderId
+      if (!d) return;
+      const client = store.clients.find(c => c.id === d.clientId);
+      const label = `Consegna ${client?.name ?? ""} · ${new Date(d.date).toLocaleDateString("it-IT")}`;
+      const nextOrders = d.orderId
         ? store.orders.map(o => o.id === d.orderId ? { ...o, deliveryId: undefined } : o)
         : store.orders;
-      setStore({ ...store, deliveries: store.deliveries.filter(x => x.id !== id), orders: nextOrders });
+      let next: Store = { ...store, deliveries: store.deliveries.filter(x => x.id !== id), orders: nextOrders };
+      next = pushTrash(next, "delivery", d.id, label, d);
+      setStore(next);
     },
 
 
