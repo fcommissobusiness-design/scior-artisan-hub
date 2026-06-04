@@ -5,6 +5,13 @@ import { TopBar, Sheet, Field, formatDate } from "@/components/AppShell";
 
 export const Route = createFileRoute("/magazzino")({ component: MagazzinoPage });
 
+const DEFAULT_EXPIRY_HOURS = 72;
+function defaultExpiryFrom(entryISO: string): string {
+  const d = new Date(entryISO);
+  d.setHours(d.getHours() + DEFAULT_EXPIRY_HOURS);
+  return d.toISOString();
+}
+
 interface StockRow {
   productId: string;
   name: string;
@@ -49,6 +56,10 @@ function MagazzinoPage() {
       <div className="px-4 md:px-6 pt-4 flex gap-2 items-center">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca prodotto..."
           className="flex-1 bg-card border border-border rounded-lg px-3 py-2 text-sm" />
+        <Link to="/prodotti"
+          className="bg-card border border-border text-brand-green rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap">
+          + Nuovo prodotto
+        </Link>
         <button onClick={() => setOpenSetup(true)}
           className="bg-brand-green text-brand-cream rounded-lg px-3 py-2 text-xs font-semibold whitespace-nowrap">
           Imposta Magazzino
@@ -108,7 +119,9 @@ function StockEditSheet({ productId, onClose, onSave }: {
   const p = products.find(x => x.id === productId)!;
   const [stock, setStock] = useState<string>(p.stock?.toString() ?? "");
   const [lastRestock, setLastRestock] = useState<string>((p.lastRestock ?? new Date().toISOString()).slice(0, 10));
-  const initialExp = (p as any).stockExpiry ?? computeExpiry(p.lastRestock, p.shelfLifeDays);
+  const initialExp = (p as any).stockExpiry
+    ?? computeExpiry(p.lastRestock, p.shelfLifeDays)
+    ?? defaultExpiryFrom(p.lastRestock ?? new Date().toISOString());
   const [expiry, setExpiry] = useState<string>(initialExp ? initialExp.slice(0, 10) : "");
 
   const save = () => {
@@ -151,10 +164,12 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
 
   const save = () => {
     if (!productId) { alert("Seleziona un prodotto"); return; }
+    const entryISO = new Date(entryDate).toISOString();
+    const expiryISO = expiry ? new Date(expiry).toISOString() : defaultExpiryFrom(entryISO);
     updateProduct(productId, {
       stock: stock ? Number(stock) : 0,
-      lastRestock: new Date(entryDate).toISOString(),
-      ...(expiry ? { stockExpiry: new Date(expiry).toISOString() } as any : {}),
+      lastRestock: entryISO,
+      ...({ stockExpiry: expiryISO } as any),
       ...(supplierId ? { supplierId } : {}),
     });
     // reset per inserimento multiplo
@@ -190,8 +205,9 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
           <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Scadenza">
+        <Field label="Scadenza (default +72h)">
           <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
+            placeholder="Default: 72h dall'ingresso"
             className="w-full bg-card border border-border rounded-lg p-3 col-span-2" />
         </Field>
       </div>

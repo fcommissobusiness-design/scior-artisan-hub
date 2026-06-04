@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatDate, formatEuro } from "@/components/AppShell";
+import { QtyInput } from "@/components/QtyInput";
 import {
   type GoodsReceipt, type GoodsReceiptItem, type GoodsReceiptStatus,
   type GoodsReceiptAttachment, type InvoicePaymentStatus, type DocumentKind,
@@ -191,7 +192,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, addSupplierPayment } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplierPayment } = useStore();
 
   // Corrieri già registrati (da ricevute esistenti)
   const carriers = useMemo(() => {
@@ -285,6 +286,18 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
 
   const save = () => {
     if (!supplierId) { alert("Seleziona un fornitore"); return; }
+    // Override prezzo costo: se il costo unitario inserito differisce da quello in scheda prodotto, chiedi all'utente
+    for (const it of items) {
+      if (it.unitCost == null) continue;
+      const p = products.find(x => x.id === it.productId);
+      if (!p) continue;
+      const cur = p.cost ?? 0;
+      if (Math.abs(cur - it.unitCost) > 0.005) {
+        if (confirm(`"${p.name}": costo in scheda ${formatEuro(cur)}, costo in questa consegna ${formatEuro(it.unitCost)}.\n\nAggiornare il costo di listino?`)) {
+          updateProduct(p.id, { cost: it.unitCost });
+        }
+      }
+    }
     const payload: Omit<GoodsReceipt, "id" | "createdAt"> = {
       supplierId,
       date: new Date(date).toISOString(),
@@ -390,24 +403,30 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       {/* ITEMS */}
       <Field label={`Prodotti consegnati (${items.length}) · totale stimato ${formatEuro(computedTotal)}`}>
         <div className="space-y-2">
-          {items.map((it, i) => (
+          {items.map((it, i) => {
+            const prod = products.find(p => p.id === it.productId);
+            const unitLabel = prod?.unit === "kg" ? "kg" : "pz";
+            const step = prod?.unit === "kg" ? 0.1 : 1;
+            return (
             <div key={i} className="bg-card border border-border rounded-lg p-2 space-y-2">
               <select value={it.productId} onChange={e => {
                 if (e.target.value === "__new__") setNewProductFor(i);
-                else updateItem(i, { productId: e.target.value });
+                else {
+                  const np = products.find(p => p.id === e.target.value);
+                  updateItem(i, { productId: e.target.value, unitCost: np?.cost ?? it.unitCost });
+                }
               }} className="w-full bg-background border border-border rounded p-2 text-sm">
                 <option value="__new__">+ Aggiungi prodotto nuovo</option>
                 {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <div className="grid grid-cols-12 gap-2 items-end">
-                <label className="col-span-5 text-[10px] text-muted-foreground">
-                  Quantità (grammi)
-                  <input type="number" step="1" value={it.qty}
-                    onChange={e => updateItem(i, { qty: Number(e.target.value) })}
-                    className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
-                </label>
+                <div className="col-span-5">
+                  <p className="text-[10px] text-muted-foreground mb-1">Quantità ({unitLabel})</p>
+                  <QtyInput value={it.qty} step={step} unit={unitLabel}
+                    onChange={(q) => updateItem(i, { qty: q })} />
+                </div>
                 <label className="col-span-6 text-[10px] text-muted-foreground">
-                  Prezzo (€)
+                  Costo unitario (€)
                   <input type="number" step="0.01" value={it.unitCost ?? ""}
                     onChange={e => updateItem(i, { unitCost: e.target.value === "" ? undefined : Number(e.target.value) })}
                     className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
@@ -415,7 +434,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
                 <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg pb-1">×</button>
               </div>
             </div>
-          ))}
+          );})}
           <select onChange={e => {
             if (e.target.value === "__new__") setNewProductFor("append");
             else if (e.target.value) {
@@ -612,7 +631,7 @@ function NewProductMini({ onClose, onCreate }: {
 }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("Dispensa");
-  const [unit, setUnit] = useState<"kg" | "pz">("pz");
+  const [unit, setUnit] = useState<"kg" | "pz">("kg");
   const [cost, setCost] = useState("");
   const [price, setPrice] = useState("");
 
@@ -643,8 +662,8 @@ function NewProductMini({ onClose, onCreate }: {
         <Field label="Unità">
           <select value={unit} onChange={e => setUnit(e.target.value as "kg" | "pz")}
             className="w-full bg-card border border-border rounded-lg p-3">
-            <option value="pz">Pezzo</option>
             <option value="kg">Kg</option>
+            <option value="pz">Pezzo</option>
           </select>
         </Field>
         <Field label="Costo €">
