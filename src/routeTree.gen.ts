@@ -140,6 +140,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -163,6 +164,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -187,6 +189,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cestino': typeof CestinoRoute
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -212,6 +215,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/cestino'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -235,6 +239,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/cestino'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -258,6 +263,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/cestino'
     | '/b2b'
     | '/cestino'
     | '/clienti'
