@@ -9,13 +9,13 @@ import {
   lateOrders,
   loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
-  productionsForDate,
+  productionsForDate, itemDisplayName, cartTotal,
 } from "@/lib/metrics";
 
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { OrderSheet } from "@/routes/ordini";
 import { PaySheet } from "@/routes/pagamenti";
-import { QtyInput } from "@/components/QtyInput";
+import { CartEditor } from "@/components/CartEditor";
 import { buildSaleComanda, printComanda } from "@/lib/comanda";
 import type { SupplierPayment } from "@/lib/data";
 
