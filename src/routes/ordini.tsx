@@ -4,10 +4,10 @@ import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod, PaymentAttachment } from "@/lib/data";
 import { InvoiceField } from "@/components/InvoiceField";
-import { orderMargin } from "@/lib/metrics";
+import { orderMargin, itemDisplayName, itemDisplayUnit, cartTotal } from "@/lib/metrics";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
-import { QtyInput } from "@/components/QtyInput";
+import { CartEditor } from "@/components/CartEditor";
 import { buildOrderComanda, printComanda } from "@/lib/comanda";
 
 interface Search { f?: string }
