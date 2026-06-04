@@ -365,11 +365,37 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
       }>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Fornitore">
-          <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3">
-            <option value="">— scegli —</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          {(() => {
+            const sel = suppliers.find(s => s.id === supplierId);
+            const sugg = supplierQ.length >= 1
+              ? suppliers.filter(s => s.name.toLowerCase().includes(supplierQ.toLowerCase())).slice(0, 8)
+              : [];
+            return (
+              <div className="relative">
+                <input value={sel ? sel.name : supplierQ}
+                  onChange={e => { setSupplierQ(e.target.value); setSupplierId(""); }}
+                  placeholder="Cerca fornitore…"
+                  className="w-full bg-card border border-border rounded-lg p-3" />
+                {sugg.length > 0 && !sel && (
+                  <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
+                    {sugg.map(s => (
+                      <button key={s.id} type="button"
+                        onClick={() => { setSupplierId(s.id); setSupplierQ(""); }}
+                        className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
+                        {s.name} <span className="text-xs text-muted-foreground">{s.category}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!sel && supplierQ.trim().length >= 2 && (
+                  <button type="button" onClick={() => setNewSupplierOpen(true)}
+                    className="mt-1 text-xs bg-brand-gold/15 text-brand-gold font-semibold rounded p-2 w-full text-left">
+                    + Aggiungi nuovo fornitore "{supplierQ.trim()}"
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </Field>
         <Field label="Data e ora">
           <input type="datetime-local" value={date} onChange={e => setDate(e.target.value)}
