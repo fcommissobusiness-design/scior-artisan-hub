@@ -192,7 +192,7 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
   onClose: () => void;
   onDelete?: () => void;
 }) {
-  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, addSupplierPayment } = useStore();
+  const { suppliers, products, goodsReceipts, addGoodsReceipt, updateGoodsReceipt, addProduct, updateProduct, addSupplierPayment } = useStore();
 
   // Corrieri già registrati (da ricevute esistenti)
   const carriers = useMemo(() => {
