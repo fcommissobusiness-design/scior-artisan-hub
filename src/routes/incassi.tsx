@@ -62,7 +62,7 @@ function CassaPage() {
         amount: s.total,
         label: "Scontrino",
         meta: s.paymentMethod ?? "—",
-        margin: orderMargin({ items: s.items } as any, products),
+        margin: orderMargin({ items: s.items } as any, products, bundles),
       });
     }
 
