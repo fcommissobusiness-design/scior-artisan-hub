@@ -5,6 +5,7 @@ import {
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
   SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS,
+  generateLotCode,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
