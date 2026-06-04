@@ -407,7 +407,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     } as CasualSale;
-    printComanda(buildSaleComanda(fakeSale, matched, products));
+    printComanda(buildSaleComanda(fakeSale, matched, products, bundles));
   };
 
   return (
