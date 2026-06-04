@@ -377,9 +377,11 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
   };
 
   const filteredProducts = products.filter((p) => p.active && p.name.toLowerCase().includes(search.toLowerCase())).slice(0, 30);
-  const clientSuggestions = clientQ.length >= 1
-    ? clients.filter(c => c.name.toLowerCase().includes(clientQ.toLowerCase()) || c.phone.includes(clientQ)).slice(0, 6)
+  const clientQText = clientQ ?? "";
+  const clientSuggestions = clientQText.length >= 1
+    ? clients.filter(c => c.name.toLowerCase().includes(clientQText.toLowerCase()) || c.phone.includes(clientQText)).slice(0, 6)
     : [];
+  const typedNotMatchedClient = clientQText.trim().length >= 2 && !clients.some(c => c.name.toLowerCase() === clientQText.trim().toLowerCase());
 
   const persistPhoneIfChanged = () => {
     if (!selectedClient) return;
