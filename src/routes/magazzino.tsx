@@ -205,8 +205,9 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
           <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Scadenza">
+        <Field label="Scadenza (default +72h)">
           <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
+            placeholder="Default: 72h dall'ingresso"
             className="w-full bg-card border border-border rounded-lg p-3 col-span-2" />
         </Field>
       </div>
