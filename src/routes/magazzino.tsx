@@ -284,29 +284,52 @@ function StockEditSheet({ productId, onClose, onSave }: {
 }
 
 function StockSetupSheet({ onClose }: { onClose: () => void }) {
-  const { products, updateProduct } = useStore();
+  const { products, lots, suppliers, updateProduct, addProduct, addLot } = useStore();
+  const [productQ, setProductQ] = useState("");
   const [productId, setProductId] = useState("");
+  const [newProductOpen, setNewProductOpen] = useState(false);
   const [stock, setStock] = useState("");
+  const [lotCode, setLotCode] = useState("");
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [expiry, setExpiry] = useState("");
   const [supplierId, setSupplierId] = useState("");
-  const { suppliers } = useStore();
+
+  const selectedProduct = products.find(p => p.id === productId);
+  const productSugg = productQ.length >= 1 && !selectedProduct
+    ? products.filter(p => p.name.toLowerCase().includes(productQ.toLowerCase())).slice(0, 8)
+    : [];
 
   const save = () => {
     if (!productId) { alert("Seleziona un prodotto"); return; }
+    const qtyNum = stock ? Number(stock) : 0;
     const entryISO = new Date(entryDate).toISOString();
     const expiryISO = expiry ? new Date(expiry).toISOString() : defaultExpiryFrom(entryISO);
-    updateProduct(productId, {
-      stock: stock ? Number(stock) : 0,
-      lastRestock: entryISO,
-      ...({ stockExpiry: expiryISO } as any),
-      ...(supplierId ? { supplierId } : {}),
-    });
-    // reset per inserimento multiplo
-    setProductId(""); setStock(""); setExpiry(""); setSupplierId("");
+    if (lotCode.trim()) {
+      // Logica lotti: stesso prod+lotto = somma; lotto diverso = riga separata
+      const ex = lots.find(l => l.productId === productId && l.code === lotCode.trim());
+      if (ex) {
+        const { updateLot } = useStore();
+        updateLot(ex.id, {
+          qtyInitial: +(ex.qtyInitial + qtyNum).toFixed(3),
+          qtyRemaining: +(ex.qtyRemaining + qtyNum).toFixed(3),
+        });
+      } else {
+        addLot({
+          code: lotCode.trim(), productId,
+          productionDate: entryISO, expiryDate: expiryISO,
+          qtyInitial: qtyNum, qtyRemaining: qtyNum,
+          supplierId: supplierId || undefined,
+        });
+      }
+    } else {
+      updateProduct(productId, {
+        stock: qtyNum, lastRestock: entryISO,
+        ...({ stockExpiry: expiryISO } as any),
+        ...(supplierId ? { supplierId } : {}),
+      });
+    }
+    setProductQ(""); setProductId(""); setStock(""); setLotCode(""); setExpiry(""); setSupplierId("");
   };
-
-  const sorted = useMemo(() => [...products].sort((a, b) => a.name.localeCompare(b.name)), [products]);
 
   return (
     <Sheet open={true} onClose={onClose} title="Imposta Magazzino"
@@ -317,19 +340,40 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
         </div>
       }>
       <p className="text-xs text-muted-foreground">
-        Inserisci la situazione attuale del magazzino. Ripeti per ogni prodotto.
+        Inserisci la situazione attuale del magazzino. Compila il lotto per gestione tracciabilità (stesso prodotto + stesso lotto → somma).
       </p>
       <Field label="Prodotto">
-        <select value={productId} onChange={e => setProductId(e.target.value)}
-          className="w-full bg-card border border-border rounded-lg p-3">
-          <option value="">— scegli —</option>
-          {sorted.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <input value={selectedProduct ? selectedProduct.name : productQ}
+          onChange={e => { setProductQ(e.target.value); setProductId(""); }}
+          placeholder="Cerca prodotto…"
+          className="w-full bg-card border border-border rounded-lg p-3" />
+        {productSugg.length > 0 && (
+          <div className="bg-card border border-border rounded-lg mt-1 max-h-48 overflow-y-auto">
+            {productSugg.map(p => (
+              <button key={p.id} type="button"
+                onClick={() => { setProductId(p.id); setProductQ(""); }}
+                className="w-full text-left px-3 py-2 hover:bg-brand-cream text-sm border-b border-border last:border-0">
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {!selectedProduct && productQ.trim().length >= 2 && (
+          <button type="button" onClick={() => setNewProductOpen(true)}
+            className="mt-1 text-xs bg-brand-gold/15 text-brand-gold font-semibold rounded p-2 w-full text-left">
+            + Aggiungi nuovo prodotto "{productQ.trim()}"
+          </button>
+        )}
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Quantità">
           <input type="number" step="0.1" value={stock} onChange={e => setStock(e.target.value)}
             className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Lotto (opzionale)">
+          <input value={lotCode} onChange={e => setLotCode(e.target.value)}
+            placeholder="es. 20260603-01"
+            className="w-full bg-card border border-border rounded-lg p-3 font-mono" />
         </Field>
         <Field label="Data ingresso">
           <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)}
@@ -338,7 +382,7 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
         <Field label="Scadenza (default +72h)">
           <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
             placeholder="Default: 72h dall'ingresso"
-            className="w-full bg-card border border-border rounded-lg p-3 col-span-2" />
+            className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
       </div>
       <Field label="Fornitore (opzionale)">
@@ -348,6 +392,49 @@ function StockSetupSheet({ onClose }: { onClose: () => void }) {
           {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </Field>
+
+      {newProductOpen && (
+        <Sheet open={true} onClose={() => setNewProductOpen(false)} title="Nuovo prodotto">
+          <QuickNewProduct initialName={productQ.trim()}
+            onCancel={() => setNewProductOpen(false)}
+            onCreate={(name, unit) => {
+              const p = addProduct({
+                name, category: "Dispensa", unit, cost: null, price: 0,
+                active: true, available: true,
+              });
+              setProductId(p.id); setProductQ(""); setNewProductOpen(false);
+            }} />
+        </Sheet>
+      )}
     </Sheet>
+  );
+}
+
+function QuickNewProduct({ initialName, onCancel, onCreate }: {
+  initialName: string;
+  onCancel: () => void;
+  onCreate: (name: string, unit: "kg" | "pz") => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [unit, setUnit] = useState<"kg" | "pz">("kg");
+  return (
+    <>
+      <Field label="Nome prodotto">
+        <input value={name} onChange={e => setName(e.target.value)} autoFocus
+          className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <Field label="Unità">
+        <select value={unit} onChange={e => setUnit(e.target.value as "kg" | "pz")}
+          className="w-full bg-card border border-border rounded-lg p-3">
+          <option value="kg">Kg</option>
+          <option value="pz">Pezzo</option>
+        </select>
+      </Field>
+      <div className="flex gap-2 mt-3">
+        <button onClick={onCancel} className="flex-1 border border-border rounded-lg py-2 text-sm">Annulla</button>
+        <button onClick={() => name.trim() && onCreate(name.trim(), unit)}
+          className="flex-1 bg-brand-gold text-white rounded-lg py-2 text-sm font-semibold">Crea</button>
+      </div>
+    </>
   );
 }
