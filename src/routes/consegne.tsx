@@ -30,7 +30,7 @@ function toDateInput(d: Date) {
 }
 
 function ConsegnePage() {
-  const { deliveries, clients, orders, addDelivery, updateDelivery, deleteDelivery } = useStore();
+  const { deliveries, clients, orders, updateDelivery, deleteDelivery } = useStore();
   const [openNew, setOpenNew] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [waId, setWaId] = useState<string | null>(null);
