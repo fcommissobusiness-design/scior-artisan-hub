@@ -524,6 +524,8 @@ export function useStore() {
       setStore({ ...store, casualSales: [sale, ...store.casualSales] });
       return sale;
     },
+    updateCasualSale: (id: string, patch: Partial<CasualSale>) =>
+      setStore({ ...store, casualSales: store.casualSales.map((s) => s.id === id ? { ...s, ...patch } : s) }),
     deleteCasualSale: (id: string) => {
       const s = store.casualSales.find(x => x.id === id);
       if (!s) return;
