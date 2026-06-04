@@ -5,6 +5,7 @@ import {
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
   SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS,
+  generateLotCode,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
@@ -223,6 +224,43 @@ function applyReceiptStock(store: Store, rec: GoodsReceipt, sign: 1 | -1): Store
       };
     }),
   };
+}
+
+// Crea automaticamente un Lot per ogni riga della ricevuta.
+// Scadenza = data ricevuta + shelfLifeDays prodotto, fallback 72h.
+function applyReceiptLots(store: Store, rec: GoodsReceipt): Store {
+  const created: Lot[] = [];
+  let existing = [...store.lots];
+  for (const it of rec.items) {
+    const p = store.products.find(x => x.id === it.productId);
+    const baseDate = new Date(rec.date);
+    const expiry = new Date(baseDate);
+    if (p?.shelfLifeDays && p.shelfLifeDays > 0) {
+      expiry.setDate(expiry.getDate() + p.shelfLifeDays);
+    } else {
+      expiry.setHours(expiry.getHours() + 72);
+    }
+    const code = generateLotCode(rec.date, [...existing, ...created]);
+    created.push({
+      id: uid("lt_"),
+      code,
+      productId: it.productId,
+      productionDate: rec.date,
+      expiryDate: expiry.toISOString(),
+      qtyInitial: it.qty,
+      qtyRemaining: it.qty,
+      supplierId: rec.supplierId,
+      receiptId: rec.id,
+      notes: it.notes,
+      createdAt: nowIso(),
+    });
+  }
+  return { ...store, lots: [...created, ...store.lots] };
+}
+
+// Rimuove i lotti collegati a una ricevuta (es. annullamento/cancellazione)
+function removeReceiptLots(store: Store, receiptId: string): Store {
+  return { ...store, lots: store.lots.filter(l => l.receiptId !== receiptId) };
 }
 
 function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Store {
@@ -606,7 +644,10 @@ export function useStore() {
       const rec: GoodsReceipt = { ...r, id: uid("gr_"), createdAt: nowIso() };
       let next: Store = { ...store, goodsReceipts: [rec, ...store.goodsReceipts] };
       // Aggiorna stock prodotti se ricevuta/verificata/archiviata
-      if (rec.status !== "attesa") next = applyReceiptStock(next, rec, +1);
+      if (rec.status !== "attesa") {
+        next = applyReceiptStock(next, rec, +1);
+        next = applyReceiptLots(next, rec);
+      }
       // Aggiorna lastOrderDate fornitore
       next = {
         ...next,
@@ -623,15 +664,23 @@ export function useStore() {
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.map((g) => g.id === id ? merged : g) };
       const wasReceived = prev.status !== "attesa";
       const isReceived = merged.status !== "attesa";
-      if (!wasReceived && isReceived) next = applyReceiptStock(next, merged, +1);
-      else if (wasReceived && !isReceived) next = applyReceiptStock(next, prev, -1);
+      if (!wasReceived && isReceived) {
+        next = applyReceiptStock(next, merged, +1);
+        next = applyReceiptLots(next, merged);
+      } else if (wasReceived && !isReceived) {
+        next = applyReceiptStock(next, prev, -1);
+        next = removeReceiptLots(next, prev.id);
+      }
       setStore(next);
     },
     deleteGoodsReceipt: (id: string) => {
       const prev = store.goodsReceipts.find((g) => g.id === id);
       if (!prev) return;
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.filter((g) => g.id !== id) };
-      if (prev.status !== "attesa") next = applyReceiptStock(next, prev, -1);
+      if (prev.status !== "attesa") {
+        next = applyReceiptStock(next, prev, -1);
+        next = removeReceiptLots(next, prev.id);
+      }
       setStore(next);
     },
 
