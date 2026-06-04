@@ -132,16 +132,41 @@ function MagazzinoPage() {
                 {!expired && expiringSoon && <p className="text-[10px] text-warning font-semibold">in scadenza</p>}
               </div>
               {r.lotId ? (
-                <button onClick={() => setEditLotId(r.lotId!)}
-                  className="text-xs text-brand-green font-semibold px-2">Modifica</button>
+                <>
+                  <button onClick={() => setEditLotId(r.lotId!)}
+                    className="text-xs text-brand-green font-semibold px-2">Modifica</button>
+                  <button onClick={() => setConfirmDel({ kind: "lot", id: r.lotId!, label: `${r.name} · Lotto ${r.lotCode}` })}
+                    aria-label="Elimina" className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1 text-sm">🗑</button>
+                </>
               ) : (
-                <button onClick={() => setEditId(r.productId)}
-                  className="text-xs text-brand-green font-semibold px-2">Modifica</button>
+                <>
+                  <button onClick={() => setEditId(r.productId)}
+                    className="text-xs text-brand-green font-semibold px-2">Modifica</button>
+                  <button onClick={() => setConfirmDel({ kind: "product", id: r.productId, label: r.name })}
+                    aria-label="Azzera stock" className="text-danger border border-danger/40 hover:bg-danger/10 rounded-lg px-2 py-1 text-sm">🗑</button>
+                </>
               )}
             </div>
           );
         })}
       </div>
+
+      {confirmDel && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={() => setConfirmDel(null)}>
+          <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-xl text-brand-green mb-2">Elimina voce</h3>
+            <p className="text-sm text-foreground/80 mb-4">{confirmDel.label} — confermi la rimozione dal magazzino?</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDel(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold">Annulla</button>
+              <button onClick={() => {
+                if (confirmDel.kind === "lot") deleteLot(confirmDel.id);
+                else updateProduct(confirmDel.id, { stock: 0 });
+                setConfirmDel(null);
+              }} className="px-4 py-2 rounded-lg bg-danger text-white text-sm font-semibold">Elimina</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editId && (() => {
         const p = products.find(x => x.id === editId);
