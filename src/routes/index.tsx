@@ -377,6 +377,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
 
   // Autocompleta telefono dal cliente selezionato
   const matchedId = matched?.id;
+  const matchedPhone = matched?.phone ?? "";
   useEffect(() => {
     setPhone(matchedPhone);
   }, [matchedId, matchedPhone]);
