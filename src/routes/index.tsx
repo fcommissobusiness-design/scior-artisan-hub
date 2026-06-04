@@ -482,13 +482,7 @@ export function NewSaleSheet({ open, onClose, onSave }: {
                   <p className="text-sm truncate">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{formatEuro(p.price)}/{p.unit}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => upd(p.id, Math.max(0, +(qty - step).toFixed(2)))}
-                    className="w-7 h-7 rounded-full bg-brand-cream text-brand-green font-bold border border-border">−</button>
-                  <span className="w-10 text-center text-sm font-semibold">{qty || ""}</span>
-                  <button onClick={() => upd(p.id, +(qty + step).toFixed(2))}
-                    className="w-7 h-7 rounded-full bg-brand-green text-brand-cream font-bold">+</button>
-                </div>
+                <QtyInput value={qty} step={step} unit={p.unit} onChange={(n) => upd(p.id, n)} />
               </div>
             );
           })}
