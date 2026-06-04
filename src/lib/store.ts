@@ -160,8 +160,11 @@ function load(): Store {
       return m;
     }
   } catch {}
-  localStorage.setItem(KEY, JSON.stringify(SEED));
-  return SEED;
+  // Prima installazione: applica anche qui l'import lista clienti V7.
+  const fresh: Store = { ...SEED, clients: applyClientImportV7(SEED.clients) };
+  (fresh as any).__clientsImportV7 = true;
+  localStorage.setItem(KEY, JSON.stringify(fresh));
+  return fresh;
 }
 
 const listeners = new Set<() => void>();
