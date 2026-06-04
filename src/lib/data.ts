@@ -100,6 +100,14 @@ export interface OrderItem {
   weightKg?: number;
   unitPriceOverride?: number; // override €/unità per sfridi/sconti spot
   lotId?: string;             // lotto usato per tracciabilità leggera
+  // Tipo riga: assente = "product" (retro-compatibile).
+  kind?: "product" | "bundle" | "custom";
+  // Per kind="bundle": id del bundle catalogato.
+  bundleId?: string;
+  // Per kind="custom": vendita personalizzata (es. "Mozz. metà bocconcini metà trancio").
+  customName?: string;
+  customPrice?: number;       // €/unità per riga custom
+  customCost?: number;        // costo unitario opzionale (per margine)
 }
 
 export type OrderStatus = "in_attesa" | "pronto" | "ritirato" | "da_consegnare" | "consegnato" | "annullato";
