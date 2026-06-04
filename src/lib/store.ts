@@ -4,7 +4,7 @@ import {
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
-  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS,
+  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH,
   generateLotCode,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
   type OrderEvent, type LoyaltyEvent,
@@ -12,6 +12,7 @@ import {
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
   type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
   type Lot, type HaccpReading, type CleaningTask,
+  type TrashEntry, type TrashKind,
 } from "./data";
 
 const KEY = "sciorio-hq-v4";
@@ -44,6 +45,7 @@ interface Store {
   lots: Lot[];
   haccpReadings: HaccpReading[];
   cleaningTasks: CleaningTask[];
+  trash: TrashEntry[];
 }
 
 const SEED: Store = {
@@ -69,6 +71,7 @@ const SEED: Store = {
   lots: SEED_LOTS,
   haccpReadings: SEED_HACCP_READINGS,
   cleaningTasks: SEED_CLEANING_TASKS,
+  trash: SEED_TRASH,
 };
 
 function migrate(parsed: any): Store {
@@ -120,6 +123,7 @@ function migrate(parsed: any): Store {
     lots: keep(parsed.lots, SEED.lots),
     haccpReadings: keep(parsed.haccpReadings, SEED.haccpReadings),
     cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
+    trash: parsed.trash ?? [],
   };
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
@@ -280,6 +284,13 @@ function applyOnlineOrderStock(store: Store, o: OnlineOrder, sign: 1 | -1): Stor
   };
 }
 
+function pushTrash(store: Store, kind: TrashKind, refId: string, label: string, data: unknown): Store {
+  const entry: TrashEntry = {
+    id: uid("tr_"), kind, refId, label, deletedAt: nowIso(), data,
+  };
+  return { ...store, trash: [entry, ...(store.trash ?? [])] };
+}
+
 export function useStore() {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -426,10 +437,14 @@ export function useStore() {
     },
     deleteOrder: (id: string) => {
       const o = store.orders.find(x => x.id === id);
-      const nextDeliveries = o?.deliveryId
-        ? store.deliveries.filter(d => d.id !== o.deliveryId)
-        : store.deliveries;
-      setStore({ ...store, orders: store.orders.filter((x) => x.id !== id), deliveries: nextDeliveries });
+      if (!o) return;
+      const client = store.clients.find(c => c.id === o.clientId);
+      const label = `Ordine ${client?.name ?? o.clientId} · ${new Date(o.pickupDate).toLocaleDateString("it-IT")}`;
+      const del = o.deliveryId ? store.deliveries.find(d => d.id === o.deliveryId) : undefined;
+      const nextDeliveries = del ? store.deliveries.filter(d => d.id !== del.id) : store.deliveries;
+      let next: Store = { ...store, orders: store.orders.filter((x) => x.id !== id), deliveries: nextDeliveries };
+      next = pushTrash(next, "order", o.id, label, { order: o, delivery: del });
+      setStore(next);
     },
 
 
@@ -439,8 +454,13 @@ export function useStore() {
     },
     updateBundle: (id: string, patch: Partial<Bundle>) =>
       setStore({ ...store, bundles: store.bundles.map((b) => b.id === id ? { ...b, ...patch } : b) }),
-    deleteBundle: (id: string) =>
-      setStore({ ...store, bundles: store.bundles.filter((b) => b.id !== id) }),
+    deleteBundle: (id: string) => {
+      const b = store.bundles.find(x => x.id === id);
+      if (!b) return;
+      let next: Store = { ...store, bundles: store.bundles.filter((x) => x.id !== id) };
+      next = pushTrash(next, "bundle", b.id, `Bundle ${b.name}`, b);
+      setStore(next);
+    },
 
     // CLIENTS
     addClient: (c: Omit<Client, "id">) => {
@@ -485,8 +505,14 @@ export function useStore() {
       setStore({ ...store, casualSales: [sale, ...store.casualSales] });
       return sale;
     },
-    deleteCasualSale: (id: string) =>
-      setStore({ ...store, casualSales: store.casualSales.filter((s) => s.id !== id) }),
+    deleteCasualSale: (id: string) => {
+      const s = store.casualSales.find(x => x.id === id);
+      if (!s) return;
+      const label = `Scontrino · ${new Date(s.date).toLocaleDateString("it-IT")} · €${s.total.toFixed(2)}`;
+      let next: Store = { ...store, casualSales: store.casualSales.filter((x) => x.id !== id) };
+      next = pushTrash(next, "casualSale", s.id, label, s);
+      setStore(next);
+    },
 
     // DELIVERIES
     addDelivery: (d: Omit<Delivery, "id" | "createdAt">) => {
@@ -541,10 +567,15 @@ export function useStore() {
     },
     deleteDelivery: (id: string) => {
       const d = store.deliveries.find(x => x.id === id);
-      const nextOrders = d?.orderId
+      if (!d) return;
+      const client = store.clients.find(c => c.id === d.clientId);
+      const label = `Consegna ${client?.name ?? ""} · ${new Date(d.date).toLocaleDateString("it-IT")}`;
+      const nextOrders = d.orderId
         ? store.orders.map(o => o.id === d.orderId ? { ...o, deliveryId: undefined } : o)
         : store.orders;
-      setStore({ ...store, deliveries: store.deliveries.filter(x => x.id !== id), orders: nextOrders });
+      let next: Store = { ...store, deliveries: store.deliveries.filter(x => x.id !== id), orders: nextOrders };
+      next = pushTrash(next, "delivery", d.id, label, d);
+      setStore(next);
     },
 
 
@@ -567,8 +598,13 @@ export function useStore() {
     },
     updateSupplier: (id: string, patch: Partial<Supplier>) =>
       setStore({ ...store, suppliers: store.suppliers.map((s) => s.id === id ? { ...s, ...patch } : s) }),
-    deleteSupplier: (id: string) =>
-      setStore({ ...store, suppliers: store.suppliers.filter((s) => s.id !== id) }),
+    deleteSupplier: (id: string) => {
+      const s = store.suppliers.find(x => x.id === id);
+      if (!s) return;
+      let next: Store = { ...store, suppliers: store.suppliers.filter((x) => x.id !== id) };
+      next = pushTrash(next, "supplier", s.id, `Fornitore ${s.name}`, s);
+      setStore(next);
+    },
 
     // CASH ENTRIES
     addCashEntry: (e: Omit<CashEntry, "id">) => {
@@ -600,8 +636,14 @@ export function useStore() {
     },
     updateSupplierPayment: (id: string, patch: Partial<SupplierPayment>) =>
       setStore({ ...store, supplierPayments: store.supplierPayments.map((p) => p.id === id ? { ...p, ...patch } : p) }),
-    deleteSupplierPayment: (id: string) =>
-      setStore({ ...store, supplierPayments: store.supplierPayments.filter((p) => p.id !== id) }),
+    deleteSupplierPayment: (id: string) => {
+      const p = store.supplierPayments.find(x => x.id === id);
+      if (!p) return;
+      const label = `Pagamento ${p.beneficiary} · €${p.amount.toFixed(2)}`;
+      let next: Store = { ...store, supplierPayments: store.supplierPayments.filter((x) => x.id !== id) };
+      next = pushTrash(next, "supplierPayment", p.id, label, p);
+      setStore(next);
+    },
 
     // FRESH LOGS
     addFreshLog: (l: Omit<FreshLog, "id">) => {
@@ -692,8 +734,53 @@ export function useStore() {
     },
     updateFixedCost: (id: string, patch: Partial<FixedCost>) =>
       setStore({ ...store, fixedCosts: store.fixedCosts.map((f) => f.id === id ? { ...f, ...patch } : f) }),
-    deleteFixedCost: (id: string) =>
-      setStore({ ...store, fixedCosts: store.fixedCosts.filter((f) => f.id !== id) }),
+    deleteFixedCost: (id: string) => {
+      const f = store.fixedCosts.find(x => x.id === id);
+      if (!f) return;
+      let next: Store = { ...store, fixedCosts: store.fixedCosts.filter((x) => x.id !== id) };
+      next = pushTrash(next, "fixedCost", f.id, `Costo fisso ${f.name}`, f);
+      setStore(next);
+    },
+
+    // TRASH (Cestino)
+    restoreTrash: (trashId: string) => {
+      const e = (store.trash ?? []).find(x => x.id === trashId);
+      if (!e) return;
+      let next: Store = { ...store, trash: store.trash.filter(x => x.id !== trashId) };
+      const data = e.data as any;
+      switch (e.kind) {
+        case "order": {
+          const o = data?.order as Order | undefined;
+          if (!o) break;
+          next = { ...next, orders: [o, ...next.orders.filter(x => x.id !== o.id)] };
+          const d = data?.delivery as Delivery | undefined;
+          if (d) next = { ...next, deliveries: [d, ...next.deliveries.filter(x => x.id !== d.id)] };
+          break;
+        }
+        case "casualSale":
+          next = { ...next, casualSales: [data as CasualSale, ...next.casualSales.filter(x => x.id !== e.refId)] }; break;
+        case "delivery":
+          next = { ...next, deliveries: [data as Delivery, ...next.deliveries.filter(x => x.id !== e.refId)] }; break;
+        case "bundle":
+          next = { ...next, bundles: [data as Bundle, ...next.bundles.filter(x => x.id !== e.refId)] }; break;
+        case "supplier":
+          next = { ...next, suppliers: [data as Supplier, ...next.suppliers.filter(x => x.id !== e.refId)] }; break;
+        case "supplierPayment":
+          next = { ...next, supplierPayments: [data as SupplierPayment, ...next.supplierPayments.filter(x => x.id !== e.refId)] }; break;
+        case "fixedCost":
+          next = { ...next, fixedCosts: [data as FixedCost, ...next.fixedCosts.filter(x => x.id !== e.refId)] }; break;
+        case "client":
+          next = { ...next, clients: [data as Client, ...next.clients.filter(x => x.id !== e.refId)] }; break;
+        case "b2bClient":
+          next = { ...next, b2bClients: [data as B2BClient, ...next.b2bClients.filter(x => x.id !== e.refId)] }; break;
+        case "product":
+          next = { ...next, products: [data as Product, ...next.products.filter(x => x.id !== e.refId)] }; break;
+      }
+      setStore(next);
+    },
+    purgeTrash: (trashId: string) =>
+      setStore({ ...store, trash: store.trash.filter(x => x.id !== trashId) }),
+    emptyTrash: () => setStore({ ...store, trash: [] }),
 
     // ONLINE ORDERS
     addOnlineOrder: (o: Omit<OnlineOrder, "id" | "createdAt">) => {
