@@ -138,7 +138,7 @@ function Dashboard() {
           <Quick onClick={() => setOpenOrder(true)} label="Nuovo ordine" />
           <Quick onClick={() => setOpenSale(true)} label="Nuovo scontrino" />
           <Quick onClick={() => setOpenPay(true)} label="Nuovo pagamento" />
-          <Quick onClick={() => setOpenQuick(true)} label="WhatsApp rapido" />
+          <Quick onClick={() => setOpenDeliv(true)} label="Nuova consegna" />
         </section>
 
         {/* KPI CASSA */}
