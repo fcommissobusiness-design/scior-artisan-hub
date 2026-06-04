@@ -460,6 +460,17 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
                     className="w-full bg-background border border-border rounded p-2 text-sm mt-1" />
                 </label>
                 <button onClick={() => removeItem(i)} className="col-span-1 text-danger text-lg pb-1">×</button>
+                <label className="col-span-8 text-[10px] text-muted-foreground">
+                  Lotto (opz.) <span className="text-muted-foreground/70">— stesso prodotto + stesso lotto = somma</span>
+                  <input value={it.lotCode ?? ""}
+                    onChange={e => updateItem(i, { lotCode: e.target.value })}
+                    placeholder="auto se vuoto"
+                    className="w-full bg-background border border-border rounded p-2 text-xs mt-1 font-mono" />
+                </label>
+                <label className="col-span-4 text-[10px] text-muted-foreground">
+                  Subtotale
+                  <p className="font-semibold text-sm py-2">{formatEuro((it.unitCost ?? 0) * it.qty)}</p>
+                </label>
               </div>
             </div>
           );})}
