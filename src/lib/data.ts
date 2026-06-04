@@ -302,6 +302,23 @@ export interface FixedCost {
 
 export const SEED_FIXED_COSTS: FixedCost[] = [];
 
+// ============= CESTINO (soft delete) =============
+export type TrashKind =
+  | "order" | "casualSale" | "delivery" | "bundle"
+  | "supplier" | "supplierPayment" | "fixedCost"
+  | "client" | "b2bClient" | "product";
+
+export interface TrashEntry {
+  id: string;          // id univoco del cestino
+  kind: TrashKind;
+  refId: string;       // id originale dell'elemento
+  label: string;       // descrizione leggibile (es. "Ordine Mario Rossi - 12/06")
+  deletedAt: string;   // ISO
+  data: unknown;       // snapshot completo per ripristino
+}
+
+export const SEED_TRASH: TrashEntry[] = [];
+
 export const CASH_CATEGORIES = [
   "Vendita banco", "Vendita ordine", "Vendita consegna", "B2B", "Altro",
   "Merce", "Utenze", "Affitto", "Personale", "Manutenzione", "Trasporti",
