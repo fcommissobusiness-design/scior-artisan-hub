@@ -234,14 +234,16 @@ function Dashboard() {
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
               return (
-                <div key={s.id} className="bg-card rounded-xl p-3 text-sm">
+                <button key={s.id} onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
+                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80">
                   <div className="flex justify-between">
                     <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{formatTime(s.date)} · {new Date(s.date).toLocaleDateString("it-IT")}</p>
                   <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => itemDisplayName(i, products, bundles)).join(", ")}</p>
-                </div>
+                  {s.notes && <p className="text-xs italic text-muted-foreground mt-1 line-clamp-1">Note: {s.notes}</p>}
+                </button>
               );
             })}
           </div>
