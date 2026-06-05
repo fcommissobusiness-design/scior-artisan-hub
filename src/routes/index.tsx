@@ -322,16 +322,20 @@ function Dashboard() {
         <DeliveryFullSheet mode="edit" deliveryId={editDelivId} onClose={() => setEditDelivId(null)} />
       )}
 
-      <NewSaleSheet
-        open={openSale}
-        saleId={editSaleId ?? undefined}
-        onClose={() => { setOpenSale(false); setEditSaleId(null); }}
-        onSave={(s, newClient) => {
-          if (newClient) addClient(newClient);
-          addCasualSale(s);
-          setOpenSale(false);
-        }}
-      />
+      {openSale && (
+        <NewSaleSheet
+          key={editSaleId ?? "new"}
+          open={true}
+          saleId={editSaleId ?? undefined}
+          onClose={() => { setOpenSale(false); setEditSaleId(null); }}
+          onSave={(s, newClient) => {
+            if (newClient) addClient(newClient);
+            addCasualSale(s);
+            setOpenSale(false);
+          }}
+        />
+      )}
+
 
 
       {waOpen && (
