@@ -14,7 +14,7 @@ import {
   type Lot, type HaccpReading, type CleaningTask,
   type TrashEntry, type TrashKind,
 } from "./data";
-import { applyClientImportV7 } from "./client-import";
+import { CLIENT_IMPORT_V7, applyClientImportV7 } from "./client-import";
 
 const KEY = "sciorio-hq-v4";
 const LEGACY_V3 = "sciorio-hq-v3";
@@ -88,7 +88,8 @@ function migrate(parsed: any): Store {
   // V6: wipe definitivo di costi fissi demo, pagamenti e cash demo (gestionale "pulito").
   const demoCleanV6 = parsed.__demoCleanV6 === true;
   // V7: import lista clienti ufficiale (segmento + telefoni) — applicato una sola volta.
-  const clientsImportV7 = parsed.__clientsImportV7 === true;
+  const importedClientCount = Array.isArray(parsed.clients) ? parsed.clients.length : 0;
+  const clientsImportV7 = parsed.__clientsImportV7 === true && importedClientCount >= CLIENT_IMPORT_V7.length;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -191,7 +192,7 @@ export function subscribeStore(fn: () => void): () => void {
 }
 export function applyRemoteStore(next: Store) {
   _isApplyingRemote = true;
-  try { setStore(next); } finally { _isApplyingRemote = false; }
+  try { setStore(migrate(next)); } finally { _isApplyingRemote = false; }
 }
 export function isApplyingRemote(): boolean { return _isApplyingRemote; }
 export function resetStoreToSeed() { setStore(SEED); }
