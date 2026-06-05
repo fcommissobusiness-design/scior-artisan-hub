@@ -213,7 +213,7 @@ function CassaPage() {
       )}
 
       {openSale && (
-        <NewSaleSheet open={true} saleId={editSaleId ?? undefined}
+        <NewSaleSheet key={editSaleId ?? "new"} open={true} saleId={editSaleId ?? undefined}
           onClose={() => { setOpenSale(false); setEditSaleId(null); setPickerOpen(false); }}
           onSave={(s, newClient) => {
             if (newClient) addClient(newClient);
@@ -222,6 +222,7 @@ function CassaPage() {
             setPickerOpen(false);
           }} />
       )}
+
 
       {openPay && (
         <PaySheet mode="new" suppliers={suppliers}
