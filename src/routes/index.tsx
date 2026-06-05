@@ -473,7 +473,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
       date: new Date(date).toISOString(),
       items, total,
       clientId: effClientId,
-      clientNameInput: !effClientId && typed ? typed : undefined,
+      clientNameInput: typed || undefined, // sempre il nome digitato come fallback
       notes: notes.trim() || undefined,
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
@@ -491,6 +491,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
     if (!existing) return;
     if (confirm("Eliminare questo scontrino?")) { deleteCasualSale(existing.id); onClose(); }
   };
+
 
   const printPreview = () => {
     if (items.length === 0) return;
