@@ -78,7 +78,7 @@ const SEED: Store = {
 function migrate(parsed: any): Store {
   // One-time refresh of clients list (real customers list) — drop legacy demo clients.
   const clientsSeedV2 = parsed.__clientsSeedV2 === true;
-  const clientsSource = clientsSeedV2 ? (parsed.clients ?? SEED.clients) : SEED.clients;
+  const clientsSource = parsed.clients ?? SEED.clients;
   // One-time wipe of demo orders/sales/deliveries so LTV/scontrino medio partono da zero.
   const cleanV3 = parsed.__cleanSeedV3 === true;
   // Catalogo Maggio 2026: forza il re-seed di prodotti e bundle col listino aggiornato.
