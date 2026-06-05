@@ -343,7 +343,20 @@ export function useStore() {
       });
     });
   }, []);
-  const store = getStore();
+  // FIX CRITICO multi-mutazione: `store` è un Proxy live sulla cache.
+  // Senza Proxy, due mutazioni nello stesso ciclo render (es. addClient + addOrder)
+  // catturavano lo stesso snapshot e la seconda sovrascriveva la prima,
+  // facendo perdere il cliente appena creato.
+  const store = new Proxy({} as Store, {
+    get(_t, prop) { return (getStore() as any)[prop]; },
+    has(_t, prop) { return prop in getStore(); },
+    ownKeys() { return Reflect.ownKeys(getStore()); },
+    getOwnPropertyDescriptor(_t, prop) {
+      const desc = Object.getOwnPropertyDescriptor(getStore(), prop);
+      if (!desc) return undefined;
+      return { ...desc, configurable: true };
+    },
+  });
   return {
     ...store,
 

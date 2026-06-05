@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, formatEuro, formatTime, formatDate, Fab, Sheet, Field } from "@/components/AppShell";
 import { calcMargin, type CasualSale, type OrderItem, type OrderSource, type DeliveryMode, type PaymentMethod, type PaymentAttachment } from "@/lib/data";
@@ -7,7 +7,7 @@ import { InvoiceField } from "@/components/InvoiceField";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
   lateOrders,
-  loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
+  loyaltyReadyClients, openDeliveries, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
   productionsForDate, itemDisplayName, cartTotal,
 } from "@/lib/metrics";
@@ -55,7 +55,17 @@ function Dashboard() {
     salesInFrame.reduce((s, o) => s + o.total, 0);
   const ticketMedio = salesInFrame.length === 0 ? 0 : salesInFrame.reduce((s, x) => s + x.total, 0) / salesInFrame.length;
 
-  const mGiorno = useMemo(() => dailyMargin(orders, casualSales, products, bundles), [orders, casualSales, products, bundles]);
+  // Margine periodo: sincronizzato col timeframe (era "Margine giorno" fisso).
+  const mPeriod = useMemo(() => {
+    let m = 0;
+    for (const o of ordersInFrame) {
+      if (o.status === "ritirato" || o.status === "consegnato") m += orderMargin(o, products, bundles);
+    }
+    for (const s of salesInFrame) {
+      m += orderMargin({ items: s.items } as any, products, bundles);
+    }
+    return m;
+  }, [ordersInFrame, salesInFrame, products, bundles]);
   const ritardi = useMemo(() => lateOrders(orders), [orders]);
   const premi = useMemo(() => loyaltyReadyClients(clients), [clients]);
   const consegneAperte = useMemo(() => openDeliveries(deliveries), [deliveries]);
@@ -147,7 +157,7 @@ function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Kpi to={{ to: "/ordini", search: { f: "ritirati" } as any }} label="Fatt. Generato" value={formatEuro(fattGenerato)} sub="ritirati + scontrini" highlight />
             <Kpi to={{ to: "/ordini", search: { f: "attesa" } as any }} label="Fatt. Stimato" value={formatEuro(fattStimato)} sub="in attesa + pronti" />
-            <Kpi label="Margine giorno" value={formatEuro(mGiorno)} sub="oggi" />
+            <Kpi label="Margine" value={formatEuro(mPeriod)} sub={tf.label.toLowerCase()} />
             <Kpi to={{ to: "/pagamenti" }} label="Uscite" value={formatEuro(usciteFrame)} sub="periodo" danger />
             <Kpi label="Scontrino medio" value={formatEuro(ticketMedio)} sub={`${salesInFrame.length} scontrini`} />
           </div>
@@ -224,14 +234,16 @@ function Dashboard() {
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
               return (
-                <div key={s.id} className="bg-card rounded-xl p-3 text-sm">
+                <button key={s.id} onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
+                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80">
                   <div className="flex justify-between">
                     <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{formatTime(s.date)} · {new Date(s.date).toLocaleDateString("it-IT")}</p>
                   <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => itemDisplayName(i, products, bundles)).join(", ")}</p>
-                </div>
+                  {s.notes && <p className="text-xs italic text-muted-foreground mt-1 line-clamp-1">Note: {s.notes}</p>}
+                </button>
               );
             })}
           </div>
@@ -372,7 +384,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
   onClose: () => void;
   onSave: (s: Omit<CasualSale, "id">, newClient?: { name: string; phone: string; segment: "nuovi"; stamps: 0 }) => void;
 }) {
-  const { clients, products, bundles, casualSales, updateClient, updateCasualSale, deleteCasualSale } = useStore();
+  const { clients, products, bundles, casualSales, addClient, updateClient, updateCasualSale, deleteCasualSale } = useStore();
   const existing = saleId ? casualSales.find(s => s.id === saleId) : null;
   const isEdit = !!existing;
 
@@ -386,11 +398,14 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
     : "";
   const [clientName, setClientName] = useState(initClientName);
   const [phone, setPhone] = useState("");
+  const [notes, setNotes] = useState(existing?.notes ?? "");
   const [source, setSource] = useState<OrderSource>(existing?.source ?? "negozio");
   const [delivery, setDelivery] = useState<DeliveryMode>(existing?.delivery ?? "ritiro");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existing?.paymentMethod ?? "contanti");
   const [hasInvoice, setHasInvoice] = useState<boolean>(existing?.hasInvoice ?? false);
   const [invoice, setInvoice] = useState<PaymentAttachment | undefined>(existing?.invoice);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const matched = clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase());
   const suggestions = clientName.length >= 2 && !matched
@@ -402,6 +417,14 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
     setPhone(matchedPhone);
   }, [matchedId, matchedPhone]);
 
+  useEffect(() => {
+    const fn = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    if (menuOpen) document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [menuOpen]);
+
   const phoneOptions = matched
     ? Array.from(new Set([matched.phone, ...(matched.phones ?? [])].filter(Boolean)))
     : [];
@@ -409,7 +432,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
   const total = cartTotal(items, products, bundles);
 
   const reset = () => {
-    setItems([]); setClientName(""); setPhone(""); setSource("negozio");
+    setItems([]); setClientName(""); setPhone(""); setNotes(""); setSource("negozio");
     setDelivery("ritiro"); setPaymentMethod("contanti"); setHasInvoice(false); setInvoice(undefined);
   };
 
@@ -424,12 +447,26 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
 
   const save = () => {
     if (items.length === 0) return;
-    if (matched) persistPhoneIfChanged();
+
+    // Risolvi/crea cliente inline (così il sale.clientId punta sempre al record reale).
+    let effClientId: string | undefined = matched?.id;
+    const typed = clientName.trim();
+    if (!effClientId && typed) {
+      const created = addClient({
+        name: typed, phone: phone.trim(),
+        segment: "nuovi", stamps: 0,
+      } as Omit<import("@/lib/data").Client, "id">);
+      effClientId = created.id;
+    } else if (effClientId) {
+      persistPhoneIfChanged();
+    }
+
     const sale: Omit<CasualSale, "id"> = {
       date: new Date(date).toISOString(),
       items, total,
-      clientId: matched?.id,
-      clientNameInput: clientName.trim() || undefined,
+      clientId: effClientId,
+      clientNameInput: !effClientId && typed ? typed : undefined,
+      notes: notes.trim() || undefined,
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     };
@@ -438,12 +475,8 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
       onClose();
       return;
     }
-    let newClient: { name: string; phone: string; segment: "nuovi"; stamps: 0 } | undefined;
-    if (clientName.trim() && !matched) {
-      newClient = { name: clientName.trim(), phone: phone.trim(), segment: "nuovi" as const, stamps: 0 };
-    }
     reset();
-    onSave(sale, newClient);
+    onSave(sale);
   };
 
   const handleDelete = () => {
@@ -459,10 +492,12 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
       items, total,
       clientId: matched?.id,
       clientNameInput: clientName.trim() || undefined,
+      notes: notes.trim() || undefined,
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
     } as CasualSale;
     printComanda(buildSaleComanda(fakeSale, matched, products, bundles));
+    setMenuOpen(false);
   };
 
   return (
@@ -477,10 +512,6 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
             <button onClick={handleDelete}
               className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
-          <button onClick={printPreview} disabled={items.length === 0}
-            className="border border-border bg-card rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">
-            🖨️ Stampa Comanda
-          </button>
           <button onClick={save} disabled={items.length === 0}
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">
             {isEdit ? "Salva modifiche" : "Conferma scontrino"}
@@ -488,6 +519,20 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
         </div>
       }
     >
+      {isEdit && (
+        <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
+          <div className="relative">
+            <button onClick={() => setMenuOpen(o => !o)}
+              className="px-3 py-1.5 rounded-lg bg-card border border-border text-lg leading-none" aria-label="Altre azioni">⋮</button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[180px]">
+                <button onClick={printPreview}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream">🖨️ Stampa Comanda</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Data e ora">
           <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)}
@@ -522,7 +567,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
           className="w-full bg-card border border-border rounded-lg p-3" />
         {matched && <p className="text-xs text-success mt-1">Cliente esistente: si aggiungerà allo storico di {matched.name}.</p>}
         {!matched && clientName.trim().length >= 2 && (
-          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda "Nuovo".</p>
+          <p className="text-xs text-brand-gold mt-1">Nuovo cliente: verrà creata una scheda al salvataggio.</p>
         )}
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-2">
@@ -554,6 +599,12 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
         <CartEditor items={items} onChange={setItems} />
       </Field>
 
+      <Field label="Note">
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+          placeholder="Note per la comanda (es. preparazione, allergie, dettagli)..."
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
+      </Field>
+
       <InvoiceField
         hasInvoice={hasInvoice}
         onHasInvoiceChange={setHasInvoice}
@@ -563,3 +614,4 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
     </Sheet>
   );
 }
+
