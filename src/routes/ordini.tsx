@@ -307,7 +307,10 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
 
   // Per il bug "cancellazione nome": clientQ === null => mostra nome del cliente selezionato;
   // appena l'utente digita (anche stringa vuota) controlla il valore dell'input.
-  const [clientQ, setClientQ] = useState<string | null>(null);
+  const [clientQ, setClientQ] = useState<string | null>(() => {
+    if (!existing) return null;
+    return clients.some((c) => c.id === existing.clientId) ? null : (existing.clientNameInput ?? "");
+  });
   const [clientId, setClientId] = useState(existing?.clientId ?? clients[0]?.id ?? "");
   const [label, setLabel] = useState(existing?.label ?? "");
   const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
@@ -412,6 +415,17 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
         effectiveClientId = created.id;
       }
     }
+    if (!effectiveClientId && typed) {
+      const created = addClient({
+        name: typed,
+        phone: phone.trim(),
+        segment: "nuovi",
+        stamps: 0,
+        addresses: delivery === "domicilio" && address.trim() ? [address.trim()] : undefined,
+        deliveryZone: delivery === "domicilio" && address.trim() ? address.trim() : undefined,
+      } as Omit<import("@/lib/data").Client, "id">);
+      effectiveClientId = created.id;
+    }
     if (!effectiveClientId) return;
     if (effectiveClientId === clientId) { persistPhoneIfChanged(); persistAddressIfChanged(); }
     const payload: Omit<Order, "id" | "createdAt"> = {
@@ -455,7 +469,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
 
   return (
     <Sheet open={true} onClose={onClose}
-      title={mode === "new" ? "Nuovo Ordine" : `Ordine · ${selectedClient?.name ?? "—"}`}
+      title={mode === "new" ? "Nuovo Ordine" : `Ordine · ${selectedClient?.name ?? existing?.clientNameInput ?? "—"}`}
       footer={
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[140px]">
@@ -497,7 +511,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Cliente">
           <input placeholder="Cerca o seleziona..."
-            value={clientQ !== null ? clientQ : (selectedClient?.name ?? "")}
+            value={clientQ !== null ? clientQ : (selectedClient?.name ?? existing?.clientNameInput ?? "")}
             onChange={(e) => { setClientQ(e.target.value); }}
             className="w-full bg-card border border-border rounded-lg p-3" />
           {clientSuggestions.length > 0 && clientQ !== null && (
