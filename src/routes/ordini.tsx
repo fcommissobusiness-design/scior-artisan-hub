@@ -191,10 +191,11 @@ function OrdiniPage() {
             <div key={o.id} className={`bg-card rounded-xl p-4 shadow-sm ${overdue ? "ring-2 ring-danger/40" : ""}`}>
               <div className="flex justify-between items-start mb-2 gap-2">
                 <button onClick={() => setEditId(o.id)} className="text-left min-w-0 flex-1">
-                  <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? "—"}</p>
+                  <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? o.clientNameInput ?? "—"}</p>
                   <p className="text-[11px] text-muted-foreground truncate">{c?.phone ?? "—"} · {SOURCE_LABEL[o.source ?? "negozio"]}</p>
                   {o.label && <p className="text-xs text-brand-gold font-semibold mt-0.5 truncate">{o.label}</p>}
                 </button>
+
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap border ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
                   <span className={`text-[9px] px-1.5 py-0.5 rounded ${o.delivery === "domicilio" ? "bg-blue-600/15 text-blue-700" : "bg-brand-green/10 text-brand-green"}`}>
