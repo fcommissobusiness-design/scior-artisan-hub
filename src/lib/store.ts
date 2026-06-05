@@ -201,6 +201,7 @@ const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random()
 const nowIso = () => new Date().toISOString();
 
 let crmAutoRan = false;
+let clientsImportAutoRan = false;
 
 function resolveOrderClient<T extends { clientId: string; clientNameInput?: string; delivery?: DeliveryMode; address?: string }>(state: Store, input: T): { input: T; clients: Client[] } {
   const typedName = (input.clientNameInput ?? "").trim();
@@ -345,6 +346,15 @@ export function useStore() {
     const l = () => setTick((t) => t + 1);
     listeners.add(l);
     return () => { listeners.delete(l); };
+  }, []);
+  // Auto import clienti ufficiali: corregge anche stati cloud vecchi già salvati con soli 84 clienti.
+  useEffect(() => {
+    if (clientsImportAutoRan) return;
+    clientsImportAutoRan = true;
+    const cur = getStore() as Store & { __clientsImportV7?: boolean };
+    if (cur.__clientsImportV7 !== true || (cur.clients?.length ?? 0) < CLIENT_IMPORT_V7.length) {
+      setStore(migrate(cur));
+    }
   }, []);
   // Auto CRM (segmentazione automatica) — gira una volta per sessione, dopo il caricamento.
   useEffect(() => {
