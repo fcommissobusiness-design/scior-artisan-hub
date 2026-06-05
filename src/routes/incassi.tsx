@@ -184,6 +184,7 @@ function CassaPage() {
           };
           return (
             <button key={m.id} disabled={!openable} onClick={onOpen}
+              onPointerUp={(e) => { if (openable && e.pointerType === "touch") onOpen(); }}
               className="w-full text-left bg-card rounded-xl p-3 flex justify-between items-center gap-3 disabled:cursor-default">
               <div className="min-w-0">
                 <p className={`font-display text-base ${m.type === "entrata" ? "text-success" : "text-danger"}`}>
