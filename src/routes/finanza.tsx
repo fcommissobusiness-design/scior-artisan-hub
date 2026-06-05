@@ -55,6 +55,8 @@ function FinanziarioPage() {
     <div>
       <TopBar
         title="Finanziario"
+        subtitle={`${tf.label} · ${tf.start.toLocaleDateString("it-IT")} → ${new Date(+tf.end - 1).toLocaleDateString("it-IT")}`}
+
         right={
           <div className="flex items-center gap-2">
             <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
