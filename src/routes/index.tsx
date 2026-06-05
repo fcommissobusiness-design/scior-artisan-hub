@@ -266,10 +266,10 @@ function Dashboard() {
               const c = clientById(d.clientId);
               const o = d.orderId ? orders.find(x => x.id === d.orderId) : null;
               return (
-                <button key={d.id} onClick={() => setEditDelivId(d.id)}
-                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm">
+                <button key={d.id} type="button" onClick={() => setEditDelivId(d.id)}
+                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm touch-manipulation">
                   <div className="flex justify-between">
-                    <span className="font-semibold">{c?.name ?? "—"}</span>
+                    <span className="font-semibold">{c?.name ?? d.clientNameInput ?? "—"}</span>
                     {o && <span className="text-brand-green font-bold">{formatEuro(o.total)}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">{formatDate(d.date)} · {d.timeSlot} · {d.status.replace(/_/g, " ")}</p>
@@ -277,6 +277,7 @@ function Dashboard() {
                 </button>
               );
             })}
+
           </div>
         </section>
       </div>
