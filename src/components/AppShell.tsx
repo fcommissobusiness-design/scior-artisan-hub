@@ -210,6 +210,30 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+
+      <SyncBadge />
+    </div>
+  );
+}
+
+function SyncBadge() {
+  const s = useSyncStatus();
+  const map: Record<string, { label: string; color: string }> = {
+    idle:    { label: "—",                 color: "bg-muted text-muted-foreground" },
+    loading: { label: "Caricamento…",       color: "bg-warning/20 text-warning" },
+    syncing: { label: "Sincronizzazione…",  color: "bg-warning/20 text-warning" },
+    ready:   { label: "Salvato",            color: "bg-success/15 text-success" },
+    offline: { label: "Offline · non sync.", color: "bg-danger/15 text-danger" },
+    error:   { label: "Errore sync",        color: "bg-danger/15 text-danger" },
+  };
+  const m = map[s] ?? map.idle;
+  return (
+    <div
+      style={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}
+      className="fixed md:!bottom-3 left-3 md:left-auto md:right-3 z-40 pointer-events-none">
+      <div className={`text-[10px] font-semibold px-2 py-1 rounded-full shadow-sm border border-border/50 ${m.color}`}>
+        ● {m.label}
+      </div>
     </div>
   );
 }
