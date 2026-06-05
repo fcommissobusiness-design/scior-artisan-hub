@@ -24,9 +24,11 @@ export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
   const { orders, products, bundles, clients, casualSales, deliveries, supplierPayments, suppliers, productions, updateOrder, addCasualSale, addClient, addOrder, addSupplierPayment } = useStore();
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [tfId, setTfId] = useState<TimeFrameId>("today");
-  const [customStart, setCustomStart] = useState<string>("2026-01-01");
-  const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
+  const [customStart, setCustomStart] = useState<string>(todayIso);
+  const [customEnd, setCustomEnd] = useState<string>(todayIso);
+
   const [openSale, setOpenSale] = useState(false);
   const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [openOrder, setOpenOrder] = useState(false);
@@ -181,7 +183,7 @@ function Dashboard() {
                   <button onClick={() => setEditOrderId(o.id)} className="w-full text-left">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div>
-                        <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? "—"}</p>
+                        <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? o.clientNameInput ?? "—"}</p>
                         <p className="text-xs text-muted-foreground">{o.delivery === "domicilio" ? "Consegna" : "Ritiro"} {formatTime(o.pickupDate)} · {formatEuro(o.total)} · margine {formatEuro(m)}</p>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${o.status === "pronto" ? "bg-blue-600/15 text-blue-700" : o.status === "da_consegnare" ? "bg-purple-600/15 text-purple-700" : "bg-warning/15 text-warning"}`}>
@@ -234,8 +236,8 @@ function Dashboard() {
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
               return (
-                <button key={s.id} onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
-                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80">
+                <button key={s.id} type="button" onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
+                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80 touch-manipulation">
                   <div className="flex justify-between">
                     <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
@@ -246,6 +248,7 @@ function Dashboard() {
                 </button>
               );
             })}
+
           </div>
         </section>
 
@@ -263,10 +266,10 @@ function Dashboard() {
               const c = clientById(d.clientId);
               const o = d.orderId ? orders.find(x => x.id === d.orderId) : null;
               return (
-                <button key={d.id} onClick={() => setEditDelivId(d.id)}
-                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm">
+                <button key={d.id} type="button" onClick={() => setEditDelivId(d.id)}
+                  className="bg-card rounded-xl p-3 text-left text-sm shadow-sm touch-manipulation">
                   <div className="flex justify-between">
-                    <span className="font-semibold">{c?.name ?? "—"}</span>
+                    <span className="font-semibold">{c?.name ?? d.clientNameInput ?? "—"}</span>
                     {o && <span className="text-brand-green font-bold">{formatEuro(o.total)}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">{formatDate(d.date)} · {d.timeSlot} · {d.status.replace(/_/g, " ")}</p>
@@ -274,6 +277,7 @@ function Dashboard() {
                 </button>
               );
             })}
+
           </div>
         </section>
       </div>
@@ -318,16 +322,20 @@ function Dashboard() {
         <DeliveryFullSheet mode="edit" deliveryId={editDelivId} onClose={() => setEditDelivId(null)} />
       )}
 
-      <NewSaleSheet
-        open={openSale}
-        saleId={editSaleId ?? undefined}
-        onClose={() => { setOpenSale(false); setEditSaleId(null); }}
-        onSave={(s, newClient) => {
-          if (newClient) addClient(newClient);
-          addCasualSale(s);
-          setOpenSale(false);
-        }}
-      />
+      {openSale && (
+        <NewSaleSheet
+          key={editSaleId ?? "new"}
+          open={true}
+          saleId={editSaleId ?? undefined}
+          onClose={() => { setOpenSale(false); setEditSaleId(null); }}
+          onSave={(s, newClient) => {
+            if (newClient) addClient(newClient);
+            addCasualSale(s);
+            setOpenSale(false);
+          }}
+        />
+      )}
+
 
 
       {waOpen && (
@@ -465,7 +473,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
       date: new Date(date).toISOString(),
       items, total,
       clientId: effClientId,
-      clientNameInput: !effClientId && typed ? typed : undefined,
+      clientNameInput: typed || undefined, // sempre il nome digitato come fallback
       notes: notes.trim() || undefined,
       source, delivery, paymentMethod,
       hasInvoice, invoice: hasInvoice ? invoice : undefined,
@@ -483,6 +491,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
     if (!existing) return;
     if (confirm("Eliminare questo scontrino?")) { deleteCasualSale(existing.id); onClose(); }
   };
+
 
   const printPreview = () => {
     if (items.length === 0) return;
@@ -508,6 +517,8 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          <button onClick={printPreview} disabled={items.length === 0}
+            className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">🖨️ Stampa Comanda</button>
           {isEdit && (
             <button onClick={handleDelete}
               className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
@@ -518,6 +529,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
           </button>
         </div>
       }
+
     >
       {isEdit && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>

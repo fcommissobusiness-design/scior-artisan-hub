@@ -150,7 +150,7 @@ function renderHtml(d: ComandaData): string {
   ${metaRows ? `<div class="sep"></div>${metaRows}` : ""}
   <div class="sep"></div>
   ${itemsRows ? `<table>${itemsRows}</table>` : `<div class="notes">Nessun prodotto.</div>`}
-  ${d.notes ? `<div class="sep"></div><div class="notes">Note: ${escapeHtml(d.notes)}</div>` : ""}
+  <div class="sep"></div><div class="notes">Note: ${d.notes ? escapeHtml(d.notes) : "—"}</div>
   ${typeof d.total === "number" ? `<div class="sep"></div><div class="total">TOTALE ${fmtEuro(d.total)}</div>` : ""}
   <div class="footer">Sciorio Gastronomia</div>
   <div class="noprint"><button onclick="window.print()">Stampa / Salva PDF</button> <button onclick="window.close()">Chiudi</button></div>

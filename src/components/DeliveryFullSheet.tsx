@@ -118,11 +118,14 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
 
     const isoDate = new Date(date).toISOString();
     const orderStatus = statusToOrder(status);
+    const nameFallback = ((clientQ ?? "").trim() || selectedClient?.name || "").trim() || undefined;
 
     if (mode === "new") {
       // Crea Ordine domicilio (genera anche la Delivery collegata)
       const order = addOrder({
-        clientId: effClientId, items,
+        clientId: effClientId,
+        clientNameInput: nameFallback,
+        items,
         pickupDate: isoDate, status: orderStatus, total,
         notes: notes.trim() || undefined, source: "negozio",
         delivery: "domicilio", address: address.trim(),
@@ -133,26 +136,32 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
         updateDelivery(order.deliveryId, {
           timeSlot: slot, status, address: address.trim(),
           notes: notes.trim() || undefined, date: isoDate, payment,
+          clientNameInput: nameFallback,
         });
       }
     } else if (existing) {
       // Aggiorna l'ordine collegato (se presente) con items, indirizzo, stato, totale, data
       if (linkedOrder) {
         updateOrder(linkedOrder.id, {
-          clientId: effClientId, items, total,
+          clientId: effClientId,
+          clientNameInput: nameFallback,
+          items, total,
           pickupDate: isoDate, status: orderStatus,
           delivery: "domicilio", address: address.trim(),
           payment, notes: notes.trim() || undefined,
         });
       }
       updateDelivery(existing.id, {
-        clientId: effClientId, address: address.trim(), date: isoDate,
+        clientId: effClientId,
+        clientNameInput: nameFallback,
+        address: address.trim(), date: isoDate,
         timeSlot: slot, status, payment,
         notes: notes.trim() || undefined,
       });
     }
     onClose();
   };
+
 
   const handlePrint = () => {
     if (!existing) return;
@@ -169,11 +178,15 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
     <Sheet open={true} onClose={onClose}
       title={mode === "new" ? "Nuova consegna" : "Modifica consegna"}
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          {mode === "edit" && (
+            <button onClick={handlePrint}
+              className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold">🖨️ Stampa Comanda</button>
+          )}
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
@@ -181,6 +194,7 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">Conferma</button>
         </div>
       }>
+
       {mode === "edit" && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
           <div className="relative">

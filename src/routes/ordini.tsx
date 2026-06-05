@@ -191,10 +191,11 @@ function OrdiniPage() {
             <div key={o.id} className={`bg-card rounded-xl p-4 shadow-sm ${overdue ? "ring-2 ring-danger/40" : ""}`}>
               <div className="flex justify-between items-start mb-2 gap-2">
                 <button onClick={() => setEditId(o.id)} className="text-left min-w-0 flex-1">
-                  <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? "—"}</p>
+                  <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? o.clientNameInput ?? "—"}</p>
                   <p className="text-[11px] text-muted-foreground truncate">{c?.phone ?? "—"} · {SOURCE_LABEL[o.source ?? "negozio"]}</p>
                   {o.label && <p className="text-xs text-brand-gold font-semibold mt-0.5 truncate">{o.label}</p>}
                 </button>
+
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap border ${STATUS_STYLE[o.status]}`}>{STATUS_LABEL[o.status]}</span>
                   <span className={`text-[9px] px-1.5 py-0.5 rounded ${o.delivery === "domicilio" ? "bg-blue-600/15 text-blue-700" : "bg-brand-green/10 text-brand-green"}`}>
@@ -414,7 +415,9 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (!effectiveClientId) return;
     if (effectiveClientId === clientId) { persistPhoneIfChanged(); persistAddressIfChanged(); }
     const payload: Omit<Order, "id" | "createdAt"> = {
-      clientId: effectiveClientId, label: label.trim() || undefined, items,
+      clientId: effectiveClientId,
+      clientNameInput: (typed || selectedClient?.name || "").trim() || undefined,
+      label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
@@ -425,6 +428,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
   };
+
 
   const handlePrintComanda = () => {
     if (!existing) return;
@@ -453,11 +457,15 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     <Sheet open={true} onClose={onClose}
       title={mode === "new" ? "Nuovo Ordine" : `Ordine · ${selectedClient?.name ?? "—"}`}
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[140px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale · margine</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)} <span className="text-sm text-muted-foreground">· {formatEuro(margin)}</span></p>
           </div>
+          {mode === "edit" && (
+            <button onClick={handlePrintComanda}
+              className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold">🖨️ Stampa Comanda</button>
+          )}
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
@@ -467,6 +475,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           </button>
         </div>
       }
+
     >
       {mode === "edit" && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>

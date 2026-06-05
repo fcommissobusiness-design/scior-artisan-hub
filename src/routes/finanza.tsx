@@ -9,9 +9,11 @@ export const Route = createFileRoute("/finanza")({ component: FinanziarioPage })
 
 function FinanziarioPage() {
   const s = useStore();
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
-  const [cs, setCs] = useState<string>("");
-  const [ce, setCe] = useState<string>("");
+  const [cs, setCs] = useState<string>(todayIso);
+  const [ce, setCe] = useState<string>(todayIso);
+
 
   const tf = useMemo(
     () => makeTimeFrame(tfId, cs ? new Date(cs) : undefined, ce ? new Date(ce) : undefined),
@@ -53,6 +55,8 @@ function FinanziarioPage() {
     <div>
       <TopBar
         title="Finanziario"
+        subtitle={`${tf.label} · ${tf.start.toLocaleDateString("it-IT")} → ${new Date(+tf.end - 1).toLocaleDateString("it-IT")}`}
+
         right={
           <div className="flex items-center gap-2">
             <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
