@@ -25,8 +25,15 @@ type Movement = {
 function CassaPage() {
   const { orders, casualSales, supplierPayments, cashEntries, products, bundles, suppliers, addOrder, addCasualSale, addClient, addSupplierPayment } = useStore();
 
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
-  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
+  const [cs, setCs] = useState<string>(todayIso);
+  const [ce, setCe] = useState<string>(todayIso);
+  const tf = useMemo(
+    () => tfId === "custom" ? makeTimeFrame("custom", new Date(cs), new Date(ce)) : makeTimeFrame(tfId),
+    [tfId, cs, ce],
+  );
+
 
   const [filter, setFilter] = useState<"all" | "entrata" | "uscita">("all");
   const [pickerOpen, setPickerOpen] = useState(false);
