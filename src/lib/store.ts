@@ -6,7 +6,7 @@ import {
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
   SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH,
   generateLotCode,
-  type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery,
+  type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery, type DeliveryMode,
   type OrderEvent, type LoyaltyEvent,
   type Production, type Supplier, type CashEntry, type B2BClient, type SupplierPayment,
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
@@ -201,6 +201,34 @@ const nowIso = () => new Date().toISOString();
 
 let crmAutoRan = false;
 
+function resolveOrderClient<T extends { clientId: string; clientNameInput?: string; delivery?: DeliveryMode; address?: string }>(state: Store, input: T): { input: T; clients: Client[] } {
+  const typedName = (input.clientNameInput ?? "").trim();
+  const byId = input.clientId ? state.clients.find((c) => c.id === input.clientId) : undefined;
+  if (byId) {
+    return { input: { ...input, clientNameInput: typedName || byId.name } as T, clients: state.clients };
+  }
+  if (!typedName) return { input, clients: state.clients };
+  const exact = state.clients.find((c) => c.name.trim().toLowerCase() === typedName.toLowerCase());
+  if (exact) {
+    return { input: { ...input, clientId: exact.id, clientNameInput: typedName } as T, clients: state.clients };
+  }
+  const address = input.delivery === "domicilio" ? input.address?.trim() : undefined;
+  const client: Client = {
+    id: uid("c_"),
+    name: typedName,
+    phone: "",
+    segment: "nuovi",
+    stamps: 0,
+    loyaltyHistory: [],
+    deliveryZone: address || undefined,
+    addresses: address ? [address] : undefined,
+  };
+  return {
+    input: { ...input, clientId: client.id, clientNameInput: typedName } as T,
+    clients: [client, ...state.clients],
+  };
+}
+
 function applyOrderRitirato(store: Store, order: Order): Store {
   // aggiorna stamps cliente, lastOrder, loyaltyHistory
   const clients = store.clients.map((c) => {
@@ -388,6 +416,8 @@ export function useStore() {
 
     // ORDERS
     addOrder: (o: Omit<Order, "id" | "createdAt">) => {
+      const resolved = resolveOrderClient(getStore(), o);
+      o = resolved.input;
       const orderId = uid("o_");
       let deliveryId: string | undefined = o.deliveryId;
       let nextDeliveries = store.deliveries;
@@ -415,7 +445,7 @@ export function useStore() {
         timeline: [{ date: nowIso(), type: "creato" }],
         source: o.source ?? "negozio",
       };
-      let next: Store = { ...store, orders: [order, ...store.orders], deliveries: nextDeliveries };
+      let next: Store = { ...store, clients: resolved.clients, orders: [order, ...store.orders], deliveries: nextDeliveries };
       if (order.status === "ritirato") next = applyOrderRitirato(next, order);
       setStore(next);
       return order;
