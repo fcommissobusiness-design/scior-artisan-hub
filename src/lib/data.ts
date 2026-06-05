@@ -123,6 +123,7 @@ export interface OrderEvent {
 export interface Order {
   id: string;
   clientId: string;
+  clientNameInput?: string;    // fallback nome digitato (sempre salvato)
   label?: string;
   items: OrderItem[];
   pickupDate: string; // ISO datetime
@@ -140,6 +141,7 @@ export interface Order {
   hasInvoice?: boolean;
   invoice?: PaymentAttachment;
 }
+
 
 
 export interface Bundle {
