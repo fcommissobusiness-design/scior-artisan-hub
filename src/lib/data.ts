@@ -181,6 +181,7 @@ export type DeliveryPayment = "da_pagare" | "pagato_anticipo" | "pagato_consegna
 export interface Delivery {
   id: string;
   clientId: string;
+  clientNameInput?: string;    // fallback nome digitato
   address: string;
   timeSlot: string; // es. "10:00-12:00"
   date: string;     // ISO date
@@ -190,6 +191,7 @@ export interface Delivery {
   notes?: string;
   createdAt: string;
 }
+
 
 // ============= NUOVE ENTITÀ v4 =============
 
