@@ -11,8 +11,15 @@ export const Route = createFileRoute("/report")({ component: ReportPage });
 
 function ReportPage() {
   const { orders, casualSales, products, clients, bundles } = useStore();
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
-  const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
+  const [cs, setCs] = useState<string>(todayIso);
+  const [ce, setCe] = useState<string>(todayIso);
+  const tf = useMemo(
+    () => tfId === "custom" ? makeTimeFrame("custom", new Date(cs), new Date(ce)) : makeTimeFrame(tfId),
+    [tfId, cs, ce],
+  );
+
 
   const ordersF = orders.filter(o => inFrame(o.pickupDate, tf) && o.status === "ritirato");
   const salesF = casualSales.filter(s => inFrame(s.date, tf));
