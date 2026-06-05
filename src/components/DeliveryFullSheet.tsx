@@ -178,11 +178,15 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
     <Sheet open={true} onClose={onClose}
       title={mode === "new" ? "Nuova consegna" : "Modifica consegna"}
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[120px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          {mode === "edit" && (
+            <button onClick={handlePrint}
+              className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold">🖨️ Stampa Comanda</button>
+          )}
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
@@ -190,6 +194,7 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
             className="bg-brand-gold text-white rounded-xl px-6 py-3 font-semibold disabled:opacity-40">Conferma</button>
         </div>
       }>
+
       {mode === "edit" && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
           <div className="relative">
