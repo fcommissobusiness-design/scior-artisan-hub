@@ -134,14 +134,23 @@ function CassaPage() {
 
   return (
     <div>
-      <TopBar title="Cassa" />
+      <TopBar title="Cassa" subtitle={`${tf.label} · ${tf.start.toLocaleDateString("it-IT")} → ${new Date(+tf.end - 1).toLocaleDateString("it-IT")}`} />
 
-      <div className="px-4 md:px-6 pt-4 flex justify-end">
+      <div className="px-4 md:px-6 pt-4 flex flex-wrap justify-end gap-2 items-center">
         <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
           className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
           {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
+        {tfId === "custom" && (
+          <>
+            <input type="date" value={cs} onChange={e => setCs(e.target.value)}
+              className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs" />
+            <input type="date" value={ce} onChange={e => setCe(e.target.value)}
+              className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs" />
+          </>
+        )}
       </div>
+
 
       <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Entrate" value={formatEuro(kpi.entrate)} />
