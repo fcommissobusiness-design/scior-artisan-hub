@@ -183,7 +183,7 @@ function Dashboard() {
                   <button onClick={() => setEditOrderId(o.id)} className="w-full text-left">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div>
-                        <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? "—"}</p>
+                        <p className="font-display text-lg leading-tight text-brand-green">{c?.name ?? o.clientNameInput ?? "—"}</p>
                         <p className="text-xs text-muted-foreground">{o.delivery === "domicilio" ? "Consegna" : "Ritiro"} {formatTime(o.pickupDate)} · {formatEuro(o.total)} · margine {formatEuro(m)}</p>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${o.status === "pronto" ? "bg-blue-600/15 text-blue-700" : o.status === "da_consegnare" ? "bg-purple-600/15 text-purple-700" : "bg-warning/15 text-warning"}`}>
