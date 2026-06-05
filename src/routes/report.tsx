@@ -65,15 +65,31 @@ function ReportPage() {
   return (
     <div>
       <TopBar title="Report"
+        subtitle={`${tf.label} · ${tf.start.toLocaleDateString("it-IT")} → ${new Date(+tf.end - 1).toLocaleDateString("it-IT")}`}
         right={
           <select value={tfId} onChange={(e) => setTfId(e.target.value as TimeFrameId)}
             className="bg-brand-green-dark text-brand-cream text-xs rounded-lg px-2 py-2 border border-brand-gold/30">
-            {TIME_FRAME_OPTIONS.filter(o => o.id !== "custom").map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            {TIME_FRAME_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select>
         }
       />
 
       <div className="p-4 md:p-6 space-y-6">
+        {tfId === "custom" && (
+          <div className="bg-card rounded-xl p-3 flex flex-wrap gap-3 items-end">
+            <label className="text-xs">
+              <span className="block text-muted-foreground mb-1">Dal</span>
+              <input type="date" value={cs} onChange={e => setCs(e.target.value)}
+                className="bg-background border border-border rounded-lg px-2 py-1.5" />
+            </label>
+            <label className="text-xs">
+              <span className="block text-muted-foreground mb-1">Al</span>
+              <input type="date" value={ce} onChange={e => setCe(e.target.value)}
+                className="bg-background border border-border rounded-lg px-2 py-1.5" />
+            </label>
+          </div>
+        )}
+
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Kpi label="Fatturato" value={formatEuro(fatturato)} highlight />
           <Kpi label="Margine totale" value={formatEuro(margineTot)} />
