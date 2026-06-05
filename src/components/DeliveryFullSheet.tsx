@@ -118,11 +118,14 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
 
     const isoDate = new Date(date).toISOString();
     const orderStatus = statusToOrder(status);
+    const nameFallback = ((clientQ ?? "").trim() || selectedClient?.name || "").trim() || undefined;
 
     if (mode === "new") {
       // Crea Ordine domicilio (genera anche la Delivery collegata)
       const order = addOrder({
-        clientId: effClientId, items,
+        clientId: effClientId,
+        clientNameInput: nameFallback,
+        items,
         pickupDate: isoDate, status: orderStatus, total,
         notes: notes.trim() || undefined, source: "negozio",
         delivery: "domicilio", address: address.trim(),
@@ -133,26 +136,32 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
         updateDelivery(order.deliveryId, {
           timeSlot: slot, status, address: address.trim(),
           notes: notes.trim() || undefined, date: isoDate, payment,
+          clientNameInput: nameFallback,
         });
       }
     } else if (existing) {
       // Aggiorna l'ordine collegato (se presente) con items, indirizzo, stato, totale, data
       if (linkedOrder) {
         updateOrder(linkedOrder.id, {
-          clientId: effClientId, items, total,
+          clientId: effClientId,
+          clientNameInput: nameFallback,
+          items, total,
           pickupDate: isoDate, status: orderStatus,
           delivery: "domicilio", address: address.trim(),
           payment, notes: notes.trim() || undefined,
         });
       }
       updateDelivery(existing.id, {
-        clientId: effClientId, address: address.trim(), date: isoDate,
+        clientId: effClientId,
+        clientNameInput: nameFallback,
+        address: address.trim(), date: isoDate,
         timeSlot: slot, status, payment,
         notes: notes.trim() || undefined,
       });
     }
     onClose();
   };
+
 
   const handlePrint = () => {
     if (!existing) return;
