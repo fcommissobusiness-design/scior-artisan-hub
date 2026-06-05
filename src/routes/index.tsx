@@ -236,8 +236,8 @@ function Dashboard() {
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
               return (
-                <button key={s.id} onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
-                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80">
+                <button key={s.id} type="button" onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
+                  className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80 touch-manipulation">
                   <div className="flex justify-between">
                     <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
@@ -248,6 +248,7 @@ function Dashboard() {
                 </button>
               );
             })}
+
           </div>
         </section>
 
