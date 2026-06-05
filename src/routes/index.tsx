@@ -84,6 +84,11 @@ function Dashboard() {
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
   const productById = (id: string) => products.find((p) => p.id === id);
+  const openSaleEditor = (saleId: string) => {
+    setEditSaleId(saleId);
+    setOpenSale(true);
+    setPickAction(false);
+  };
 
   return (
     <div>
@@ -236,7 +241,8 @@ function Dashboard() {
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
               return (
-                <button key={s.id} type="button" onClick={() => { setEditSaleId(s.id); setOpenSale(true); }}
+                <button key={s.id} type="button" onClick={() => openSaleEditor(s.id)}
+                  onPointerUp={(e) => { if (e.pointerType === "touch") openSaleEditor(s.id); }}
                   className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80 touch-manipulation">
                   <div className="flex justify-between">
                     <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
