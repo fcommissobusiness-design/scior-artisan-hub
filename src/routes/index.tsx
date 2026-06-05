@@ -24,9 +24,11 @@ export const Route = createFileRoute("/")({ component: Dashboard });
 
 function Dashboard() {
   const { orders, products, bundles, clients, casualSales, deliveries, supplierPayments, suppliers, productions, updateOrder, addCasualSale, addClient, addOrder, addSupplierPayment } = useStore();
+  const todayIso = new Date().toISOString().slice(0, 10);
   const [tfId, setTfId] = useState<TimeFrameId>("today");
-  const [customStart, setCustomStart] = useState<string>("2026-01-01");
-  const [customEnd, setCustomEnd] = useState<string>("2026-12-31");
+  const [customStart, setCustomStart] = useState<string>(todayIso);
+  const [customEnd, setCustomEnd] = useState<string>(todayIso);
+
   const [openSale, setOpenSale] = useState(false);
   const [editSaleId, setEditSaleId] = useState<string | null>(null);
   const [openOrder, setOpenOrder] = useState(false);
