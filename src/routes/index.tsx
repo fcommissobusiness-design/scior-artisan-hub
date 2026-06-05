@@ -517,6 +517,8 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
             <p className="text-[10px] uppercase text-muted-foreground">Totale</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)}</p>
           </div>
+          <button onClick={printPreview} disabled={items.length === 0}
+            className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold disabled:opacity-40">🖨️ Stampa Comanda</button>
           {isEdit && (
             <button onClick={handleDelete}
               className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
@@ -527,6 +529,7 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
           </button>
         </div>
       }
+
     >
       {isEdit && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
