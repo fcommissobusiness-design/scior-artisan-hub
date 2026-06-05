@@ -106,10 +106,14 @@ export function useCloudSync(userId: string | null) {
           versionRef.current = Number(data.version ?? 1);
           if (data.data && typeof data.data === "object") {
             applyRemoteStore(data.data as any);
+            // Se lo stato cloud è vecchio (es. import clienti/migrazioni locali),
+            // dopo l'idratazione lo ripubblichiamo così anche gli altri device vedono i dati corretti.
+            pendingRef.current = true;
           }
         }
         if (cancelled) return;
         updateStatus("ready");
+        if (pendingRef.current) void pushNow();
       } catch (e) {
         console.error("[cloudSync] hydrate failed", e);
         if (!cancelled) updateStatus("error");

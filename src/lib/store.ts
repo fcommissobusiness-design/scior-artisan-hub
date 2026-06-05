@@ -14,7 +14,7 @@ import {
   type Lot, type HaccpReading, type CleaningTask,
   type TrashEntry, type TrashKind,
 } from "./data";
-import { applyClientImportV7 } from "./client-import";
+import { CLIENT_IMPORT_V7, applyClientImportV7 } from "./client-import";
 
 const KEY = "sciorio-hq-v4";
 const LEGACY_V3 = "sciorio-hq-v3";
@@ -78,7 +78,7 @@ const SEED: Store = {
 function migrate(parsed: any): Store {
   // One-time refresh of clients list (real customers list) — drop legacy demo clients.
   const clientsSeedV2 = parsed.__clientsSeedV2 === true;
-  const clientsSource = clientsSeedV2 ? (parsed.clients ?? SEED.clients) : SEED.clients;
+  const clientsSource = parsed.clients ?? SEED.clients;
   // One-time wipe of demo orders/sales/deliveries so LTV/scontrino medio partono da zero.
   const cleanV3 = parsed.__cleanSeedV3 === true;
   // Catalogo Maggio 2026: forza il re-seed di prodotti e bundle col listino aggiornato.
@@ -88,7 +88,8 @@ function migrate(parsed: any): Store {
   // V6: wipe definitivo di costi fissi demo, pagamenti e cash demo (gestionale "pulito").
   const demoCleanV6 = parsed.__demoCleanV6 === true;
   // V7: import lista clienti ufficiale (segmento + telefoni) — applicato una sola volta.
-  const clientsImportV7 = parsed.__clientsImportV7 === true;
+  const importedClientCount = Array.isArray(parsed.clients) ? parsed.clients.length : 0;
+  const clientsImportV7 = parsed.__clientsImportV7 === true && importedClientCount >= CLIENT_IMPORT_V7.length;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -191,7 +192,7 @@ export function subscribeStore(fn: () => void): () => void {
 }
 export function applyRemoteStore(next: Store) {
   _isApplyingRemote = true;
-  try { setStore(next); } finally { _isApplyingRemote = false; }
+  try { setStore(migrate(next)); } finally { _isApplyingRemote = false; }
 }
 export function isApplyingRemote(): boolean { return _isApplyingRemote; }
 export function resetStoreToSeed() { setStore(SEED); }
@@ -200,6 +201,7 @@ const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random()
 const nowIso = () => new Date().toISOString();
 
 let crmAutoRan = false;
+let clientsImportAutoRan = false;
 
 function resolveOrderClient<T extends { clientId: string; clientNameInput?: string; delivery?: DeliveryMode; address?: string }>(state: Store, input: T): { input: T; clients: Client[] } {
   const typedName = (input.clientNameInput ?? "").trim();
@@ -344,6 +346,15 @@ export function useStore() {
     const l = () => setTick((t) => t + 1);
     listeners.add(l);
     return () => { listeners.delete(l); };
+  }, []);
+  // Auto import clienti ufficiali: corregge anche stati cloud vecchi già salvati con soli 84 clienti.
+  useEffect(() => {
+    if (clientsImportAutoRan) return;
+    clientsImportAutoRan = true;
+    const cur = getStore() as Store & { __clientsImportV7?: boolean };
+    if (cur.__clientsImportV7 !== true || (cur.clients?.length ?? 0) < CLIENT_IMPORT_V7.length) {
+      setStore(migrate(cur));
+    }
   }, []);
   // Auto CRM (segmentazione automatica) — gira una volta per sessione, dopo il caricamento.
   useEffect(() => {

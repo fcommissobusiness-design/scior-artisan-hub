@@ -284,7 +284,10 @@ export function Sheet({ open, onClose, title, children, footer }: {
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end md:items-center justify-center p-0 md:p-6" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/50 z-[60] flex items-end md:items-center justify-center p-0 md:p-6"
+      onPointerDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div
         className="bg-brand-cream w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl max-h-[92vh] md:max-h-[88vh] flex flex-col overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
