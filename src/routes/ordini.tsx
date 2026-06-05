@@ -456,11 +456,15 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     <Sheet open={true} onClose={onClose}
       title={mode === "new" ? "Nuovo Ordine" : `Ordine · ${selectedClient?.name ?? "—"}`}
       footer={
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[140px]">
             <p className="text-[10px] uppercase text-muted-foreground">Totale · margine</p>
             <p className="font-display text-2xl text-brand-green leading-none">{formatEuro(total)} <span className="text-sm text-muted-foreground">· {formatEuro(margin)}</span></p>
           </div>
+          {mode === "edit" && (
+            <button onClick={handlePrintComanda}
+              className="bg-card border border-border rounded-xl px-3 py-3 text-sm font-semibold">🖨️ Stampa Comanda</button>
+          )}
           {mode === "edit" && (
             <button onClick={handleDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
           )}
@@ -470,6 +474,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
           </button>
         </div>
       }
+
     >
       {mode === "edit" && (
         <div className="flex justify-end -mt-2 -mr-1" ref={menuRef}>
