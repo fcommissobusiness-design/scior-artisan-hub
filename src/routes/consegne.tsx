@@ -133,7 +133,7 @@ function ConsegnePage() {
               <button onClick={() => setEditId(d.id)} className="w-full text-left">
                 <div className="flex justify-between items-start mb-1 gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? "—"}</p>
+                    <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? d.clientNameInput ?? "—"}</p>
                     <p className="text-xs text-muted-foreground truncate">{c?.phone ?? "—"}</p>
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${STATUS_STYLE[d.status]}`}>{STATUS_LABEL[d.status]}</span>
