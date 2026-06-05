@@ -414,7 +414,9 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (!effectiveClientId) return;
     if (effectiveClientId === clientId) { persistPhoneIfChanged(); persistAddressIfChanged(); }
     const payload: Omit<Order, "id" | "createdAt"> = {
-      clientId: effectiveClientId, label: label.trim() || undefined, items,
+      clientId: effectiveClientId,
+      clientNameInput: (typed || selectedClient?.name || "").trim() || undefined,
+      label: label.trim() || undefined, items,
       pickupDate: new Date(date).toISOString(),
       status, total, notes: notes.trim() || undefined, source, delivery,
       address: delivery === "domicilio" ? address.trim() || undefined : undefined,
@@ -425,6 +427,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (mode === "new") onSave?.(payload);
     else if (existing) { updateOrder(existing.id, payload); onClose(); }
   };
+
 
   const handlePrintComanda = () => {
     if (!existing) return;
