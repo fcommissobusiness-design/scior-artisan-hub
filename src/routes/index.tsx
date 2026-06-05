@@ -7,7 +7,7 @@ import { InvoiceField } from "@/components/InvoiceField";
 import { makeTimeFrame, inFrame, TIME_FRAME_OPTIONS, type TimeFrameId } from "@/lib/timeframe";
 import {
   lateOrders,
-  loyaltyReadyClients, openDeliveries, dailyMargin, orderMargin,
+  loyaltyReadyClients, openDeliveries, orderMargin,
   lowStockProducts, outOfStockProducts, supplierPaymentsOverdue,
   productionsForDate, itemDisplayName, cartTotal,
 } from "@/lib/metrics";
