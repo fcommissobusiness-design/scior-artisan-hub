@@ -17,11 +17,12 @@ type InvoiceRowItem = {
   counterparty: string;
   amount: number;
   attachment: PaymentAttachment;
+  notes?: string;
   ref: { kind: "order" | "sale" | "payment"; id: string };
 };
 
 function FatturePage() {
-  const { orders, casualSales, supplierPayments, suppliers, clients, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, clients, goodsReceipts, addSupplierPayment } = useStore();
   const [openNew, setOpenNew] = useState(false);
   const navigate = useNavigate();
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
@@ -56,19 +57,22 @@ function FatturePage() {
       });
     }
     for (const p of supplierPayments) {
-      const att = p.attachments?.[0];
+      const receiptRef = /ref:gr_(\S+)/.exec(p.notes ?? "")?.[1];
+      const linkedReceipt = receiptRef ? goodsReceipts.find(r => r.id === receiptRef) : undefined;
+      const att = p.attachments?.[0] ?? linkedReceipt?.attachments?.[0];
       if (p.document !== "fattura" || !att) continue;
       if (!inFrame(p.date, tf)) continue;
       out.push({
         id: `pay_${p.id}`, date: p.date, direction: "uscita",
-        typeLabel: "Uscita",
+        typeLabel: (p.notes ?? "").includes("ref:gr_") ? "Scarico Prodotti" : "Uscita",
         counterparty: p.beneficiary,
         amount: p.amount, attachment: att,
+        notes: p.notes,
         ref: { kind: "payment", id: p.id },
       });
     }
     return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [orders, casualSales, supplierPayments, clients, tf]);
+  }, [orders, casualSales, supplierPayments, clients, goodsReceipts, tf]);
 
   const visible = useMemo(
     () => filter === "all" ? items : items.filter(i => i.direction === filter),
@@ -87,7 +91,7 @@ function FatturePage() {
   const openRef = (ref: InvoiceRowItem["ref"]) => {
     if (ref.kind === "order") navigate({ to: "/ordini" });
     else if (ref.kind === "sale") navigate({ to: "/incassi" });
-    else navigate({ to: "/incassi" });
+    else navigate({ to: "/pagamenti" });
   };
 
   return (
@@ -141,6 +145,7 @@ function FatturePage() {
               </p>
             </div>
             <InvoiceRow att={i.attachment} />
+            {i.notes && <p className="mt-2 text-[11px] text-muted-foreground line-clamp-2">{i.notes}</p>}
             <button onClick={() => openRef(i.ref)}
               className="mt-2 text-xs text-brand-green font-semibold underline">
               Apri {i.ref.kind === "order" ? "ordine" : i.ref.kind === "sale" ? "scontrino" : "uscita"} collegato →

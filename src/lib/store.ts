@@ -22,6 +22,9 @@ const LEGACY_KEY = "sciorio-hq-v2";
 const PIN_KEY = "sciorio-hq-auth";
 const PIN_VALUE_KEY = "sciorio-hq-pin";
 const DEFAULT_PIN = "0000";
+const OLD_WATER_ID = "acque-grandi-levissima-e-ferrarelle";
+const LEVISSIMA_ID = "acqua-levissima";
+const FERRARELLE_ID = "acqua-ferrarelle";
 
 interface Store {
   products: Product[];
@@ -75,6 +78,144 @@ const SEED: Store = {
   trash: SEED_TRASH,
 };
 
+function isReceiptStocked(r: GoodsReceipt): boolean {
+  return r.status === "ricevuta" || r.status === "verificata" || r.status === "archiviata";
+}
+
+function receiptHasInvoice(r: GoodsReceipt): boolean {
+  return Boolean(
+    r.invoiceNumber?.trim()
+    || (r.attachments ?? []).some(a => a.kind === "fattura" || /fatt/i.test(a.name)),
+  );
+}
+
+function extractReceiptRef(notes?: string): string | undefined {
+  return /ref:gr_(\S+)/.exec(notes ?? "")?.[1];
+}
+
+function receiptTotal(r: GoodsReceipt): number {
+  return r.documentTotal ?? r.totalCost ?? r.items.reduce((s, it) => s + (it.unitCost ?? 0) * it.qty, 0);
+}
+
+function paymentFromReceipt(store: Store, r: GoodsReceipt, id: string): SupplierPayment {
+  const sup = store.suppliers.find(s => s.id === r.supplierId);
+  const productSummary = r.items
+    .map(it => {
+      const p = store.products.find(x => x.id === it.productId);
+      return p ? `${p.name} x ${it.qty}` : null;
+    })
+    .filter(Boolean)
+    .join(", ");
+  const payStatus = r.paymentStatus === "pagato" ? "pagato"
+    : r.paymentStatus === "scaduto" ? "scaduto" : "da_pagare";
+  return {
+    id,
+    date: r.invoiceDate ?? r.date,
+    beneficiary: sup?.name ?? "Fornitore",
+    beneficiaryType: "fornitore",
+    supplierId: r.supplierId,
+    category: "Merce",
+    amount: receiptTotal(r),
+    method: r.paymentMethod ?? "bonifico",
+    status: payStatus,
+    dueDate: r.paymentDueDate,
+    recurrence: "una_tantum",
+    document: "fattura",
+    notes: `Auto da Scarico Prodotti${r.invoiceNumber ? ` · Fatt. ${r.invoiceNumber}` : ""}${productSummary ? ` · Prodotti: ${productSummary}` : ""} · ref:gr_${r.id}`,
+    deductible: r.deductible ?? true,
+    fiscalCategory: r.fiscalCategory ?? "Acquisti merci",
+    attachments: (r.attachments ?? []).map(a => ({ id: a.id, name: a.name, type: a.type, size: a.size, addedAt: a.addedAt })),
+  };
+}
+
+function syncReceiptInvoicePayment(store: Store, r: GoodsReceipt): Store {
+  if (!receiptHasInvoice(r) || receiptTotal(r) <= 0) return store;
+  const sameReceipt = (p: SupplierPayment) => extractReceiptRef(p.notes) === r.id;
+  const sameLegacy = (p: SupplierPayment) => {
+    if (p.document !== "fattura") return false;
+    if (p.supplierId !== r.supplierId) return false;
+    if (Math.abs(p.amount - receiptTotal(r)) > 0.01) return false;
+    const inv = r.invoiceNumber?.trim();
+    return inv ? (p.notes ?? "").includes(inv) : true;
+  };
+  const idx = store.supplierPayments.findIndex(p => sameReceipt(p) || sameLegacy(p));
+  const id = idx >= 0 ? store.supplierPayments[idx].id : uid("sp_");
+  const nextPay = paymentFromReceipt(store, r, id);
+  if (idx >= 0) {
+    return { ...store, supplierPayments: store.supplierPayments.map((p, i) => i === idx ? { ...p, ...nextPay, id: p.id } : p) };
+  }
+  return { ...store, supplierPayments: [nextPay, ...store.supplierPayments] };
+}
+
+function inferReceiptProductId(store: Store, r: GoodsReceipt, it: { productId?: string; notes?: string }): string {
+  if (it.productId === OLD_WATER_ID) return LEVISSIMA_ID;
+  if (it.productId === "salsiccia-paesana-sottovuoto-tucciarone") return "salsiccia-paesana-sv-tucciarone";
+  if (it.productId === "latte-alta-digeribilita-latte-sano") return "latte-alta-digeribilit-latte-sano";
+  if (it.productId && store.products.some(p => p.id === it.productId)) return it.productId;
+  const text = `${it.notes ?? ""} ${r.notes ?? ""} ${r.invoiceNumber ?? ""}`.toLowerCase();
+  if (text.includes("ferrarelle")) return FERRARELLE_ID;
+  if (text.includes("levissima") || text.includes("acqua") || Math.abs(receiptTotal(r) - 477.98) < 0.01) return LEVISSIMA_ID;
+  return it.productId ?? "";
+}
+
+function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean): Store {
+  let out: Store = { ...input };
+  const oldWater = out.products.find(p => p.id === OLD_WATER_ID);
+  const levissimaSeed = SEED.products.find(p => p.id === LEVISSIMA_ID);
+  const ferrarelleSeed = SEED.products.find(p => p.id === FERRARELLE_ID);
+  out.products = out.products.filter(p => p.id !== OLD_WATER_ID);
+  if (levissimaSeed && !out.products.some(p => p.id === LEVISSIMA_ID)) out.products = [{ ...levissimaSeed, stock: oldWater?.stock, lastRestock: oldWater?.lastRestock }, ...out.products];
+  if (ferrarelleSeed && !out.products.some(p => p.id === FERRARELLE_ID)) out.products = [{ ...ferrarelleSeed }, ...out.products];
+
+  out.goodsReceipts = out.goodsReceipts.map(r => ({
+    ...r,
+    items: r.items.map(it => ({ ...it, productId: inferReceiptProductId(out, r, it) })),
+  }));
+
+  out.lots = out.lots.map(l => {
+    if (l.productId === OLD_WATER_ID) return { ...l, productId: LEVISSIMA_ID };
+    if (l.productId) return l;
+    const rec = out.goodsReceipts.find(r => r.id === l.receiptId);
+    const firstItem = rec?.items.find(it => it.productId);
+    return firstItem ? { ...l, productId: firstItem.productId } : l;
+  });
+
+  let lots = [...out.lots];
+  for (const r of out.goodsReceipts) {
+    if (!isReceiptStocked(r)) continue;
+    for (const it of r.items) {
+      if (!it.productId || !out.products.some(p => p.id === it.productId)) continue;
+      const code = it.lotCode?.trim() || lots.find(l => l.receiptId === r.id && l.productId === it.productId)?.code || generateLotCode(r.date, lots);
+      const existingIdx = lots.findIndex(l => l.receiptId === r.id && l.productId === it.productId && l.code === code);
+      if (existingIdx >= 0) continue;
+      const p = out.products.find(x => x.id === it.productId);
+      const expiry = new Date(r.date);
+      if (p?.shelfLifeDays && p.shelfLifeDays > 0) expiry.setDate(expiry.getDate() + p.shelfLifeDays);
+      else expiry.setHours(expiry.getHours() + 72);
+      lots = [{
+        id: uid("lt_"), code, productId: it.productId,
+        productionDate: r.date, expiryDate: expiry.toISOString(),
+        qtyInitial: it.qty, qtyRemaining: it.qty,
+        supplierId: r.supplierId, receiptId: r.id,
+        notes: it.notes, createdAt: nowIso(),
+      }, ...lots];
+    }
+  }
+  out.lots = lots;
+
+  const stockByProduct = new Map<string, number>();
+  for (const l of out.lots) {
+    if (!l.productId || l.qtyRemaining <= 0) continue;
+    stockByProduct.set(l.productId, (stockByProduct.get(l.productId) ?? 0) + l.qtyRemaining);
+  }
+  out.products = out.products.map(p => stockByProduct.has(p.id) ? { ...p, stock: +stockByProduct.get(p.id)!.toFixed(3) } : p);
+
+  if (createMissingPayments) {
+    for (const r of out.goodsReceipts) out = syncReceiptInvoicePayment(out, r);
+  }
+  return out;
+}
+
 function migrate(parsed: any): Store {
   // One-time refresh of clients list (real customers list) — drop legacy demo clients.
   const clientsSeedV2 = parsed.__clientsSeedV2 === true;
@@ -92,6 +233,8 @@ function migrate(parsed: any): Store {
   const clientsImportV7 = parsed.__clientsImportV7 === true && importedClientCount >= CLIENT_IMPORT_V7.length;
   // V8: split Acqua Levissima/Ferrarelle + retroactive fattura sync.
   const splitV8 = parsed.__splitWaterV8 === true;
+  // V9: riparazione effettiva dati scarichi → magazzino/fatture, anche per cloud già migrati male.
+  const receiptIntegrityV9 = parsed.__receiptIntegrityV9 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -138,7 +281,6 @@ function migrate(parsed: any): Store {
   // V8: remap del vecchio id "Acque grandi Levissima e Ferrarelle" → "acqua-levissima"
   // e creazione retroattiva delle fatture (SupplierPayment) per scarichi con n. fattura.
   if (!splitV8) {
-    const OLD_WATER_ID = "acque-grandi-levissima-e-ferrarelle";
     const NEW_WATER_ID = "acqua-levissima";
     const hasNew = out.products.some(p => p.id === NEW_WATER_ID);
     if (hasNew) {
@@ -186,6 +328,8 @@ function migrate(parsed: any): Store {
       }, ...out.supplierPayments];
     }
   }
+  const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9);
+  Object.assign(out, fixed);
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
@@ -193,6 +337,7 @@ function migrate(parsed: any): Store {
   (out as any).__demoCleanV6 = true;
   (out as any).__clientsImportV7 = true;
   (out as any).__splitWaterV8 = true;
+  (out as any).__receiptIntegrityV9 = true;
   return out;
 }
 
@@ -814,11 +959,12 @@ export function useStore() {
     addGoodsReceipt: (r: Omit<GoodsReceipt, "id" | "createdAt">) => {
       const rec: GoodsReceipt = { ...r, id: uid("gr_"), createdAt: nowIso() };
       let next: Store = { ...store, goodsReceipts: [rec, ...store.goodsReceipts] };
-      // Aggiorna stock prodotti se ricevuta/verificata/archiviata
-      if (rec.status !== "attesa") {
+      // Aggiorna stock prodotti se ricevuta/verificata/archiviata (non se attesa/annullata)
+      if (isReceiptStocked(rec)) {
         next = applyReceiptStock(next, rec, +1);
         next = applyReceiptLots(next, rec);
       }
+      next = syncReceiptInvoicePayment(next, rec);
       // Aggiorna lastOrderDate fornitore
       next = {
         ...next,
@@ -833,25 +979,32 @@ export function useStore() {
       if (!prev) return;
       const merged: GoodsReceipt = { ...prev, ...patch };
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.map((g) => g.id === id ? merged : g) };
-      const wasReceived = prev.status !== "attesa";
-      const isReceived = merged.status !== "attesa";
+      const wasReceived = isReceiptStocked(prev);
+      const isReceived = isReceiptStocked(merged);
       if (!wasReceived && isReceived) {
         next = applyReceiptStock(next, merged, +1);
         next = applyReceiptLots(next, merged);
       } else if (wasReceived && !isReceived) {
         next = applyReceiptStock(next, prev, -1);
         next = removeReceiptLots(next, prev.id);
+      } else if (wasReceived && isReceived) {
+        next = applyReceiptStock(next, prev, -1);
+        next = removeReceiptLots(next, prev.id);
+        next = applyReceiptStock(next, merged, +1);
+        next = applyReceiptLots(next, merged);
       }
+      next = syncReceiptInvoicePayment(next, merged);
       setStore(next);
     },
     deleteGoodsReceipt: (id: string) => {
       const prev = store.goodsReceipts.find((g) => g.id === id);
       if (!prev) return;
       let next: Store = { ...store, goodsReceipts: store.goodsReceipts.filter((g) => g.id !== id) };
-      if (prev.status !== "attesa") {
+      if (isReceiptStocked(prev)) {
         next = applyReceiptStock(next, prev, -1);
         next = removeReceiptLots(next, prev.id);
       }
+      next = { ...next, supplierPayments: next.supplierPayments.filter(p => extractReceiptRef(p.notes) !== prev.id) };
       setStore(next);
     },
 

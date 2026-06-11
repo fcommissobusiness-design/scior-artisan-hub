@@ -758,6 +758,8 @@ export interface GoodsReceipt {
   paymentDueDate?: string;
   paymentStatus?: InvoicePaymentStatus;
   attachments?: GoodsReceiptAttachment[];
+  deductible?: boolean;
+  fiscalCategory?: FiscalCategory;
   createdAt: string;
 }
 
