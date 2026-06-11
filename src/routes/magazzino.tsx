@@ -160,7 +160,11 @@ function MagazzinoPage() {
               <button onClick={() => setConfirmDel(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-semibold">Annulla</button>
               <button onClick={() => {
                 if (confirmDel.kind === "lot") deleteLot(confirmDel.id);
-                else updateProduct(confirmDel.id, { stock: undefined, lastRestock: undefined } as any);
+                else {
+                  // Azzera stock legacy + elimina TUTTI i lotti residui del prodotto (gestisce voci aggregate).
+                  updateProduct(confirmDel.id, { stock: undefined, lastRestock: undefined } as any);
+                  lots.filter(l => l.productId === confirmDel.id).forEach(l => deleteLot(l.id));
+                }
                 setConfirmDel(null);
               }} className="px-4 py-2 rounded-lg bg-danger text-white text-sm font-semibold">Elimina</button>
             </div>
