@@ -311,7 +311,7 @@ export function OrderSheet({ mode, orderId, onClose, onSave }: {
     if (!existing) return null;
     return clients.some((c) => c.id === existing.clientId) ? null : (existing.clientNameInput ?? "");
   });
-  const [clientId, setClientId] = useState(existing?.clientId ?? clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState(existing?.clientId ?? "");
   const [label, setLabel] = useState(existing?.label ?? "");
   const [items, setItems] = useState<OrderItem[]>(existing?.items ?? []);
   const [date, setDate] = useState(() => {

@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatDate } from "@/components/AppShell";
+import { TopBar, formatEuro, formatDate, Fab } from "@/components/AppShell";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { InvoiceRow } from "@/components/InvoiceField";
-import type { PaymentAttachment } from "@/lib/data";
+import type { PaymentAttachment, SupplierPayment } from "@/lib/data";
+import { PaySheet } from "@/routes/pagamenti";
 
 export const Route = createFileRoute("/fatture")({ component: FatturePage });
 
@@ -20,7 +21,8 @@ type InvoiceRowItem = {
 };
 
 function FatturePage() {
-  const { orders, casualSales, supplierPayments, clients } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, clients, addSupplierPayment } = useStore();
+  const [openNew, setOpenNew] = useState(false);
   const navigate = useNavigate();
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
@@ -146,6 +148,17 @@ function FatturePage() {
           </div>
         ))}
       </div>
+
+      <Fab onClick={() => setOpenNew(true)} />
+
+      {openNew && (
+        <PaySheet mode="new" suppliers={suppliers} onClose={() => setOpenNew(false)}
+          onSave={(d) => {
+            const payload = { ...(d as Omit<SupplierPayment, "id">), document: "fattura" as const };
+            addSupplierPayment(payload);
+            setOpenNew(false);
+          }} />
+      )}
     </div>
   );
 }

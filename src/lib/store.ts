@@ -90,6 +90,8 @@ function migrate(parsed: any): Store {
   // V7: import lista clienti ufficiale (segmento + telefoni) — applicato una sola volta.
   const importedClientCount = Array.isArray(parsed.clients) ? parsed.clients.length : 0;
   const clientsImportV7 = parsed.__clientsImportV7 === true && importedClientCount >= CLIENT_IMPORT_V7.length;
+  // V8: split Acqua Levissima/Ferrarelle + retroactive fattura sync.
+  const splitV8 = parsed.__splitWaterV8 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -133,12 +135,64 @@ function migrate(parsed: any): Store {
   if (!clientsImportV7) {
     out.clients = applyClientImportV7(out.clients);
   }
+  // V8: remap del vecchio id "Acque grandi Levissima e Ferrarelle" → "acqua-levissima"
+  // e creazione retroattiva delle fatture (SupplierPayment) per scarichi con n. fattura.
+  if (!splitV8) {
+    const OLD_WATER_ID = "acque-grandi-levissima-e-ferrarelle";
+    const NEW_WATER_ID = "acqua-levissima";
+    const hasNew = out.products.some(p => p.id === NEW_WATER_ID);
+    if (hasNew) {
+      const remapId = (id: string) => id === OLD_WATER_ID ? NEW_WATER_ID : id;
+      out.products = out.products.filter(p => p.id !== OLD_WATER_ID);
+      out.goodsReceipts = out.goodsReceipts.map(r => ({
+        ...r, items: r.items.map(it => ({ ...it, productId: remapId(it.productId) })),
+      }));
+      out.lots = out.lots.map(l => ({ ...l, productId: remapId(l.productId) }));
+      out.orders = out.orders.map(o => ({ ...o, items: o.items.map(it => ({ ...it, productId: remapId(it.productId) })) }));
+      out.casualSales = out.casualSales.map(s => ({ ...s, items: s.items.map(it => ({ ...it, productId: remapId(it.productId) })) }));
+    }
+    // Retroactive fatture: per ogni receipt con n. fattura, se non esiste un SupplierPayment con ref:gr_<id> nelle note, crealo.
+    const existingRefs = new Set(
+      out.supplierPayments
+        .map(p => /ref:gr_(\S+)/.exec(p.notes ?? "")?.[1])
+        .filter(Boolean) as string[]
+    );
+    for (const r of out.goodsReceipts) {
+      if (!r.invoiceNumber || existingRefs.has(r.id)) continue;
+      const amount = r.documentTotal ?? r.totalCost ?? r.items.reduce((s, it) => s + (it.unitCost ?? 0) * it.qty, 0);
+      if (!amount || amount <= 0) continue;
+      const sup = out.suppliers.find(s => s.id === r.supplierId);
+      const payStatus = r.paymentStatus === "pagato" ? "pagato"
+                      : r.paymentStatus === "scaduto" ? "scaduto" : "da_pagare";
+      out.supplierPayments = [{
+        id: "sp_retro_" + r.id,
+        date: r.date,
+        beneficiary: sup?.name ?? "Fornitore",
+        beneficiaryType: "fornitore" as const,
+        supplierId: r.supplierId,
+        category: "Merce",
+        amount,
+        method: (r.paymentMethod ?? "bonifico") as any,
+        status: payStatus as any,
+        dueDate: r.paymentDueDate,
+        recurrence: "una_tantum" as const,
+        document: "fattura" as const,
+        notes: `Auto retro da Scarico Prodotti · Fatt. ${r.invoiceNumber} · ref:gr_${r.id}`,
+        deductible: true,
+        fiscalCategory: "Acquisti merci" as any,
+        attachments: (r.attachments ?? []).filter(a => a).map(a => ({
+          id: a.id, name: a.name, type: a.type, size: a.size, addedAt: a.addedAt,
+        })),
+      }, ...out.supplierPayments];
+    }
+  }
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
   (out as any).__demoCleanV5 = true;
   (out as any).__demoCleanV6 = true;
   (out as any).__clientsImportV7 = true;
+  (out as any).__splitWaterV8 = true;
   return out;
 }
 

@@ -339,9 +339,12 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
           dueDate: payload.paymentDueDate,
           recurrence: "una_tantum",
           document: payload.invoiceNumber ? "fattura" : "nessuno",
-          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""}`,
+          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""} · ref:gr_${created.id}`,
           deductible,
           fiscalCategory,
+          attachments: (attachments && attachments.length > 0) ? attachments.map(a => ({
+            id: a.id, name: a.name, type: a.type, size: a.size, addedAt: a.addedAt,
+          })) : undefined,
         } as Omit<SupplierPayment, "id">);
       }
     }
@@ -474,17 +477,14 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
               </div>
             </div>
           );})}
-          <select onChange={e => {
-            if (e.target.value === "__new__") setNewProductFor("append");
-            else if (e.target.value) {
-              setItems(prev => [...prev, { productId: e.target.value, qty: 1, unitCost: supplierProducts.find(p => p.id === e.target.value)?.cost ?? undefined }]);
-            }
-            e.target.value = "";
-          }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
-            <option value="">+ Scegli prodotto dal listino</option>
-            <option value="__new__">+ Aggiungi prodotto nuovo</option>
-            {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <ProductPicker
+            products={supplierProducts}
+            onPickNew={() => setNewProductFor("append")}
+            onPick={(pid) => {
+              const np = products.find(p => p.id === pid);
+              setItems(prev => [...prev, { productId: pid, qty: 1, unitCost: np?.cost ?? undefined }]);
+            }}
+          />
         </div>
       </Field>
 
@@ -754,5 +754,50 @@ function NewSupplierMini({ initialName, onCancel, onCreate }: {
           className="flex-1 bg-brand-gold text-white rounded-lg py-2 text-sm font-semibold">Crea</button>
       </div>
     </>
+  );
+}
+
+function ProductPicker({ products, onPick, onPickNew }: {
+  products: Product[];
+  onPick: (productId: string) => void;
+  onPickNew: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const matches = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return products.slice(0, 12);
+    return products.filter(p => p.name.toLowerCase().includes(s)).slice(0, 20);
+  }, [q, products]);
+  return (
+    <div className="relative">
+      <input value={q}
+        onFocus={() => setOpen(true)}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        placeholder="+ Scegli prodotto dal listino — digita per cercare…"
+        className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold placeholder:text-brand-green/70" />
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-card border border-border rounded-lg max-h-60 overflow-y-auto shadow-lg">
+          <button type="button" onClick={() => { onPickNew(); setOpen(false); setQ(""); }}
+            className="w-full text-left px-3 py-2 text-sm font-semibold text-brand-gold border-b border-border">
+            + Aggiungi prodotto nuovo
+          </button>
+          {matches.length === 0 && (
+            <p className="px-3 py-3 text-xs text-muted-foreground italic">Nessun prodotto. Crea un nuovo prodotto.</p>
+          )}
+          {matches.map(p => (
+            <button key={p.id} type="button"
+              onClick={() => { onPick(p.id); setOpen(false); setQ(""); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream border-b border-border last:border-0">
+              {p.name} <span className="text-xs text-muted-foreground">· {p.category}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <button type="button" onClick={() => { setOpen(false); setQ(""); }}
+          className="fixed inset-0 z-10" aria-label="Chiudi" />
+      )}
+    </div>
   );
 }

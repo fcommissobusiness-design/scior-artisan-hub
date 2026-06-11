@@ -440,7 +440,8 @@ export const SEED_PRODUCTS: Product[] = [
   // 09 — Bevande
   p("Acqua piccola Lete", "Bevande", 0.17, 1.00, "pz", true),
   p("Acqua piccola Sorgesana", "Bevande", 0.13, 1.00, "pz", true),
-  p("Acque grandi Levissima e Ferrarelle", "Bevande", 0.30, 2.00, "pz", true, undefined, "Esaurite — da riordinare", false),
+  { ...p("Acqua Levissima 1.5L", "Bevande", 0.30, 2.00, "pz", true, undefined, "Acqua naturale grande"), id: "acqua-levissima" },
+  { ...p("Acqua Ferrarelle 1.5L", "Bevande", 0.30, 2.00, "pz", true, undefined, "Acqua frizzante naturale grande"), id: "acqua-ferrarelle" },
   p("Coca-Cola lattina", "Bevande", 0.50, 2.00, "pz", true),
   p("Fanta lattina", "Bevande", 0.49, 2.00, "pz", true),
   p("Sprite lattina", "Bevande", 0.49, 2.00, "pz", true),
