@@ -148,6 +148,17 @@ function FatturePage() {
           </div>
         ))}
       </div>
+
+      <Fab onClick={() => setOpenNew(true)} />
+
+      {openNew && (
+        <PaySheet mode="new" suppliers={suppliers} onClose={() => setOpenNew(false)}
+          onSave={(d) => {
+            const payload = { ...(d as Omit<SupplierPayment, "id">), document: "fattura" as const };
+            addSupplierPayment(payload);
+            setOpenNew(false);
+          }} />
+      )}
     </div>
   );
 }
