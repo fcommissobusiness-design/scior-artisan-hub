@@ -61,48 +61,71 @@ function UscitePage() {
 
   return (
     <div>
-      <TopBar title="Uscite" />
+      <TopBar title="Uscite" right={
+        <button onClick={() => setOpenFcConfig(true)}
+          className="bg-brand-gold text-brand-green text-xs font-semibold rounded-lg px-3 py-2">
+          ⚙ Configura Costi Fissi
+        </button>
+      } />
 
-      <div className="px-4 md:px-6 pt-4 flex justify-end">
-        <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
-          className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
-          {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
+      <div className="px-4 md:px-6 pt-3 flex gap-2 items-center">
+        <button onClick={() => setTab("variabili")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold ${tab === "variabili" ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
+          Uscite variabili
+        </button>
+        <button onClick={() => setTab("fissi")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold ${tab === "fissi" ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/70"}`}>
+          Costi fissi · {formatEuro(fissiMese)}/mese
+        </button>
+        <div className="ml-auto">
+          {tab === "variabili" && (
+            <select value={tfId} onChange={e => setTfId(e.target.value as TimeFrameId)}
+              className="bg-card border border-border rounded-lg px-2 py-1.5 text-xs">
+              {TIME_FRAME_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          )}
+        </div>
       </div>
 
-      <div className="p-4 md:p-6 grid grid-cols-3 gap-3">
-        <Kpi label="Da Pagare" value={formatEuro(kpi.daPagare)} warn />
-        <Kpi label="Scaduti" value={formatEuro(kpi.scaduti)} danger />
-        <Kpi label="Saldato" value={formatEuro(kpi.saldato)} ok />
-      </div>
-
-      <div className="p-4 md:p-6 space-y-2">
-        {list.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nessuna uscita nel periodo.</p>}
-        {list.map(p => (
-          <div key={p.id} className="bg-card rounded-xl p-3">
-            <button onClick={() => setEditId(p.id)} className="w-full text-left flex justify-between items-start gap-3">
-              <div className="min-w-0">
-                <p className="font-display text-base text-brand-green truncate">{p.beneficiary}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.category} · {p.beneficiaryType}{p.recurrence !== "una_tantum" ? ` · ${p.recurrence}` : ""}
-                  {p.attachments && p.attachments.length > 0 && ` · 📎 ${p.attachments.length}`}
-                </p>
-                {p.dueDate && <p className="text-[11px] text-muted-foreground mt-0.5">Scadenza: {formatDate(p.dueDate)}</p>}
-              </div>
-              <div className="text-right shrink-0">
-                <p className="font-display text-lg text-brand-green">{formatEuro(p.amount)}</p>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${STATUS_STYLE[p.status]}`}>{STATUS_LABEL[p.status]}</span>
-              </div>
-            </button>
-            {p.status !== "pagato" && (
-              <button onClick={() => updateSupplierPayment(p.id, { status: "pagato" })}
-                className="w-full mt-2 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Segna come pagato</button>
-            )}
+      {tab === "variabili" ? (
+        <>
+          <div className="p-4 md:p-6 grid grid-cols-3 gap-3">
+            <Kpi label="Da Pagare" value={formatEuro(kpi.daPagare)} warn />
+            <Kpi label="Scaduti" value={formatEuro(kpi.scaduti)} danger />
+            <Kpi label="Saldato" value={formatEuro(kpi.saldato)} ok />
           </div>
-        ))}
-      </div>
 
-      <Fab onClick={() => setOpenNew(true)} />
+          <div className="p-4 md:p-6 space-y-2">
+            {list.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nessuna uscita nel periodo.</p>}
+            {list.map(p => (
+              <div key={p.id} className="bg-card rounded-xl p-3">
+                <button onClick={() => setEditId(p.id)} className="w-full text-left flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-display text-base text-brand-green truncate">{p.beneficiary}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.category} · {p.beneficiaryType}{p.recurrence !== "una_tantum" ? ` · ${p.recurrence}` : ""}
+                      {p.attachments && p.attachments.length > 0 && ` · 📎 ${p.attachments.length}`}
+                    </p>
+                    {p.dueDate && <p className="text-[11px] text-muted-foreground mt-0.5">Scadenza: {formatDate(p.dueDate)}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-display text-lg text-brand-green">{formatEuro(p.amount)}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${STATUS_STYLE[p.status]}`}>{STATUS_LABEL[p.status]}</span>
+                  </div>
+                </button>
+                {p.status !== "pagato" && (
+                  <button onClick={() => updateSupplierPayment(p.id, { status: "pagato" })}
+                    className="w-full mt-2 text-xs bg-success text-white rounded-lg py-1.5 font-semibold">Segna come pagato</button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <Fab onClick={() => setOpenNew(true)} />
+        </>
+      ) : (
+        <FixedCostsList costs={fixedCosts} onAdd={d => addFixedCost(d)} onUpdate={updateFixedCost} onDelete={deleteFixedCost} onOpenConfig={() => setOpenFcConfig(true)} />
+      )}
 
       {openNew && <PaySheet mode="new" suppliers={suppliers} onClose={() => setOpenNew(false)}
         onSave={(d) => { addSupplierPayment(d as Omit<SupplierPayment, "id">); setOpenNew(false); }} />}
@@ -113,6 +136,15 @@ function UscitePage() {
           onSave={(patch) => { updateSupplierPayment(p.id, patch); setEditId(null); }}
           onDelete={() => { if (confirm("Eliminare?")) { deleteSupplierPayment(p.id); setEditId(null); } }} />;
       })()}
+      {openFcConfig && (
+        <FixedCostsConfigSheet
+          costs={fixedCosts}
+          onAdd={addFixedCost}
+          onUpdate={updateFixedCost}
+          onDelete={deleteFixedCost}
+          onClose={() => setOpenFcConfig(false)}
+        />
+      )}
     </div>
   );
 }
