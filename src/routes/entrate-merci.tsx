@@ -339,9 +339,12 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
           dueDate: payload.paymentDueDate,
           recurrence: "una_tantum",
           document: payload.invoiceNumber ? "fattura" : "nessuno",
-          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""}`,
+          notes: `Auto da Scarico Prodotti${payload.invoiceNumber ? ` · Fatt. ${payload.invoiceNumber}` : ""} · ref:gr_${created.id}`,
           deductible,
           fiscalCategory,
+          attachments: (attachments && attachments.length > 0) ? attachments.map(a => ({
+            id: a.id, name: a.name, type: a.type, size: a.size, addedAt: a.addedAt,
+          })) : undefined,
         } as Omit<SupplierPayment, "id">);
       }
     }
