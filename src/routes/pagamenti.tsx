@@ -3,13 +3,15 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { TopBar, Sheet, Field, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import {
-  PAYMENT_CATEGORIES, FISCAL_CATEGORIES, type SupplierPayment, type SupplierPaymentStatus,
+  PAYMENT_CATEGORIES, FISCAL_CATEGORIES, FIXED_COST_CATEGORIES,
+  type SupplierPayment, type SupplierPaymentStatus,
   type SupplierPaymentRecurrence, type SupplierPaymentBeneficiaryType,
   type PaymentMethod, type SupplierPaymentDocument, type PaymentAttachment,
-  type FiscalCategory,
+  type FiscalCategory, type FixedCost, type FixedCostCategory, type FixedCostFrequency, type FixedCostStatus,
 } from "@/lib/data";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { putAttachment, getAttachmentUrl, deleteAttachment, downloadAttachment } from "@/lib/attachments";
+import { monthlyFixedCostsTotal } from "@/lib/metrics";
 
 export const Route = createFileRoute("/pagamenti")({ component: UscitePage });
 
