@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { TopBar, formatEuro, formatDate } from "@/components/AppShell";
+import { TopBar, formatEuro, formatDate, Fab } from "@/components/AppShell";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { InvoiceRow } from "@/components/InvoiceField";
-import type { PaymentAttachment } from "@/lib/data";
+import type { PaymentAttachment, SupplierPayment } from "@/lib/data";
+import { PaySheet } from "@/routes/pagamenti";
 
 export const Route = createFileRoute("/fatture")({ component: FatturePage });
 
