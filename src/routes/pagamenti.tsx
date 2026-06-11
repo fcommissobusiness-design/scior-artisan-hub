@@ -23,11 +23,17 @@ const STATUS_STYLE: Record<SupplierPaymentStatus, string> = {
 };
 
 function UscitePage() {
-  const { supplierPayments, suppliers, addSupplierPayment, updateSupplierPayment, deleteSupplierPayment } = useStore();
+  const {
+    supplierPayments, suppliers, addSupplierPayment, updateSupplierPayment, deleteSupplierPayment,
+    fixedCosts, addFixedCost, updateFixedCost, deleteFixedCost,
+  } = useStore();
+  const [tab, setTab] = useState<"variabili" | "fissi">("variabili");
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
   const [openNew, setOpenNew] = useState(false);
+  const [openFcConfig, setOpenFcConfig] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const fissiMese = useMemo(() => monthlyFixedCostsTotal(fixedCosts), [fixedCosts]);
 
   // riferimento data: dueDate se presente, altrimenti date
   const refIso = (p: SupplierPayment) => p.dueDate ?? p.date;
