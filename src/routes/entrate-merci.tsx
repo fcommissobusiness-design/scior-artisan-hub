@@ -753,3 +753,48 @@ function NewSupplierMini({ initialName, onCancel, onCreate }: {
     </>
   );
 }
+
+function ProductPicker({ products, onPick, onPickNew }: {
+  products: Product[];
+  onPick: (productId: string) => void;
+  onPickNew: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const matches = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return products.slice(0, 12);
+    return products.filter(p => p.name.toLowerCase().includes(s)).slice(0, 20);
+  }, [q, products]);
+  return (
+    <div className="relative">
+      <input value={q}
+        onFocus={() => setOpen(true)}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        placeholder="+ Scegli prodotto dal listino — digita per cercare…"
+        className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold placeholder:text-brand-green/70" />
+      {open && (
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-card border border-border rounded-lg max-h-60 overflow-y-auto shadow-lg">
+          <button type="button" onClick={() => { onPickNew(); setOpen(false); setQ(""); }}
+            className="w-full text-left px-3 py-2 text-sm font-semibold text-brand-gold border-b border-border">
+            + Aggiungi prodotto nuovo
+          </button>
+          {matches.length === 0 && (
+            <p className="px-3 py-3 text-xs text-muted-foreground italic">Nessun prodotto. Crea un nuovo prodotto.</p>
+          )}
+          {matches.map(p => (
+            <button key={p.id} type="button"
+              onClick={() => { onPick(p.id); setOpen(false); setQ(""); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-brand-cream border-b border-border last:border-0">
+              {p.name} <span className="text-xs text-muted-foreground">· {p.category}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && (
+        <button type="button" onClick={() => { setOpen(false); setQ(""); }}
+          className="fixed inset-0 z-10" aria-label="Chiudi" />
+      )}
+    </div>
+  );
+}
