@@ -366,3 +366,224 @@ function AttachmentRow({ att, onDelete }: { att: PaymentAttachment; onDelete: ()
     </div>
   );
 }
+
+// ============= COSTI FISSI =============
+
+const FC_FREQS: FixedCostFrequency[] = ["mensile", "annuale", "una_tantum"];
+
+function FixedCostsList({ costs, onAdd, onUpdate, onDelete, onOpenConfig }: {
+  costs: FixedCost[];
+  onAdd: (d: Omit<FixedCost, "id">) => void;
+  onUpdate: (id: string, patch: Partial<FixedCost>) => void;
+  onDelete: (id: string) => void;
+  onOpenConfig: () => void;
+}) {
+  const sorted = useMemo(
+    () => [...costs].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
+    [costs],
+  );
+  return (
+    <div className="p-4 md:p-6 space-y-2">
+      {sorted.length === 0 && (
+        <div className="bg-card rounded-xl p-6 text-center">
+          <p className="text-sm text-muted-foreground mb-3">Nessun costo fisso configurato.</p>
+          <button onClick={onOpenConfig}
+            className="bg-brand-green text-brand-cream rounded-lg px-4 py-2 text-sm font-semibold">
+            Configura Costi Fissi
+          </button>
+        </div>
+      )}
+      {sorted.map(c => {
+        const monthly = c.frequency === "annuale" ? c.amount / 12 : c.frequency === "mensile" ? c.amount : 0;
+        return (
+          <div key={c.id} className="bg-card rounded-xl p-3 flex justify-between items-center gap-3">
+            <div className="min-w-0">
+              <p className="font-display text-base text-brand-green truncate">{c.name}</p>
+              <p className="text-[11px] text-muted-foreground capitalize">{c.category} · {c.frequency} · {c.status}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-display text-lg text-brand-green">{formatEuro(c.amount)}</p>
+              {c.frequency !== "mensile" && <p className="text-[10px] text-muted-foreground">{formatEuro(monthly)}/mese</p>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FixedCostsConfigSheet({ costs, onAdd, onUpdate, onDelete, onClose }: {
+  costs: FixedCost[];
+  onAdd: (d: Omit<FixedCost, "id">) => void;
+  onUpdate: (id: string, patch: Partial<FixedCost>) => void;
+  onDelete: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [openNew, setOpenNew] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const fissiMese = useMemo(() => monthlyFixedCostsTotal(costs), [costs]);
+  const sorted = useMemo(
+    () => [...costs].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
+    [costs],
+  );
+  return (
+    <Sheet open={true} onClose={onClose} title="Configura Costi Fissi"
+      footer={
+        <button onClick={() => setOpenNew(true)}
+          className="w-full bg-brand-gold text-white rounded-xl py-3 font-semibold">+ Nuovo costo fisso</button>
+      }>
+      <p className="text-xs text-muted-foreground">
+        Totale mensile: <span className="font-semibold text-brand-green">{formatEuro(fissiMese)}</span> · usato anche da Finanziario e Fiscalità.
+      </p>
+      {sorted.length === 0 && <p className="text-sm text-muted-foreground italic">Nessun costo fisso. Esempi: Affitto, Luce, Internet, Commercialista.</p>}
+      <div className="space-y-1.5">
+        {sorted.map(c => {
+          const monthly = c.frequency === "annuale" ? c.amount / 12 : c.frequency === "mensile" ? c.amount : 0;
+          return (
+            <button key={c.id} onClick={() => setEditId(c.id)}
+              className="w-full text-left bg-card border border-border rounded-lg p-2.5 flex justify-between items-center gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-brand-green truncate">{c.name}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{c.category} · {c.frequency} · {c.status}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-semibold text-brand-green">{formatEuro(c.amount)}</p>
+                {c.frequency !== "mensile" && <p className="text-[10px] text-muted-foreground">{formatEuro(monthly)}/mese</p>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {openNew && <FixedCostSheet mode="new" onClose={() => setOpenNew(false)}
+        onSave={(d) => { onAdd(d as Omit<FixedCost, "id">); setOpenNew(false); }} />}
+      {editId && (() => {
+        const c = costs.find(x => x.id === editId);
+        if (!c) return null;
+        return <FixedCostSheet mode="edit" cost={c} onClose={() => setEditId(null)}
+          onSave={(patch) => { onUpdate(c.id, patch); setEditId(null); }}
+          onDelete={() => { if (confirm("Eliminare questo costo fisso?")) { onDelete(c.id); setEditId(null); } }} />;
+      })()}
+    </Sheet>
+  );
+}
+
+function nextMonthIso(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1, 1);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
+  mode: "new" | "edit"; cost?: FixedCost;
+  onClose: () => void; onSave: (d: Omit<FixedCost, "id"> | Partial<FixedCost>) => void;
+  onDelete?: () => void;
+}) {
+  const [name, setName] = useState(cost?.name ?? "");
+  const [category, setCategory] = useState<FixedCostCategory>(cost?.category ?? "altro");
+  const [amount, setAmount] = useState(cost?.amount ?? 0);
+  const [frequency, setFrequency] = useState<FixedCostFrequency>(cost?.frequency ?? "mensile");
+  const [status, setStatus] = useState<FixedCostStatus>(cost?.status ?? "attivo");
+  const [notes, setNotes] = useState(cost?.notes ?? "");
+  const [confirmEdit, setConfirmEdit] = useState<null | { payload: Partial<FixedCost> }>(null);
+
+  const baseline = cost ? { name: cost.name, category: cost.category, amount: cost.amount, frequency: cost.frequency, status: cost.status } : null;
+  const isChanged = baseline ? (
+    baseline.name !== name.trim() || baseline.category !== category ||
+    Number(baseline.amount) !== Number(amount) || baseline.frequency !== frequency || baseline.status !== status
+  ) : false;
+
+  const save = () => {
+    if (!name.trim() || !amount) return;
+    const payload: Partial<FixedCost> = {
+      name: name.trim(), category, amount: Number(amount), frequency, status, notes: notes.trim() || undefined,
+    };
+    if (mode === "edit" && isChanged) {
+      setConfirmEdit({ payload });
+      return;
+    }
+    onSave(mode === "new" ? (payload as Omit<FixedCost, "id">) : payload);
+  };
+
+  return (
+    <Sheet open={true} onClose={onClose}
+      title={mode === "new" ? "Nuovo costo fisso" : "Modifica costo fisso"}
+      footer={
+        <div className="flex gap-3">
+          {mode === "edit" && onDelete && (
+            <button onClick={onDelete} className="text-danger border border-danger/40 rounded-xl px-3 py-3 text-sm font-semibold">Elimina</button>
+          )}
+          <button onClick={save} className="flex-1 bg-brand-gold text-white rounded-xl py-3 font-semibold">Salva</button>
+        </div>
+      }>
+      <Field label="Nome">
+        <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Categoria">
+          <select value={category} onChange={e => setCategory(e.target.value as FixedCostCategory)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FIXED_COST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+        <Field label="Importo (€)">
+          <input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+        <Field label="Frequenza">
+          <select value={frequency} onChange={e => setFrequency(e.target.value as FixedCostFrequency)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            {FC_FREQS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </Field>
+        <Field label="Stato">
+          <select value={status} onChange={e => setStatus(e.target.value as FixedCostStatus)}
+            className="w-full bg-card border border-border rounded-lg p-3">
+            <option value="attivo">attivo</option>
+            <option value="inattivo">inattivo</option>
+          </select>
+        </Field>
+      </div>
+      <Field label="Note">
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
+      </Field>
+
+      {confirmEdit && (
+        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4" onClick={() => setConfirmEdit(null)}>
+          <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-xl text-brand-green mb-2">Applica modifica</h3>
+            <p className="text-sm text-foreground/80 mb-4">
+              Vuoi applicare questa modifica al <strong>mese corrente</strong> oppure dal <strong>mese successivo</strong>?
+            </p>
+            <div className="flex gap-2 flex-col">
+              <button
+                onClick={() => { onSave(confirmEdit.payload); setConfirmEdit(null); }}
+                className="px-4 py-2.5 rounded-lg bg-brand-green text-brand-cream text-sm font-semibold">
+                Applica al mese corrente
+              </button>
+              <button
+                onClick={() => {
+                  const nm = nextMonthIso();
+                  const noteAdd = `Modifica effettiva dal ${new Date(nm).toLocaleDateString("it-IT", { month: "long", year: "numeric" })}`;
+                  onSave({
+                    ...confirmEdit.payload,
+                    startDate: nm,
+                    notes: (confirmEdit.payload.notes ? confirmEdit.payload.notes + " · " : "") + noteAdd,
+                  });
+                  setConfirmEdit(null);
+                }}
+                className="px-4 py-2.5 rounded-lg bg-brand-gold text-white text-sm font-semibold">
+                Applica dal mese successivo
+              </button>
+              <button onClick={() => setConfirmEdit(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm">
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}
