@@ -69,7 +69,7 @@ function MagazzinoPage() {
     // Prodotti senza lotti ma con stock storico legacy
     const productsWithLots = new Set(lots.filter(l => l.qtyRemaining > 0).map(l => l.productId));
     for (const p of products) {
-      if (p.stock === undefined || productsWithLots.has(p.id)) continue;
+      if (p.stock === undefined || p.stock <= 0 || productsWithLots.has(p.id)) continue;
       out.push({
         productId: p.id,
         name: p.name,
