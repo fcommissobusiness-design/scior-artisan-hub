@@ -21,7 +21,8 @@ type InvoiceRowItem = {
 };
 
 function FatturePage() {
-  const { orders, casualSales, supplierPayments, clients } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, clients, addSupplierPayment } = useStore();
+  const [openNew, setOpenNew] = useState(false);
   const navigate = useNavigate();
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
   const tf = useMemo(() => makeTimeFrame(tfId), [tfId]);
