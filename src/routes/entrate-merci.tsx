@@ -474,17 +474,14 @@ function ReceiptSheet({ mode, receipt, onClose, onDelete }: {
               </div>
             </div>
           );})}
-          <select onChange={e => {
-            if (e.target.value === "__new__") setNewProductFor("append");
-            else if (e.target.value) {
-              setItems(prev => [...prev, { productId: e.target.value, qty: 1, unitCost: supplierProducts.find(p => p.id === e.target.value)?.cost ?? undefined }]);
-            }
-            e.target.value = "";
-          }} className="w-full text-sm border border-dashed border-border rounded-lg p-2 bg-card text-brand-green font-semibold">
-            <option value="">+ Scegli prodotto dal listino</option>
-            <option value="__new__">+ Aggiungi prodotto nuovo</option>
-            {supplierProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <ProductPicker
+            products={supplierProducts}
+            onPickNew={() => setNewProductFor("append")}
+            onPick={(pid) => {
+              const np = products.find(p => p.id === pid);
+              setItems(prev => [...prev, { productId: pid, qty: 1, unitCost: np?.cost ?? undefined }]);
+            }}
+          />
         </div>
       </Field>
 
