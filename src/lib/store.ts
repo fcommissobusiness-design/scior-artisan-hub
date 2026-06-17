@@ -77,6 +77,7 @@ const SEED: Store = {
   haccpReadings: SEED_HACCP_READINGS,
   cleaningTasks: SEED_CLEANING_TASKS,
   trash: SEED_TRASH,
+  dailyForecasts: SEED_DAILY_FORECASTS,
 };
 
 function isReceiptStocked(r: GoodsReceipt): boolean {
