@@ -282,7 +282,18 @@ function migrate(parsed: any): Store {
     haccpReadings: keep(parsed.haccpReadings, SEED.haccpReadings),
     cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
     trash: parsed.trash ?? [],
+    dailyForecasts: parsed.dailyForecasts ?? [],
   };
+
+  // V10: rimuove definitivamente i 3 receipt seed demo "fantasma" (gr1, gr2, gr3) e i loro lotti.
+  // Causa storica: erano in SEED_GOODS_RECEIPTS e sono finiti nel cloud dell'utente;
+  // anche dopo svuotamento del SEED, i record persistiti restavano e venivano "rigenerati"
+  // dalla ricostruzione lotti ad ogni reload. Pulizia mirata, una sola volta.
+  if (!phantomCleanV10) {
+    const PHANTOM_RECEIPT_IDS = new Set(["gr1", "gr2", "gr3"]);
+    out.goodsReceipts = out.goodsReceipts.filter(r => !PHANTOM_RECEIPT_IDS.has(r.id));
+    out.lots = out.lots.filter(l => !l.receiptId || !PHANTOM_RECEIPT_IDS.has(l.receiptId));
+  }
   // V7: applica una sola volta l'import della lista clienti ufficiale.
   if (!clientsImportV7) {
     out.clients = applyClientImportV7(out.clients);
