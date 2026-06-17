@@ -20,6 +20,7 @@ const NAV_GROUPS: NavGroup[] = [
   { label: "Magazzino e Prodotti", items: [
     { to: "/magazzino", label: "Magazzino", short: "Magazzino" },
     { to: "/prodotti", label: "Prodotti", short: "Prodotti" },
+    { to: "/previsioni", label: "Previsioni giornaliere", short: "Previsioni" },
     { to: "/entrate-merci", label: "Scarico Prodotti", short: "Scarico Prodotti" },
     { to: "/fornitori", label: "Fornitori", short: "Fornitori" },
     { to: "/produzione", label: "Produzione", short: "Produzione", wip: true },

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as ProduzioneRouteImport } from './routes/produzione'
 import { Route as ProdottiRouteImport } from './routes/prodotti'
+import { Route as PrevisioniRouteImport } from './routes/previsioni'
 import { Route as PagamentiRouteImport } from './routes/pagamenti'
 import { Route as OrdiniRouteImport } from './routes/ordini'
 import { Route as OfferteRouteImport } from './routes/offerte'
@@ -44,6 +45,11 @@ const ProduzioneRoute = ProduzioneRouteImport.update({
 const ProdottiRoute = ProdottiRouteImport.update({
   id: '/prodotti',
   path: '/prodotti',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrevisioniRoute = PrevisioniRouteImport.update({
+  id: '/previsioni',
+  path: '/previsioni',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PagamentiRoute = PagamentiRouteImport.update({
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
+  '/previsioni': typeof PrevisioniRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
+  '/previsioni': typeof PrevisioniRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/offerte': typeof OfferteRoute
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
+  '/previsioni': typeof PrevisioniRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/offerte'
     | '/ordini'
     | '/pagamenti'
+    | '/previsioni'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/offerte'
     | '/ordini'
     | '/pagamenti'
+    | '/previsioni'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/offerte'
     | '/ordini'
     | '/pagamenti'
+    | '/previsioni'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -298,6 +310,7 @@ export interface RootRouteChildren {
   OfferteRoute: typeof OfferteRoute
   OrdiniRoute: typeof OrdiniRoute
   PagamentiRoute: typeof PagamentiRoute
+  PrevisioniRoute: typeof PrevisioniRoute
   ProdottiRoute: typeof ProdottiRoute
   ProduzioneRoute: typeof ProduzioneRoute
   ReportRoute: typeof ReportRoute
@@ -324,6 +337,13 @@ declare module '@tanstack/react-router' {
       path: '/prodotti'
       fullPath: '/prodotti'
       preLoaderRoute: typeof ProdottiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/previsioni': {
+      id: '/previsioni'
+      path: '/previsioni'
+      fullPath: '/previsioni'
+      preLoaderRoute: typeof PrevisioniRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pagamenti': {
@@ -474,6 +494,7 @@ const rootRouteChildren: RootRouteChildren = {
   OfferteRoute: OfferteRoute,
   OrdiniRoute: OrdiniRoute,
   PagamentiRoute: PagamentiRoute,
+  PrevisioniRoute: PrevisioniRoute,
   ProdottiRoute: ProdottiRoute,
   ProduzioneRoute: ProduzioneRoute,
   ReportRoute: ReportRoute,
