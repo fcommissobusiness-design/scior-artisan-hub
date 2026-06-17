@@ -160,7 +160,7 @@ function inferReceiptProductId(store: Store, r: GoodsReceipt, it: { productId?: 
   return it.productId ?? "";
 }
 
-function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean): Store {
+function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean, rebuildLots: boolean): Store {
   let out: Store = { ...input };
   const oldWater = out.products.find(p => p.id === OLD_WATER_ID);
   const levissimaSeed = SEED.products.find(p => p.id === LEVISSIMA_ID);
@@ -182,28 +182,33 @@ function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean)
     return firstItem ? { ...l, productId: firstItem.productId } : l;
   });
 
-  let lots = [...out.lots];
-  for (const r of out.goodsReceipts) {
-    if (!isReceiptStocked(r)) continue;
-    for (const it of r.items) {
-      if (!it.productId || !out.products.some(p => p.id === it.productId)) continue;
-      const code = it.lotCode?.trim() || lots.find(l => l.receiptId === r.id && l.productId === it.productId)?.code || generateLotCode(r.date, lots);
-      const existingIdx = lots.findIndex(l => l.receiptId === r.id && l.productId === it.productId && l.code === code);
-      if (existingIdx >= 0) continue;
-      const p = out.products.find(x => x.id === it.productId);
-      const expiry = new Date(r.date);
-      if (p?.shelfLifeDays && p.shelfLifeDays > 0) expiry.setDate(expiry.getDate() + p.shelfLifeDays);
-      else expiry.setHours(expiry.getHours() + 72);
-      lots = [{
-        id: uid("lt_"), code, productId: it.productId,
-        productionDate: r.date, expiryDate: expiry.toISOString(),
-        qtyInitial: it.qty, qtyRemaining: it.qty,
-        supplierId: r.supplierId, receiptId: r.id,
-        notes: it.notes, createdAt: nowIso(),
-      }, ...lots];
+  // Ricostruzione lotti dai receipt: SOLO durante la migrazione iniziale.
+  // Dopo la prima esecuzione, le cancellazioni esplicite dei lotti vengono rispettate
+  // (altrimenti i lotti eliminati riapparirebbero ad ogni reload/sync — bug "voci fantasma").
+  if (rebuildLots) {
+    let lots = [...out.lots];
+    for (const r of out.goodsReceipts) {
+      if (!isReceiptStocked(r)) continue;
+      for (const it of r.items) {
+        if (!it.productId || !out.products.some(p => p.id === it.productId)) continue;
+        const code = it.lotCode?.trim() || lots.find(l => l.receiptId === r.id && l.productId === it.productId)?.code || generateLotCode(r.date, lots);
+        const existingIdx = lots.findIndex(l => l.receiptId === r.id && l.productId === it.productId && l.code === code);
+        if (existingIdx >= 0) continue;
+        const p = out.products.find(x => x.id === it.productId);
+        const expiry = new Date(r.date);
+        if (p?.shelfLifeDays && p.shelfLifeDays > 0) expiry.setDate(expiry.getDate() + p.shelfLifeDays);
+        else expiry.setHours(expiry.getHours() + 72);
+        lots = [{
+          id: uid("lt_"), code, productId: it.productId,
+          productionDate: r.date, expiryDate: expiry.toISOString(),
+          qtyInitial: it.qty, qtyRemaining: it.qty,
+          supplierId: r.supplierId, receiptId: r.id,
+          notes: it.notes, createdAt: nowIso(),
+        }, ...lots];
+      }
     }
+    out.lots = lots;
   }
-  out.lots = lots;
 
   const stockByProduct = new Map<string, number>();
   for (const l of out.lots) {
