@@ -242,6 +242,8 @@ function migrate(parsed: any): Store {
   const splitV8 = parsed.__splitWaterV8 === true;
   // V9: riparazione effettiva dati scarichi → magazzino/fatture, anche per cloud già migrati male.
   const receiptIntegrityV9 = parsed.__receiptIntegrityV9 === true;
+  // V10: pulizia "voci fantasma" magazzino (seed demo legacy gr1/gr2/gr3 con date di maggio).
+  const phantomCleanV10 = parsed.__phantomReceiptsV10 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
