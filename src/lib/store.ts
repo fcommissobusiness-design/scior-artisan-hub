@@ -4,7 +4,7 @@ import {
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
-  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH,
+  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH, SEED_DAILY_FORECASTS,
   generateLotCode,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery, type DeliveryMode,
   type OrderEvent, type LoyaltyEvent,
@@ -12,7 +12,7 @@ import {
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
   type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
   type Lot, type HaccpReading, type CleaningTask,
-  type TrashEntry, type TrashKind,
+  type TrashEntry, type TrashKind, type DailyForecast,
 } from "./data";
 import { CLIENT_IMPORT_V7, applyClientImportV7 } from "./client-import";
 
@@ -50,6 +50,7 @@ interface Store {
   haccpReadings: HaccpReading[];
   cleaningTasks: CleaningTask[];
   trash: TrashEntry[];
+  dailyForecasts: DailyForecast[];
 }
 
 const SEED: Store = {
@@ -76,6 +77,7 @@ const SEED: Store = {
   haccpReadings: SEED_HACCP_READINGS,
   cleaningTasks: SEED_CLEANING_TASKS,
   trash: SEED_TRASH,
+  dailyForecasts: SEED_DAILY_FORECASTS,
 };
 
 function isReceiptStocked(r: GoodsReceipt): boolean {
@@ -158,7 +160,7 @@ function inferReceiptProductId(store: Store, r: GoodsReceipt, it: { productId?: 
   return it.productId ?? "";
 }
 
-function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean): Store {
+function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean, rebuildLots: boolean): Store {
   let out: Store = { ...input };
   const oldWater = out.products.find(p => p.id === OLD_WATER_ID);
   const levissimaSeed = SEED.products.find(p => p.id === LEVISSIMA_ID);
@@ -180,28 +182,33 @@ function reconcileReceiptIntegrity(input: Store, createMissingPayments: boolean)
     return firstItem ? { ...l, productId: firstItem.productId } : l;
   });
 
-  let lots = [...out.lots];
-  for (const r of out.goodsReceipts) {
-    if (!isReceiptStocked(r)) continue;
-    for (const it of r.items) {
-      if (!it.productId || !out.products.some(p => p.id === it.productId)) continue;
-      const code = it.lotCode?.trim() || lots.find(l => l.receiptId === r.id && l.productId === it.productId)?.code || generateLotCode(r.date, lots);
-      const existingIdx = lots.findIndex(l => l.receiptId === r.id && l.productId === it.productId && l.code === code);
-      if (existingIdx >= 0) continue;
-      const p = out.products.find(x => x.id === it.productId);
-      const expiry = new Date(r.date);
-      if (p?.shelfLifeDays && p.shelfLifeDays > 0) expiry.setDate(expiry.getDate() + p.shelfLifeDays);
-      else expiry.setHours(expiry.getHours() + 72);
-      lots = [{
-        id: uid("lt_"), code, productId: it.productId,
-        productionDate: r.date, expiryDate: expiry.toISOString(),
-        qtyInitial: it.qty, qtyRemaining: it.qty,
-        supplierId: r.supplierId, receiptId: r.id,
-        notes: it.notes, createdAt: nowIso(),
-      }, ...lots];
+  // Ricostruzione lotti dai receipt: SOLO durante la migrazione iniziale.
+  // Dopo la prima esecuzione, le cancellazioni esplicite dei lotti vengono rispettate
+  // (altrimenti i lotti eliminati riapparirebbero ad ogni reload/sync — bug "voci fantasma").
+  if (rebuildLots) {
+    let lots = [...out.lots];
+    for (const r of out.goodsReceipts) {
+      if (!isReceiptStocked(r)) continue;
+      for (const it of r.items) {
+        if (!it.productId || !out.products.some(p => p.id === it.productId)) continue;
+        const code = it.lotCode?.trim() || lots.find(l => l.receiptId === r.id && l.productId === it.productId)?.code || generateLotCode(r.date, lots);
+        const existingIdx = lots.findIndex(l => l.receiptId === r.id && l.productId === it.productId && l.code === code);
+        if (existingIdx >= 0) continue;
+        const p = out.products.find(x => x.id === it.productId);
+        const expiry = new Date(r.date);
+        if (p?.shelfLifeDays && p.shelfLifeDays > 0) expiry.setDate(expiry.getDate() + p.shelfLifeDays);
+        else expiry.setHours(expiry.getHours() + 72);
+        lots = [{
+          id: uid("lt_"), code, productId: it.productId,
+          productionDate: r.date, expiryDate: expiry.toISOString(),
+          qtyInitial: it.qty, qtyRemaining: it.qty,
+          supplierId: r.supplierId, receiptId: r.id,
+          notes: it.notes, createdAt: nowIso(),
+        }, ...lots];
+      }
     }
+    out.lots = lots;
   }
-  out.lots = lots;
 
   const stockByProduct = new Map<string, number>();
   for (const l of out.lots) {
@@ -235,6 +242,8 @@ function migrate(parsed: any): Store {
   const splitV8 = parsed.__splitWaterV8 === true;
   // V9: riparazione effettiva dati scarichi → magazzino/fatture, anche per cloud già migrati male.
   const receiptIntegrityV9 = parsed.__receiptIntegrityV9 === true;
+  // V10: pulizia "voci fantasma" magazzino (seed demo legacy gr1/gr2/gr3 con date di maggio).
+  const phantomCleanV10 = parsed.__phantomReceiptsV10 === true;
   const productsSource = catalogV4 ? (parsed.products ?? SEED.products) : SEED.products;
   const bundlesSource = catalogV4 ? (parsed.bundles ?? SEED.bundles) : SEED.bundles;
   const keep = <T,>(field: T[] | undefined, seed: T[]): T[] =>
@@ -273,7 +282,18 @@ function migrate(parsed: any): Store {
     haccpReadings: keep(parsed.haccpReadings, SEED.haccpReadings),
     cleaningTasks: keep(parsed.cleaningTasks, SEED.cleaningTasks),
     trash: parsed.trash ?? [],
+    dailyForecasts: parsed.dailyForecasts ?? [],
   };
+
+  // V10: rimuove definitivamente i 3 receipt seed demo "fantasma" (gr1, gr2, gr3) e i loro lotti.
+  // Causa storica: erano in SEED_GOODS_RECEIPTS e sono finiti nel cloud dell'utente;
+  // anche dopo svuotamento del SEED, i record persistiti restavano e venivano "rigenerati"
+  // dalla ricostruzione lotti ad ogni reload. Pulizia mirata, una sola volta.
+  if (!phantomCleanV10) {
+    const PHANTOM_RECEIPT_IDS = new Set(["gr1", "gr2", "gr3"]);
+    out.goodsReceipts = out.goodsReceipts.filter(r => !PHANTOM_RECEIPT_IDS.has(r.id));
+    out.lots = out.lots.filter(l => !l.receiptId || !PHANTOM_RECEIPT_IDS.has(l.receiptId));
+  }
   // V7: applica una sola volta l'import della lista clienti ufficiale.
   if (!clientsImportV7) {
     out.clients = applyClientImportV7(out.clients);
@@ -328,7 +348,7 @@ function migrate(parsed: any): Store {
       }, ...out.supplierPayments];
     }
   }
-  const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9);
+  const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9, !receiptIntegrityV9);
   Object.assign(out, fixed);
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
@@ -338,6 +358,7 @@ function migrate(parsed: any): Store {
   (out as any).__clientsImportV7 = true;
   (out as any).__splitWaterV8 = true;
   (out as any).__receiptIntegrityV9 = true;
+  (out as any).__phantomReceiptsV10 = true;
   return out;
 }
 
@@ -1154,6 +1175,32 @@ export function useStore() {
       setStore({ ...store, cleaningTasks: store.cleaningTasks.map((t) => t.id === id ? { ...t, ...patch } : t) }),
     deleteCleaningTask: (id: string) =>
       setStore({ ...store, cleaningTasks: store.cleaningTasks.filter((t) => t.id !== id) }),
+
+    // DAILY FORECASTS — gestione previsioni giornaliere (mozzarella, pane, ecc.)
+    upsertDailyForecast: (date: string, productId: string, patch: { ordered?: number; sold?: number; notes?: string }) => {
+      const list = store.dailyForecasts ?? [];
+      const existing = list.find(f => f.date === date && f.productId === productId);
+      if (existing) {
+        setStore({
+          ...store,
+          dailyForecasts: list.map(f => f.id === existing.id
+            ? { ...f, ...patch, updatedAt: nowIso() }
+            : f),
+        });
+        return existing;
+      }
+      const created: DailyForecast = {
+        id: uid("df_"), date, productId,
+        ordered: patch.ordered ?? 0,
+        sold: patch.sold,
+        notes: patch.notes,
+        createdAt: nowIso(), updatedAt: nowIso(),
+      };
+      setStore({ ...store, dailyForecasts: [created, ...list] });
+      return created;
+    },
+    deleteDailyForecast: (id: string) =>
+      setStore({ ...store, dailyForecasts: (store.dailyForecasts ?? []).filter(f => f.id !== id) }),
 
     importJson: (text: string) => {
       const parsed = JSON.parse(text);

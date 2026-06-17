@@ -63,7 +63,23 @@ export interface Product {
   origin?: string;          // es. "Latte di bufala Campania"
   conservation?: string;    // es. "Conservare a 0-4 °C"
   avgWeightKg?: number;     // peso medio per prodotti a peso
+  // previsioni giornaliere: prodotto da monitorare giorno per giorno (mozzarella, pane, ecc.)
+  dailyForecast?: boolean;
 }
+
+// PREVISIONI GIORNALIERE — record manuale per (data, prodotto)
+export interface DailyForecast {
+  id: string;
+  date: string;          // YYYY-MM-DD
+  productId: string;
+  ordered: number;       // quantità ordinata/preparata per quel giorno
+  sold?: number;         // quantità venduta (consuntivo)
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const SEED_DAILY_FORECASTS: DailyForecast[] = [];
 
 export interface LoyaltyEvent {
   date: string; // ISO
