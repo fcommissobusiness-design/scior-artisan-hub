@@ -1176,6 +1176,32 @@ export function useStore() {
     deleteCleaningTask: (id: string) =>
       setStore({ ...store, cleaningTasks: store.cleaningTasks.filter((t) => t.id !== id) }),
 
+    // DAILY FORECASTS — gestione previsioni giornaliere (mozzarella, pane, ecc.)
+    upsertDailyForecast: (date: string, productId: string, patch: { ordered?: number; sold?: number; notes?: string }) => {
+      const list = store.dailyForecasts ?? [];
+      const existing = list.find(f => f.date === date && f.productId === productId);
+      if (existing) {
+        setStore({
+          ...store,
+          dailyForecasts: list.map(f => f.id === existing.id
+            ? { ...f, ...patch, updatedAt: nowIso() }
+            : f),
+        });
+        return existing;
+      }
+      const created: DailyForecast = {
+        id: uid("df_"), date, productId,
+        ordered: patch.ordered ?? 0,
+        sold: patch.sold,
+        notes: patch.notes,
+        createdAt: nowIso(), updatedAt: nowIso(),
+      };
+      setStore({ ...store, dailyForecasts: [created, ...list] });
+      return created;
+    },
+    deleteDailyForecast: (id: string) =>
+      setStore({ ...store, dailyForecasts: (store.dailyForecasts ?? []).filter(f => f.id !== id) }),
+
     importJson: (text: string) => {
       const parsed = JSON.parse(text);
       const next = migrate(parsed);
