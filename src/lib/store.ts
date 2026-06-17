@@ -348,7 +348,7 @@ function migrate(parsed: any): Store {
       }, ...out.supplierPayments];
     }
   }
-  const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9);
+  const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9, !receiptIntegrityV9);
   Object.assign(out, fixed);
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
@@ -358,6 +358,7 @@ function migrate(parsed: any): Store {
   (out as any).__clientsImportV7 = true;
   (out as any).__splitWaterV8 = true;
   (out as any).__receiptIntegrityV9 = true;
+  (out as any).__phantomReceiptsV10 = true;
   return out;
 }
 
