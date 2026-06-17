@@ -4,7 +4,7 @@ import {
   SEED_PRODUCTIONS, SEED_SUPPLIERS, SEED_CASH_ENTRIES, SEED_B2B_CLIENTS, SEED_SUPPLIER_PAYMENTS,
   SEED_FRESH_LOGS, SEED_UNSOLD_ENTRIES, SEED_SPECIAL_DAYS, DEFAULT_BUSINESS_HOURS,
   SEED_GOODS_RECEIPTS, SEED_FIXED_COSTS, SEED_ONLINE_ORDERS, SEED_SHIPMENTS,
-  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH,
+  SEED_LOTS, SEED_HACCP_READINGS, SEED_CLEANING_TASKS, SEED_TRASH, SEED_DAILY_FORECASTS,
   generateLotCode,
   type Product, type Client, type Order, type Bundle, type CasualSale, type Delivery, type DeliveryMode,
   type OrderEvent, type LoyaltyEvent,
@@ -12,7 +12,7 @@ import {
   type FreshLog, type UnsoldEntry, type SpecialDay, type BusinessHours,
   type GoodsReceipt, type FixedCost, type OnlineOrder, type Shipment,
   type Lot, type HaccpReading, type CleaningTask,
-  type TrashEntry, type TrashKind,
+  type TrashEntry, type TrashKind, type DailyForecast,
 } from "./data";
 import { CLIENT_IMPORT_V7, applyClientImportV7 } from "./client-import";
 
