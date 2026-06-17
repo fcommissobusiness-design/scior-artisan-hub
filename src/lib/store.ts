@@ -50,6 +50,7 @@ interface Store {
   haccpReadings: HaccpReading[];
   cleaningTasks: CleaningTask[];
   trash: TrashEntry[];
+  dailyForecasts: DailyForecast[];
 }
 
 const SEED: Store = {
