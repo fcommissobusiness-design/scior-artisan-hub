@@ -130,7 +130,7 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
         pickupDate: isoDate, status: orderStatus, total,
         notes: notes.trim() || undefined, source: "negozio",
         delivery: "domicilio", address: address.trim(),
-        payment, paymentMethod: "contanti",
+        payment, paymentMethod: payment === "da_pagare" ? undefined : paymentMethod,
       } as Omit<Order, "id" | "createdAt">);
       // Aggiorna la Delivery con timeSlot e dati specifici
       if (order.deliveryId) {
