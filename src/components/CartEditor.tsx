@@ -99,6 +99,14 @@ export function CartEditor({ items, onChange }: Props) {
               products={products}
               bundles={bundles}
               onQtyChange={(q) => (q <= 0 ? removeRow(idx) : updateRow(idx, { qty: q }))}
+              onPriceChange={(price) => {
+                if (itemKind(it) === "custom") updateRow(idx, { customPrice: price });
+                else updateRow(idx, { unitPriceOverride: price });
+              }}
+              onPriceReset={() => {
+                if (itemKind(it) === "custom") return; // custom: nessun reset (campo nativo)
+                updateRow(idx, { unitPriceOverride: undefined });
+              }}
               onRemove={() => removeRow(idx)}
             />
           ))}
