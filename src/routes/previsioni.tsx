@@ -349,25 +349,32 @@ function PrevisioniPage() {
    Sheet: modifica cella (ordinato / venduto / note)
    ============================================================ */
 
-function ForecastCellSheet({ date, product, initialOrdered, initialSold, initialNotes, suggestion, onClose, onSave }: {
+function ForecastCellSheet({ date, product, initialOrdered, initialSold, initialLeftoverPrev, initialNotes, suggestion, onClose, onSave }: {
   date: string;
   product: { id: string; name: string; unit: "kg" | "pz" };
   initialOrdered?: number;
   initialSold?: number;
+  initialLeftoverPrev?: number;
   initialNotes?: string;
   suggestion: { value: number | null; basedOn: number; note: string };
   onClose: () => void;
-  onSave: (patch: { ordered?: number; sold?: number; notes?: string }) => void;
+  onSave: (patch: { ordered?: number; sold?: number; leftoverPrev?: number; notes?: string }) => void;
 }) {
   const [ordered, setOrdered] = useState<string>(initialOrdered?.toString() ?? "");
   const [sold, setSold] = useState<string>(initialSold?.toString() ?? "");
+  const [leftoverPrev, setLeftoverPrev] = useState<string>(initialLeftoverPrev?.toString() ?? "");
   const [notes, setNotes] = useState<string>(initialNotes ?? "");
   const t = dayType(date);
 
+  const parsedOrdered = ordered === "" ? 0 : Number(ordered.replace(",", "."));
+  const parsedLeftover = leftoverPrev === "" ? 0 : Number(leftoverPrev.replace(",", "."));
+  const totalAvailable = (isNaN(parsedOrdered) ? 0 : parsedOrdered) + (isNaN(parsedLeftover) ? 0 : parsedLeftover);
+
   const save = () => {
     onSave({
-      ordered: ordered === "" ? 0 : Number(ordered),
-      sold: sold === "" ? undefined : Number(sold),
+      ordered: parsedOrdered,
+      sold: sold === "" ? undefined : Number(sold.replace(",", ".")),
+      leftoverPrev: leftoverPrev === "" ? undefined : parsedLeftover,
       notes: notes.trim() || undefined,
     });
   };
@@ -398,18 +405,28 @@ function ForecastCellSheet({ date, product, initialOrdered, initialSold, initial
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Field label={`Ordinato (${product.unit})`}>
           <input type="number" step="0.1" inputMode="decimal" value={ordered}
             onChange={e => setOrdered(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3 text-lg font-display" />
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
+        </Field>
+        <Field label={`Residuo gg prima (${product.unit})`}>
+          <input type="number" step="0.1" inputMode="decimal" value={leftoverPrev}
+            onChange={e => setLeftoverPrev(e.target.value)}
+            placeholder="0"
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
         </Field>
         <Field label={`Venduto (${product.unit})`}>
           <input type="number" step="0.1" inputMode="decimal" value={sold}
             onChange={e => setSold(e.target.value)}
-            placeholder="a fine giornata"
-            className="w-full bg-card border border-border rounded-lg p-3 text-lg font-display" />
+            placeholder="fine giornata"
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
         </Field>
+      </div>
+      <div className="bg-brand-green/5 border border-brand-green/20 rounded-lg px-3 py-2 text-xs text-brand-green">
+        Totale disponibile per oggi: <strong>{+totalAvailable.toFixed(2)} {product.unit}</strong>
+        <span className="text-muted-foreground"> (ordinato + residuo)</span>
       </div>
       <Field label="Note (opzionale)">
         <textarea value={notes} onChange={e => setNotes(e.target.value)}
