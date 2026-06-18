@@ -480,24 +480,91 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
   onClose: () => void; onSave: (d: Omit<FixedCost, "id"> | Partial<FixedCost>) => void;
   onDelete?: () => void;
 }) {
+  const todayDate = new Date().toISOString().slice(0, 10);
   const [name, setName] = useState(cost?.name ?? "");
+  const [description, setDescription] = useState(cost?.description ?? "");
   const [category, setCategory] = useState<FixedCostCategory>(cost?.category ?? "altro");
-  const [amount, setAmount] = useState(cost?.amount ?? 0);
+  // amount come stringa libera (fix bug "0 non cancellabile")
+  const [amountStr, setAmountStr] = useState<string>(cost?.amount != null ? String(cost.amount).replace(".", ",") : "");
   const [frequency, setFrequency] = useState<FixedCostFrequency>(cost?.frequency ?? "mensile");
   const [status, setStatus] = useState<FixedCostStatus>(cost?.status ?? "attivo");
+  const [dayOfMonth, setDayOfMonth] = useState<string>(cost?.dayOfMonth != null ? String(cost.dayOfMonth) : "");
+  const [specificDate, setSpecificDate] = useState<string>(cost?.specificDate?.slice(0, 10) ?? "");
+  const [hasInvoice, setHasInvoice] = useState<boolean>(cost?.hasInvoice ?? false);
+  const [attachments, setAttachments] = useState<PaymentAttachment[]>(cost?.attachments ?? []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState(cost?.notes ?? "");
   const [confirmEdit, setConfirmEdit] = useState<null | { payload: Partial<FixedCost> }>(null);
 
-  const baseline = cost ? { name: cost.name, category: cost.category, amount: cost.amount, frequency: cost.frequency, status: cost.status } : null;
+  const parsedAmount = (() => {
+    const s = amountStr.trim().replace(",", ".");
+    if (s === "") return NaN;
+    const n = Number(s);
+    return isNaN(n) ? NaN : n;
+  })();
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploadErr(null); setUploading(true);
+    try {
+      const added: PaymentAttachment[] = [];
+      for (const f of Array.from(files)) {
+        if (f.size > 10 * 1024 * 1024) { setUploadErr(`${f.name}: file > 10MB ignorato.`); continue; }
+        added.push(await putAttachment(f));
+      }
+      setAttachments(prev => [...prev, ...added]);
+    } catch (e) { setUploadErr((e as Error).message); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+  const removeAttachment = async (id: string) => {
+    try { await deleteAttachment(id); } catch { /* ignore */ }
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const baseline = cost ? {
+    name: cost.name, description: cost.description ?? "", category, amount: cost.amount,
+    frequency: cost.frequency, status: cost.status,
+    dayOfMonth: cost.dayOfMonth ?? null, specificDate: cost.specificDate ?? "",
+    hasInvoice: cost.hasInvoice ?? false,
+  } : null;
   const isChanged = baseline ? (
-    baseline.name !== name.trim() || baseline.category !== category ||
-    Number(baseline.amount) !== Number(amount) || baseline.frequency !== frequency || baseline.status !== status
+    baseline.name !== name.trim() ||
+    baseline.description !== description.trim() ||
+    baseline.category !== category ||
+    Number(baseline.amount) !== parsedAmount ||
+    baseline.frequency !== frequency ||
+    baseline.status !== status ||
+    baseline.dayOfMonth !== (dayOfMonth === "" ? null : Number(dayOfMonth)) ||
+    baseline.specificDate !== specificDate ||
+    baseline.hasInvoice !== hasInvoice
   ) : false;
 
   const save = () => {
-    if (!name.trim() || !amount) return;
+    if (!name.trim() || isNaN(parsedAmount) || parsedAmount <= 0) return;
+    // Validazione date in base alla frequenza
+    let dom: number | undefined;
+    let sd: string | undefined;
+    if (frequency === "mensile") {
+      if (dayOfMonth !== "") {
+        const n = Number(dayOfMonth);
+        if (!isNaN(n) && n >= 1 && n <= 31) dom = n;
+      }
+    } else {
+      if (specificDate) sd = new Date(specificDate).toISOString();
+    }
     const payload: Partial<FixedCost> = {
-      name: name.trim(), category, amount: Number(amount), frequency, status, notes: notes.trim() || undefined,
+      name: name.trim(),
+      description: description.trim() || undefined,
+      category,
+      amount: parsedAmount,
+      frequency, status,
+      dayOfMonth: dom,
+      specificDate: sd,
+      hasInvoice,
+      attachments: attachments.length > 0 ? attachments : undefined,
+      notes: notes.trim() || undefined,
     };
     if (mode === "edit" && isChanged) {
       setConfirmEdit({ payload });
@@ -518,7 +585,13 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
         </div>
       }>
       <Field label="Nome">
-        <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-card border border-border rounded-lg p-3" />
+        <input value={name} onChange={e => setName(e.target.value)}
+          placeholder="es. Affitto locale" className="w-full bg-card border border-border rounded-lg p-3" />
+      </Field>
+      <Field label="Descrizione">
+        <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2}
+          placeholder="Dettagli aggiuntivi (facoltativo)"
+          className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Categoria">
@@ -528,10 +601,18 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
           </select>
         </Field>
         <Field label="Importo (€)">
-          <input type="number" step="0.01" value={amount} onChange={e => setAmount(Number(e.target.value))}
+          <input
+            type="text" inputMode="decimal"
+            value={amountStr}
+            onChange={e => {
+              // accetta solo cifre, , e .
+              const v = e.target.value.replace(/[^0-9.,]/g, "");
+              setAmountStr(v);
+            }}
+            placeholder="0,00"
             className="w-full bg-card border border-border rounded-lg p-3" />
         </Field>
-        <Field label="Frequenza">
+        <Field label="Decorrenza (frequenza)">
           <select value={frequency} onChange={e => setFrequency(e.target.value as FixedCostFrequency)}
             className="w-full bg-card border border-border rounded-lg p-3">
             {FC_FREQS.map(f => <option key={f} value={f}>{f}</option>)}
@@ -545,6 +626,50 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
           </select>
         </Field>
       </div>
+
+      {frequency === "mensile" ? (
+        <Field label="Giorno del mese (1-31)">
+          <input type="number" min="1" max="31" inputMode="numeric"
+            value={dayOfMonth} onChange={e => setDayOfMonth(e.target.value)}
+            placeholder="es. 15"
+            className="w-full bg-card border border-border rounded-lg p-3" />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Ogni mese il costo verrà registrato in questa giornata.
+          </p>
+        </Field>
+      ) : (
+        <Field label={frequency === "annuale" ? "Data annuale (gg/mm/aaaa)" : "Data (gg/mm/aaaa)"}>
+          <input type="date" value={specificDate} onChange={e => setSpecificDate(e.target.value)}
+            min={frequency === "annuale" ? undefined : todayDate.slice(0, 4) + "-01-01"}
+            className="w-full bg-card border border-border rounded-lg p-3" />
+        </Field>
+      )}
+
+      <Field label="Fattura collegata">
+        <label className="flex items-center gap-2 bg-card border border-border rounded-lg p-3 cursor-pointer">
+          <input type="checkbox" checked={hasInvoice} onChange={e => setHasInvoice(e.target.checked)}
+            className="w-4 h-4 accent-brand-green" />
+          <span className="text-sm">Questo costo ha una fattura · comparirà anche in <strong>Fatture</strong></span>
+        </label>
+      </Field>
+
+      <Field label={`Allegati (${attachments.length}) — ricevute, scontrini, fatture (PDF, JPG, PNG)`}>
+        <div className="space-y-2">
+          <input ref={fileRef} type="file" accept="application/pdf,image/jpeg,image/png,image/jpg" multiple
+            onChange={e => onPickFiles(e.target.files)} className="text-xs" />
+          {uploading && <p className="text-xs text-muted-foreground">Caricamento in corso...</p>}
+          {uploadErr && <p className="text-xs text-danger">{uploadErr}</p>}
+          <div className="space-y-1.5">
+            {attachments.map(a => (
+              <AttachmentRow key={a.id} att={a} onDelete={() => removeAttachment(a.id)} />
+            ))}
+            {attachments.length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Nessun allegato. Max 10MB per file.</p>
+            )}
+          </div>
+        </div>
+      </Field>
+
       <Field label="Note">
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
@@ -555,18 +680,18 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
           <div className="bg-brand-cream rounded-2xl max-w-sm w-full p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-xl text-brand-green mb-2">Applica modifica</h3>
             <p className="text-sm text-foreground/80 mb-4">
-              Vuoi applicare questa modifica al <strong>mese corrente</strong> oppure dal <strong>mese successivo</strong>?
+              Vuoi applicare questa modifica alla <strong>decorrenza corrente</strong> oppure dalla <strong>prossima</strong>?
             </p>
             <div className="flex gap-2 flex-col">
               <button
                 onClick={() => { onSave(confirmEdit.payload); setConfirmEdit(null); }}
                 className="px-4 py-2.5 rounded-lg bg-brand-green text-brand-cream text-sm font-semibold">
-                Applica al mese corrente
+                Applica alla decorrenza corrente
               </button>
               <button
                 onClick={() => {
                   const nm = nextMonthIso();
-                  const noteAdd = `Modifica effettiva dal ${new Date(nm).toLocaleDateString("it-IT", { month: "long", year: "numeric" })}`;
+                  const noteAdd = `Modifica effettiva dalla decorrenza del ${new Date(nm).toLocaleDateString("it-IT", { month: "long", year: "numeric" })}`;
                   onSave({
                     ...confirmEdit.payload,
                     startDate: nm,
@@ -575,7 +700,7 @@ function FixedCostSheet({ mode, cost, onClose, onSave, onDelete }: {
                   setConfirmEdit(null);
                 }}
                 className="px-4 py-2.5 rounded-lg bg-brand-gold text-white text-sm font-semibold">
-                Applica dal mese successivo
+                Applica dalla prossima decorrenza
               </button>
               <button onClick={() => setConfirmEdit(null)} className="px-4 py-2 rounded-lg bg-card border border-border text-sm">
                 Annulla
