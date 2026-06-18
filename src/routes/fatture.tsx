@@ -71,8 +71,23 @@ function FatturePage() {
         ref: { kind: "payment", id: p.id },
       });
     }
+    for (const c of fixedCosts) {
+      if (!c.hasInvoice) continue;
+      const att = c.attachments?.[0];
+      if (!att) continue;
+      const ref = c.specificDate ?? c.startDate ?? new Date().toISOString();
+      if (!inFrame(ref, tf)) continue;
+      out.push({
+        id: `fc_${c.id}`, date: ref, direction: "uscita",
+        typeLabel: `Costo fisso · ${c.frequency}`,
+        counterparty: c.name,
+        amount: c.amount, attachment: att,
+        notes: c.description ?? c.notes,
+        ref: { kind: "fixedCost", id: c.id },
+      });
+    }
     return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [orders, casualSales, supplierPayments, clients, goodsReceipts, tf]);
+  }, [orders, casualSales, supplierPayments, clients, goodsReceipts, fixedCosts, tf]);
 
   const visible = useMemo(
     () => filter === "all" ? items : items.filter(i => i.direction === filter),
