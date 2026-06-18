@@ -263,12 +263,19 @@ function PrevisioniPage() {
                 const isPast = d < today;
                 return (
                   <button key={key} onClick={() => setEditCell({ date: d, productId: p.id })}
-                    className={`bg-card hover:bg-brand-green/5 active:bg-brand-green/10 text-left p-2 min-h-[88px] flex flex-col gap-1 transition-colors ${isToday ? "ring-2 ring-brand-green ring-inset" : ""}`}>
+                    className={`bg-card hover:bg-brand-green/5 active:bg-brand-green/10 text-left p-2 min-h-[108px] flex flex-col gap-1 transition-colors ${isToday ? "ring-2 ring-brand-green ring-inset" : ""}`}>
                     {/* ordinato */}
                     <div className="flex items-baseline justify-between">
                       <span className="text-[9px] uppercase tracking-wider text-muted-foreground">ord.</span>
                       <span className={`text-sm font-display ${f?.ordered ? "text-brand-green" : "text-muted-foreground/40"}`}>
                         {f?.ordered ?? "—"}
+                      </span>
+                    </div>
+                    {/* residuo gg prima */}
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">res.</span>
+                      <span className={`text-xs font-display ${f?.leftoverPrev ? "text-foreground/70" : "text-muted-foreground/40"}`}>
+                        {f?.leftoverPrev ? `+${f.leftoverPrev}` : "—"}
                       </span>
                     </div>
                     {/* venduto */}
@@ -282,8 +289,8 @@ function PrevisioniPage() {
                     {isPast && f && typeof f.sold === "number" ? (
                       <div className="flex items-baseline justify-between">
                         <span className="text-[9px] uppercase tracking-wider text-muted-foreground">av.</span>
-                        <span className={`text-xs font-semibold ${(f.ordered - f.sold) > 0 ? "text-danger" : "text-success"}`}>
-                          {+(f.ordered - f.sold).toFixed(2)}
+                        <span className={`text-xs font-semibold ${((f.ordered + (f.leftoverPrev ?? 0)) - f.sold) > 0 ? "text-danger" : "text-success"}`}>
+                          {+((f.ordered + (f.leftoverPrev ?? 0)) - f.sold).toFixed(2)}
                         </span>
                       </div>
                     ) : sugg.value !== null ? (
