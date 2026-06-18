@@ -225,17 +225,20 @@ function CartRow({
     : kind === "custom" ? "bg-purple-500/15 text-purple-700 border-purple-500/30"
     : "bg-brand-green/10 text-brand-green border-brand-green/30";
   const badgeLabel = kind === "bundle" ? "BUNDLE" : kind === "custom" ? "PERS." : "PROD.";
-  const isOverridden = item.unitPriceOverride != null;
+  const isOverridden = item.unitPriceOverride != null || (kind === "custom" && item.customPrice != null);
   const [editingPrice, setEditingPrice] = useState(false);
-  const [priceDraft, setPriceDraft] = useState<string>(unitPrice.toFixed(2));
+  const [priceDraft, setPriceDraft] = useState<string>(total.toFixed(2));
 
   const startEdit = () => {
-    setPriceDraft(unitPrice.toFixed(2));
+    setPriceDraft(total.toFixed(2));
     setEditingPrice(true);
   };
   const commit = () => {
     const v = Number(priceDraft.replace(",", "."));
-    if (!isNaN(v) && v >= 0) onPriceChange(+v.toFixed(4));
+    if (!isNaN(v) && v >= 0 && item.qty > 0) {
+      const newUnit = +(v / item.qty).toFixed(4);
+      onPriceChange(newUnit);
+    }
     setEditingPrice(false);
   };
 
@@ -245,6 +248,8 @@ function CartRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm truncate">{name}</p>
         <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
+          <span className="opacity-70">{formatEuro(unitPrice)}{p?.unit ? `/${p.unit}` : ""} ·</span>
+          <span className="opacity-70">tot.</span>
           {editingPrice ? (
             <>
               <span>€</span>
@@ -256,21 +261,19 @@ function CartRow({
                 onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingPrice(false); }}
                 className="w-20 bg-card border border-brand-gold rounded px-1.5 py-0.5 text-[11px]"
               />
-              <span>{p?.unit ? `/${p.unit}` : "/u"}</span>
             </>
           ) : (
             <>
               <button type="button" onClick={startEdit}
-                className={`underline decoration-dotted underline-offset-2 ${isOverridden ? "text-brand-gold font-semibold" : "text-muted-foreground"}`}
-                title="Tocca per modificare il prezzo">
-                {formatEuro(unitPrice)}{p?.unit ? `/${p.unit}` : ""}
+                className={`underline decoration-dotted underline-offset-2 ${isOverridden ? "text-brand-gold font-semibold" : "text-foreground"}`}
+                title="Tocca per modificare il prezzo finale di questa riga">
+                {formatEuro(total)}
               </button>
               {isOverridden && kind !== "custom" && (
                 <button type="button" onClick={onPriceReset} className="text-[10px] text-muted-foreground underline">reset</button>
               )}
             </>
           )}
-          <span>· subtot. {formatEuro(total)}</span>
         </p>
       </div>
       <QtyInput value={item.qty} step={step} unit={p?.unit} onChange={onQtyChange} />
