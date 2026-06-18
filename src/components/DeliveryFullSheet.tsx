@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Sheet, Field, formatEuro } from "@/components/AppShell";
 import { CartEditor } from "@/components/CartEditor";
-import type { Delivery, DeliveryStatus, DeliveryPayment, OrderItem, OrderStatus, Order } from "@/lib/data";
+import type { Delivery, DeliveryStatus, DeliveryPayment, OrderItem, OrderStatus, Order, PaymentMethod } from "@/lib/data";
 import { cartTotal } from "@/lib/metrics";
 import { buildDeliveryComanda, printComanda } from "@/lib/comanda";
 
