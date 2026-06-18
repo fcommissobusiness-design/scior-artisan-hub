@@ -278,6 +278,17 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
             <option value="pagato_consegna">Pagato alla consegna</option>
           </select>
         </Field>
+        {payment !== "da_pagare" && (
+          <Field label="Metodo di pagamento">
+            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+              className="w-full bg-card border border-border rounded-lg p-3">
+              <option value="contanti">Contanti</option>
+              <option value="carta">Carta</option>
+              <option value="bonifico">Bonifico</option>
+              <option value="altro">Altro</option>
+            </select>
+          </Field>
+        )}
       </div>
 
       <Field label="Prodotti, bundle e righe personalizzate">
