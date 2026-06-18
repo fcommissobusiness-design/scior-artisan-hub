@@ -158,7 +158,7 @@ function Kpi({ label, value, warn, danger, ok }: { label: string; value: string;
   );
 }
 
-const METHODS: PaymentMethod[] = ["contanti", "pos", "bonifico", "carta", "altro"];
+const METHODS: PaymentMethod[] = ["contanti", "bonifico", "carta", "altro"];
 const RECS: SupplierPaymentRecurrence[] = ["una_tantum", "settimanale", "mensile", "annuale"];
 const TYPES: SupplierPaymentBeneficiaryType[] = ["fornitore", "consulente", "servizio", "altro"];
 const DOC_OPTIONS: { value: SupplierPaymentDocument; label: string }[] = [
