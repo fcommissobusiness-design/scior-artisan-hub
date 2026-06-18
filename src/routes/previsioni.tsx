@@ -325,6 +325,7 @@ function PrevisioniPage() {
             product={p}
             initialOrdered={f?.ordered}
             initialSold={f?.sold}
+            initialLeftoverPrev={f?.leftoverPrev}
             initialNotes={f?.notes}
             suggestion={sugg}
             onClose={() => setEditCell(null)}
