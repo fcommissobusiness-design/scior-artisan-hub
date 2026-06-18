@@ -18,7 +18,7 @@ type InvoiceRowItem = {
   amount: number;
   attachment: PaymentAttachment;
   notes?: string;
-  ref: { kind: "order" | "sale" | "payment"; id: string };
+  ref: { kind: "order" | "sale" | "payment" | "fixedCost"; id: string };
 };
 
 function FatturePage() {
