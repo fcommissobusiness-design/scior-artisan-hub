@@ -22,7 +22,7 @@ type InvoiceRowItem = {
 };
 
 function FatturePage() {
-  const { orders, casualSales, supplierPayments, suppliers, clients, goodsReceipts, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, clients, goodsReceipts, fixedCosts, addSupplierPayment } = useStore();
   const [openNew, setOpenNew] = useState(false);
   const navigate = useNavigate();
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
