@@ -149,7 +149,8 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
           items, total,
           pickupDate: isoDate, status: orderStatus,
           delivery: "domicilio", address: address.trim(),
-          payment, notes: notes.trim() || undefined,
+          payment, paymentMethod: payment === "da_pagare" ? undefined : paymentMethod,
+          notes: notes.trim() || undefined,
         });
       }
       updateDelivery(existing.id, {
