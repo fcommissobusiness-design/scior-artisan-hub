@@ -313,11 +313,18 @@ export type FixedCostCategory = typeof FIXED_COST_CATEGORIES[number];
 export interface FixedCost {
   id: string;
   name: string;
+  description?: string;
   category: FixedCostCategory;
   amount: number;
   frequency: FixedCostFrequency;
   status: FixedCostStatus;
   startDate?: string;
+  // Data operativa: per mensile = giorno del mese (1-31); per annuale/una_tantum = data completa ISO (YYYY-MM-DD)
+  dayOfMonth?: number;
+  specificDate?: string;
+  // Documentale
+  hasInvoice?: boolean;
+  attachments?: PaymentAttachment[];
   notes?: string;
 }
 
