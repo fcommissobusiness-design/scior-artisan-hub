@@ -378,6 +378,7 @@ function FixedCostsList({ costs, onAdd, onUpdate, onDelete, onOpenConfig }: {
   onDelete: (id: string) => void;
   onOpenConfig: () => void;
 }) {
+  const [editId, setEditId] = useState<string | null>(null);
   const sorted = useMemo(
     () => [...costs].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)),
     [costs],
@@ -396,7 +397,8 @@ function FixedCostsList({ costs, onAdd, onUpdate, onDelete, onOpenConfig }: {
       {sorted.map(c => {
         const monthly = c.frequency === "annuale" ? c.amount / 12 : c.frequency === "mensile" ? c.amount : 0;
         return (
-          <div key={c.id} className="bg-card rounded-xl p-3 flex justify-between items-center gap-3">
+          <button key={c.id} onClick={() => setEditId(c.id)}
+            className="w-full text-left bg-card rounded-xl p-3 flex justify-between items-center gap-3 hover:bg-brand-cream/40 transition-colors">
             <div className="min-w-0">
               <p className="font-display text-base text-brand-green truncate">{c.name}</p>
               <p className="text-[11px] text-muted-foreground capitalize">{c.category} · {c.frequency} · {c.status}</p>
@@ -405,9 +407,16 @@ function FixedCostsList({ costs, onAdd, onUpdate, onDelete, onOpenConfig }: {
               <p className="font-display text-lg text-brand-green">{formatEuro(c.amount)}</p>
               {c.frequency !== "mensile" && <p className="text-[10px] text-muted-foreground">{formatEuro(monthly)}/mese</p>}
             </div>
-          </div>
+          </button>
         );
       })}
+      {editId && (() => {
+        const c = costs.find(x => x.id === editId);
+        if (!c) return null;
+        return <FixedCostSheet mode="edit" cost={c} onClose={() => setEditId(null)}
+          onSave={(patch) => { onUpdate(c.id, patch); setEditId(null); }}
+          onDelete={() => { if (confirm("Eliminare questo costo fisso?")) { onDelete(c.id); setEditId(null); } }} />;
+      })()}
     </div>
   );
 }
