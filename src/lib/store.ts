@@ -1177,7 +1177,7 @@ export function useStore() {
       setStore({ ...store, cleaningTasks: store.cleaningTasks.filter((t) => t.id !== id) }),
 
     // DAILY FORECASTS — gestione previsioni giornaliere (mozzarella, pane, ecc.)
-    upsertDailyForecast: (date: string, productId: string, patch: { ordered?: number; sold?: number; notes?: string }) => {
+    upsertDailyForecast: (date: string, productId: string, patch: { ordered?: number; sold?: number; leftoverPrev?: number; notes?: string }) => {
       const list = store.dailyForecasts ?? [];
       const existing = list.find(f => f.date === date && f.productId === productId);
       if (existing) {
@@ -1193,6 +1193,7 @@ export function useStore() {
         id: uid("df_"), date, productId,
         ordered: patch.ordered ?? 0,
         sold: patch.sold,
+        leftoverPrev: patch.leftoverPrev,
         notes: patch.notes,
         createdAt: nowIso(), updatedAt: nowIso(),
       };
