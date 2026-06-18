@@ -74,6 +74,7 @@ export interface DailyForecast {
   productId: string;
   ordered: number;       // quantità ordinata/preparata per quel giorno
   sold?: number;         // quantità venduta (consuntivo)
+  leftoverPrev?: number; // residuo riportato dal giorno precedente (sommato a "ordered" per il totale disponibile)
   notes?: string;
   createdAt: string;
   updatedAt: string;
