@@ -169,7 +169,7 @@ function PrevisioniPage() {
   const dailyProducts = useMemo(() => products.filter(p => p.dailyForecast), [products]);
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const forecastByKey = useMemo(() => {
-    const m = new Map<string, { id: string; ordered: number; sold?: number; notes?: string }>();
+    const m = new Map<string, { id: string; ordered: number; sold?: number; leftoverPrev?: number; notes?: string }>();
     for (const f of dailyForecasts ?? []) m.set(`${f.date}::${f.productId}`, f);
     return m;
   }, [dailyForecasts]);
