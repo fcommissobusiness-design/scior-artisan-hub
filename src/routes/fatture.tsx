@@ -163,7 +163,7 @@ function FatturePage() {
             {i.notes && <p className="mt-2 text-[11px] text-muted-foreground line-clamp-2">{i.notes}</p>}
             <button onClick={() => openRef(i.ref)}
               className="mt-2 text-xs text-brand-green font-semibold underline">
-              Apri {i.ref.kind === "order" ? "ordine" : i.ref.kind === "sale" ? "scontrino" : "uscita"} collegato →
+              Apri {i.ref.kind === "order" ? "ordine" : i.ref.kind === "sale" ? "scontrino" : i.ref.kind === "fixedCost" ? "costo fisso" : "uscita"} collegato →
             </button>
           </div>
         ))}
