@@ -572,7 +572,6 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
             className="w-full bg-card border border-border rounded-lg p-3">
             <option value="contanti">Contanti</option>
-            <option value="pos">POS</option>
             <option value="bonifico">Bonifico</option>
             <option value="carta">Carta</option>
             <option value="altro">Altro</option>
