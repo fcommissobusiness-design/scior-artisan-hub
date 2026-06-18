@@ -43,6 +43,7 @@ export function DeliveryFullSheet({ mode, deliveryId, onClose }: {
   const [slot, setSlot] = useState(existing?.timeSlot ?? "10:00-12:00");
   const [status, setStatus] = useState<DeliveryStatus>(existing?.status ?? "da_preparare");
   const [payment, setPayment] = useState<DeliveryPayment>(existing?.payment ?? "da_pagare");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>((linkedOrder?.paymentMethod as PaymentMethod) ?? "contanti");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [items, setItems] = useState<OrderItem[]>(linkedOrder?.items ?? []);
   const [menuOpen, setMenuOpen] = useState(false);
