@@ -204,12 +204,14 @@ export function CartEditor({ items, onChange }: Props) {
 }
 
 function CartRow({
-  item, products, bundles, onQtyChange, onRemove,
+  item, products, bundles, onQtyChange, onPriceChange, onPriceReset, onRemove,
 }: {
   item: OrderItem;
   products: Product[];
   bundles: Bundle[];
   onQtyChange: (qty: number) => void;
+  onPriceChange: (price: number) => void;
+  onPriceReset: () => void;
   onRemove: () => void;
 }) {
   const name = itemDisplayName(item, products, bundles);
@@ -223,13 +225,52 @@ function CartRow({
     : kind === "custom" ? "bg-purple-500/15 text-purple-700 border-purple-500/30"
     : "bg-brand-green/10 text-brand-green border-brand-green/30";
   const badgeLabel = kind === "bundle" ? "BUNDLE" : kind === "custom" ? "PERS." : "PROD.";
+  const isOverridden = item.unitPriceOverride != null;
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceDraft, setPriceDraft] = useState<string>(unitPrice.toFixed(2));
+
+  const startEdit = () => {
+    setPriceDraft(unitPrice.toFixed(2));
+    setEditingPrice(true);
+  };
+  const commit = () => {
+    const v = Number(priceDraft.replace(",", "."));
+    if (!isNaN(v) && v >= 0) onPriceChange(+v.toFixed(4));
+    setEditingPrice(false);
+  };
+
   return (
     <div className="bg-brand-cream/60 border border-border rounded-lg p-2 flex items-center gap-2">
       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge}`}>{badgeLabel}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm truncate">{name}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {formatEuro(unitPrice)}{p?.unit ? `/${p.unit}` : ""} · subtot. {formatEuro(total)}
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
+          {editingPrice ? (
+            <>
+              <span>€</span>
+              <input
+                type="number" step="0.01" min="0" inputMode="decimal" autoFocus
+                value={priceDraft}
+                onChange={(e) => setPriceDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingPrice(false); }}
+                className="w-20 bg-card border border-brand-gold rounded px-1.5 py-0.5 text-[11px]"
+              />
+              <span>{p?.unit ? `/${p.unit}` : "/u"}</span>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={startEdit}
+                className={`underline decoration-dotted underline-offset-2 ${isOverridden ? "text-brand-gold font-semibold" : "text-muted-foreground"}`}
+                title="Tocca per modificare il prezzo">
+                {formatEuro(unitPrice)}{p?.unit ? `/${p.unit}` : ""}
+              </button>
+              {isOverridden && kind !== "custom" && (
+                <button type="button" onClick={onPriceReset} className="text-[10px] text-muted-foreground underline">reset</button>
+              )}
+            </>
+          )}
+          <span>· subtot. {formatEuro(total)}</span>
         </p>
       </div>
       <QtyInput value={item.qty} step={step} unit={p?.unit} onChange={onQtyChange} />
