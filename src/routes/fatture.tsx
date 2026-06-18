@@ -18,11 +18,11 @@ type InvoiceRowItem = {
   amount: number;
   attachment: PaymentAttachment;
   notes?: string;
-  ref: { kind: "order" | "sale" | "payment"; id: string };
+  ref: { kind: "order" | "sale" | "payment" | "fixedCost"; id: string };
 };
 
 function FatturePage() {
-  const { orders, casualSales, supplierPayments, suppliers, clients, goodsReceipts, addSupplierPayment } = useStore();
+  const { orders, casualSales, supplierPayments, suppliers, clients, goodsReceipts, fixedCosts, addSupplierPayment } = useStore();
   const [openNew, setOpenNew] = useState(false);
   const navigate = useNavigate();
   const [tfId, setTfId] = useState<TimeFrameId>("thisMonth");
@@ -71,8 +71,23 @@ function FatturePage() {
         ref: { kind: "payment", id: p.id },
       });
     }
+    for (const c of fixedCosts) {
+      if (!c.hasInvoice) continue;
+      const att = c.attachments?.[0];
+      if (!att) continue;
+      const ref = c.specificDate ?? c.startDate ?? new Date().toISOString();
+      if (!inFrame(ref, tf)) continue;
+      out.push({
+        id: `fc_${c.id}`, date: ref, direction: "uscita",
+        typeLabel: `Costo fisso · ${c.frequency}`,
+        counterparty: c.name,
+        amount: c.amount, attachment: att,
+        notes: c.description ?? c.notes,
+        ref: { kind: "fixedCost", id: c.id },
+      });
+    }
     return out.sort((a, b) => +new Date(b.date) - +new Date(a.date));
-  }, [orders, casualSales, supplierPayments, clients, goodsReceipts, tf]);
+  }, [orders, casualSales, supplierPayments, clients, goodsReceipts, fixedCosts, tf]);
 
   const visible = useMemo(
     () => filter === "all" ? items : items.filter(i => i.direction === filter),
@@ -148,7 +163,7 @@ function FatturePage() {
             {i.notes && <p className="mt-2 text-[11px] text-muted-foreground line-clamp-2">{i.notes}</p>}
             <button onClick={() => openRef(i.ref)}
               className="mt-2 text-xs text-brand-green font-semibold underline">
-              Apri {i.ref.kind === "order" ? "ordine" : i.ref.kind === "sale" ? "scontrino" : "uscita"} collegato →
+              Apri {i.ref.kind === "order" ? "ordine" : i.ref.kind === "sale" ? "scontrino" : i.ref.kind === "fixedCost" ? "costo fisso" : "uscita"} collegato →
             </button>
           </div>
         ))}

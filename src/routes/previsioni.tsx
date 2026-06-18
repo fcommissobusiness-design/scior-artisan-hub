@@ -91,7 +91,7 @@ const DAY_TYPE_COLOR: Record<DayType, string> = {
 interface SuggestionInput {
   date: string;
   productId: string;
-  history: { date: string; productId: string; ordered: number; sold?: number }[];
+  history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[];
 }
 
 function computeSuggestion({ date, productId, history }: SuggestionInput): { value: number | null; basedOn: number; note: string } {
@@ -114,17 +114,17 @@ function computeSuggestion({ date, productId, history }: SuggestionInput): { val
   const wsum = weights.reduce((s, w) => s + w, 0);
   const weighted = candidates.reduce((s, c, i) => s + (c.sold ?? 0) * weights[i], 0) / wsum;
 
-  // Aggiustamenti:
-  // - se in >=3 su 4 occasioni il venduto = ordinato (esaurito) → +10%
-  // - se l'avanzo medio è > 15% → -5%
+  // Disponibile = ordinato + residuo dal giorno precedente
+  const available = (c: typeof candidates[number]) => c.ordered + (c.leftoverPrev ?? 0);
+
   let adjusted = weighted;
-  const soldOuts = candidates.filter(c => (c.sold ?? 0) >= c.ordered && c.ordered > 0).length;
+  const soldOuts = candidates.filter(c => (c.sold ?? 0) >= available(c) && available(c) > 0).length;
   const leftovers = candidates
-    .filter(c => c.ordered > 0)
-    .map(c => Math.max(0, c.ordered - (c.sold ?? 0)) / c.ordered);
+    .filter(c => available(c) > 0)
+    .map(c => Math.max(0, available(c) - (c.sold ?? 0)) / available(c));
   const avgLeftoverPct = leftovers.length > 0 ? leftovers.reduce((s, v) => s + v, 0) / leftovers.length : 0;
 
-  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()}`;
+  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
   if (candidates.length >= 3 && soldOuts >= 3) { adjusted *= 1.1; note += " · +10% (esauriti)"; }
   else if (avgLeftoverPct > 0.15) { adjusted *= 0.95; note += " · −5% (avanzo)"; }
 
@@ -169,7 +169,7 @@ function PrevisioniPage() {
   const dailyProducts = useMemo(() => products.filter(p => p.dailyForecast), [products]);
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   const forecastByKey = useMemo(() => {
-    const m = new Map<string, { id: string; ordered: number; sold?: number; notes?: string }>();
+    const m = new Map<string, { id: string; ordered: number; sold?: number; leftoverPrev?: number; notes?: string }>();
     for (const f of dailyForecasts ?? []) m.set(`${f.date}::${f.productId}`, f);
     return m;
   }, [dailyForecasts]);
@@ -263,12 +263,19 @@ function PrevisioniPage() {
                 const isPast = d < today;
                 return (
                   <button key={key} onClick={() => setEditCell({ date: d, productId: p.id })}
-                    className={`bg-card hover:bg-brand-green/5 active:bg-brand-green/10 text-left p-2 min-h-[88px] flex flex-col gap-1 transition-colors ${isToday ? "ring-2 ring-brand-green ring-inset" : ""}`}>
+                    className={`bg-card hover:bg-brand-green/5 active:bg-brand-green/10 text-left p-2 min-h-[108px] flex flex-col gap-1 transition-colors ${isToday ? "ring-2 ring-brand-green ring-inset" : ""}`}>
                     {/* ordinato */}
                     <div className="flex items-baseline justify-between">
                       <span className="text-[9px] uppercase tracking-wider text-muted-foreground">ord.</span>
                       <span className={`text-sm font-display ${f?.ordered ? "text-brand-green" : "text-muted-foreground/40"}`}>
                         {f?.ordered ?? "—"}
+                      </span>
+                    </div>
+                    {/* residuo gg prima */}
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">res.</span>
+                      <span className={`text-xs font-display ${f?.leftoverPrev ? "text-foreground/70" : "text-muted-foreground/40"}`}>
+                        {f?.leftoverPrev ? `+${f.leftoverPrev}` : "—"}
                       </span>
                     </div>
                     {/* venduto */}
@@ -282,8 +289,8 @@ function PrevisioniPage() {
                     {isPast && f && typeof f.sold === "number" ? (
                       <div className="flex items-baseline justify-between">
                         <span className="text-[9px] uppercase tracking-wider text-muted-foreground">av.</span>
-                        <span className={`text-xs font-semibold ${(f.ordered - f.sold) > 0 ? "text-danger" : "text-success"}`}>
-                          {+(f.ordered - f.sold).toFixed(2)}
+                        <span className={`text-xs font-semibold ${((f.ordered + (f.leftoverPrev ?? 0)) - f.sold) > 0 ? "text-danger" : "text-success"}`}>
+                          {+((f.ordered + (f.leftoverPrev ?? 0)) - f.sold).toFixed(2)}
                         </span>
                       </div>
                     ) : sugg.value !== null ? (
@@ -318,6 +325,7 @@ function PrevisioniPage() {
             product={p}
             initialOrdered={f?.ordered}
             initialSold={f?.sold}
+            initialLeftoverPrev={f?.leftoverPrev}
             initialNotes={f?.notes}
             suggestion={sugg}
             onClose={() => setEditCell(null)}
@@ -341,25 +349,32 @@ function PrevisioniPage() {
    Sheet: modifica cella (ordinato / venduto / note)
    ============================================================ */
 
-function ForecastCellSheet({ date, product, initialOrdered, initialSold, initialNotes, suggestion, onClose, onSave }: {
+function ForecastCellSheet({ date, product, initialOrdered, initialSold, initialLeftoverPrev, initialNotes, suggestion, onClose, onSave }: {
   date: string;
   product: { id: string; name: string; unit: "kg" | "pz" };
   initialOrdered?: number;
   initialSold?: number;
+  initialLeftoverPrev?: number;
   initialNotes?: string;
   suggestion: { value: number | null; basedOn: number; note: string };
   onClose: () => void;
-  onSave: (patch: { ordered?: number; sold?: number; notes?: string }) => void;
+  onSave: (patch: { ordered?: number; sold?: number; leftoverPrev?: number; notes?: string }) => void;
 }) {
   const [ordered, setOrdered] = useState<string>(initialOrdered?.toString() ?? "");
   const [sold, setSold] = useState<string>(initialSold?.toString() ?? "");
+  const [leftoverPrev, setLeftoverPrev] = useState<string>(initialLeftoverPrev?.toString() ?? "");
   const [notes, setNotes] = useState<string>(initialNotes ?? "");
   const t = dayType(date);
 
+  const parsedOrdered = ordered === "" ? 0 : Number(ordered.replace(",", "."));
+  const parsedLeftover = leftoverPrev === "" ? 0 : Number(leftoverPrev.replace(",", "."));
+  const totalAvailable = (isNaN(parsedOrdered) ? 0 : parsedOrdered) + (isNaN(parsedLeftover) ? 0 : parsedLeftover);
+
   const save = () => {
     onSave({
-      ordered: ordered === "" ? 0 : Number(ordered),
-      sold: sold === "" ? undefined : Number(sold),
+      ordered: parsedOrdered,
+      sold: sold === "" ? undefined : Number(sold.replace(",", ".")),
+      leftoverPrev: leftoverPrev === "" ? undefined : parsedLeftover,
       notes: notes.trim() || undefined,
     });
   };
@@ -390,18 +405,28 @@ function ForecastCellSheet({ date, product, initialOrdered, initialSold, initial
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Field label={`Ordinato (${product.unit})`}>
           <input type="number" step="0.1" inputMode="decimal" value={ordered}
             onChange={e => setOrdered(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg p-3 text-lg font-display" />
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
+        </Field>
+        <Field label={`Residuo gg prima (${product.unit})`}>
+          <input type="number" step="0.1" inputMode="decimal" value={leftoverPrev}
+            onChange={e => setLeftoverPrev(e.target.value)}
+            placeholder="0"
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
         </Field>
         <Field label={`Venduto (${product.unit})`}>
           <input type="number" step="0.1" inputMode="decimal" value={sold}
             onChange={e => setSold(e.target.value)}
-            placeholder="a fine giornata"
-            className="w-full bg-card border border-border rounded-lg p-3 text-lg font-display" />
+            placeholder="fine giornata"
+            className="w-full bg-card border border-border rounded-lg p-3 text-base font-display" />
         </Field>
+      </div>
+      <div className="bg-brand-green/5 border border-brand-green/20 rounded-lg px-3 py-2 text-xs text-brand-green">
+        Totale disponibile per oggi: <strong>{+totalAvailable.toFixed(2)} {product.unit}</strong>
+        <span className="text-muted-foreground"> (ordinato + residuo)</span>
       </div>
       <Field label="Note (opzionale)">
         <textarea value={notes} onChange={e => setNotes(e.target.value)}

@@ -286,6 +286,9 @@ function Dashboard() {
 
           </div>
         </section>
+
+        {/* PREVISIONI GIORNALIERE — top 3 prodotti nel timeframe */}
+        <ForecastTopPanel tf={tf} />
       </div>
 
       <Fab onClick={() => setPickAction(true)} />
@@ -572,7 +575,6 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
             className="w-full bg-card border border-border rounded-lg p-3">
             <option value="contanti">Contanti</option>
-            <option value="pos">POS</option>
             <option value="bonifico">Bonifico</option>
             <option value="carta">Carta</option>
             <option value="altro">Altro</option>
@@ -633,3 +635,88 @@ export function NewSaleSheet({ open, saleId, onClose, onSave }: {
   );
 }
 
+
+/* ============================================================
+   Pannello dashboard: Top 3 prodotti previsioni giornaliere
+   ============================================================ */
+
+import type { TimeFrame } from "@/lib/timeframe";
+
+function ForecastTopPanel({ tf }: { tf: TimeFrame }) {
+  const { products, dailyForecasts } = useStore();
+  const navigate = useNavigate();
+
+  const dailyProducts = useMemo(() => products.filter(p => p.dailyForecast), [products]);
+
+  // aggrega per prodotto nel timeframe
+  const agg = useMemo(() => {
+    const m = new Map<string, { ordered: number; sold: number; leftoverPrev: number; days: number }>();
+    for (const f of dailyForecasts ?? []) {
+      const dIso = new Date(f.date + "T00:00:00").toISOString();
+      if (!inFrame(dIso, tf)) continue;
+      const prev = m.get(f.productId) ?? { ordered: 0, sold: 0, leftoverPrev: 0, days: 0 };
+      prev.ordered += f.ordered || 0;
+      prev.sold += f.sold ?? 0;
+      prev.leftoverPrev += f.leftoverPrev ?? 0;
+      prev.days += 1;
+      m.set(f.productId, prev);
+    }
+    return m;
+  }, [dailyForecasts, tf]);
+
+  const top = useMemo(() => {
+    return dailyProducts
+      .map(p => ({ product: p, ...(agg.get(p.id) ?? { ordered: 0, sold: 0, leftoverPrev: 0, days: 0 }) }))
+      .sort((a, b) => (b.sold + b.ordered) - (a.sold + a.ordered))
+      .slice(0, 3);
+  }, [dailyProducts, agg]);
+
+  if (dailyProducts.length === 0) return null;
+
+  return (
+    <section>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-display text-xl text-brand-green">Previsioni giornaliere (top 3)</h2>
+        <button onClick={() => navigate({ to: "/previsioni" })} className="text-xs text-brand-gold font-semibold">Vai a Previsioni →</button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {top.map(({ product, ordered, sold, leftoverPrev, days }) => {
+          const available = ordered + leftoverPrev;
+          const avanzo = +(available - sold).toFixed(2);
+          const noData = ordered === 0 && sold === 0 && leftoverPrev === 0;
+          return (
+            <button key={product.id} type="button" onClick={() => navigate({ to: "/previsioni" })}
+              className="bg-card rounded-xl p-3 text-left">
+              <p className="font-display text-base text-brand-green truncate">{product.name}</p>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {days > 0 ? `${days} gg nel periodo` : "nessun dato nel periodo"} · unità {product.unit}
+              </p>
+              {noData ? (
+                <p className="text-xs text-muted-foreground italic mt-2">Apri Previsioni per inserire i dati.</p>
+              ) : (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-brand-cream/60 rounded-md px-2 py-1.5">
+                    <p className="text-[10px] uppercase text-muted-foreground">Ordinato</p>
+                    <p className="font-display text-sm text-brand-green">{+ordered.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-brand-cream/60 rounded-md px-2 py-1.5">
+                    <p className="text-[10px] uppercase text-muted-foreground">Residuo</p>
+                    <p className="font-display text-sm text-foreground/80">+{+leftoverPrev.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-brand-cream/60 rounded-md px-2 py-1.5">
+                    <p className="text-[10px] uppercase text-muted-foreground">Venduto</p>
+                    <p className="font-display text-sm text-brand-gold">{+sold.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-brand-cream/60 rounded-md px-2 py-1.5">
+                    <p className="text-[10px] uppercase text-muted-foreground">Avanzo</p>
+                    <p className={`font-display text-sm ${avanzo > 0 ? "text-danger" : "text-success"}`}>{avanzo}</p>
+                  </div>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

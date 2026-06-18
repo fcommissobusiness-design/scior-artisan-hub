@@ -74,6 +74,7 @@ export interface DailyForecast {
   productId: string;
   ordered: number;       // quantità ordinata/preparata per quel giorno
   sold?: number;         // quantità venduta (consuntivo)
+  leftoverPrev?: number; // residuo riportato dal giorno precedente (sommato a "ordered" per il totale disponibile)
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -312,11 +313,18 @@ export type FixedCostCategory = typeof FIXED_COST_CATEGORIES[number];
 export interface FixedCost {
   id: string;
   name: string;
+  description?: string;
   category: FixedCostCategory;
   amount: number;
   frequency: FixedCostFrequency;
   status: FixedCostStatus;
   startDate?: string;
+  // Data operativa: per mensile = giorno del mese (1-31); per annuale/una_tantum = data completa ISO (YYYY-MM-DD)
+  dayOfMonth?: number;
+  specificDate?: string;
+  // Documentale
+  hasInvoice?: boolean;
+  attachments?: PaymentAttachment[];
   notes?: string;
 }
 
