@@ -91,7 +91,7 @@ const DAY_TYPE_COLOR: Record<DayType, string> = {
 interface SuggestionInput {
   date: string;
   productId: string;
-  history: { date: string; productId: string; ordered: number; sold?: number }[];
+  history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[];
 }
 
 function computeSuggestion({ date, productId, history }: SuggestionInput): { value: number | null; basedOn: number; note: string } {
@@ -114,17 +114,17 @@ function computeSuggestion({ date, productId, history }: SuggestionInput): { val
   const wsum = weights.reduce((s, w) => s + w, 0);
   const weighted = candidates.reduce((s, c, i) => s + (c.sold ?? 0) * weights[i], 0) / wsum;
 
-  // Aggiustamenti:
-  // - se in >=3 su 4 occasioni il venduto = ordinato (esaurito) → +10%
-  // - se l'avanzo medio è > 15% → -5%
+  // Disponibile = ordinato + residuo dal giorno precedente
+  const available = (c: typeof candidates[number]) => c.ordered + (c.leftoverPrev ?? 0);
+
   let adjusted = weighted;
-  const soldOuts = candidates.filter(c => (c.sold ?? 0) >= c.ordered && c.ordered > 0).length;
+  const soldOuts = candidates.filter(c => (c.sold ?? 0) >= available(c) && available(c) > 0).length;
   const leftovers = candidates
-    .filter(c => c.ordered > 0)
-    .map(c => Math.max(0, c.ordered - (c.sold ?? 0)) / c.ordered);
+    .filter(c => available(c) > 0)
+    .map(c => Math.max(0, available(c) - (c.sold ?? 0)) / available(c));
   const avgLeftoverPct = leftovers.length > 0 ? leftovers.reduce((s, v) => s + v, 0) / leftovers.length : 0;
 
-  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()}`;
+  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
   if (candidates.length >= 3 && soldOuts >= 3) { adjusted *= 1.1; note += " · +10% (esauriti)"; }
   else if (avgLeftoverPct > 0.15) { adjusted *= 0.95; note += " · −5% (avanzo)"; }
 
