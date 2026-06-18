@@ -286,6 +286,9 @@ function Dashboard() {
 
           </div>
         </section>
+
+        {/* PREVISIONI GIORNALIERE — top 3 prodotti nel timeframe */}
+        <ForecastTopPanel tf={tf} />
       </div>
 
       <Fab onClick={() => setPickAction(true)} />
