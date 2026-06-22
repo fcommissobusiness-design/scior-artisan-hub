@@ -420,6 +420,35 @@ export function resetStoreToSeed() { setStore(SEED); }
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const nowIso = () => new Date().toISOString();
 
+// ============= RECEIPT NUMBERS (numerazione scontrini giornaliera) =============
+// Ogni vendita realmente conseguita riceve un numero progressivo della giornata, formato #001.
+// Conta: scontrini diretti, ordini ritirati/consegnati, consegne consegnate.
+// Non conta: ordini in attesa/pronti/da_consegnare, consegne ancora aperte.
+// Una volta assegnato, il numero non cambia.
+
+export function receiptDayKey(iso: string): string { return (iso ?? "").slice(0, 10); }
+export function formatReceiptNumber(n: number): string { return "Scontrino #" + String(n).padStart(3, "0"); }
+
+function isOrderConcluded(status: string): boolean {
+  return status === "ritirato" || status === "consegnato";
+}
+function isDeliveryConcluded(status: string): boolean {
+  return status === "consegnata";
+}
+
+function nextReceiptNumber(s: Store, key: string, excludeIds: Set<string> = new Set()): number {
+  const used = new Set<number>();
+  const check = (n: number | undefined, d: string | undefined, id: string) => {
+    if (excludeIds.has(id)) return;
+    if (n && d && receiptDayKey(d) === key) used.add(n);
+  };
+  for (const o of s.orders) check(o.receiptNumber, o.receiptDate, o.id);
+  for (const c of s.casualSales) check(c.receiptNumber, c.receiptDate, c.id);
+  for (const dv of s.deliveries) check(dv.receiptNumber, dv.receiptDate, dv.id);
+  let n = 1; while (used.has(n)) n++; return n;
+}
+
+
 let crmAutoRan = false;
 let clientsImportAutoRan = false;
 
