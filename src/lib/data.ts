@@ -192,6 +192,8 @@ export interface CasualSale {
   paymentMethod?: PaymentMethod;
   hasInvoice?: boolean;
   invoice?: PaymentAttachment;
+  receiptNumber?: number;
+  receiptDate?: string;
 }
 
 export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";
