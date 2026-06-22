@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, formatReceiptNumber } from "@/lib/store";
 import { TopBar, Sheet, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { orderMargin } from "@/lib/metrics";
