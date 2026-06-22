@@ -730,7 +730,16 @@ export function useStore() {
       } else {
         tl.push({ date: nowIso(), type: "modificato" });
       }
-      const merged: Order = { ...prev, ...patch, timeline: tl };
+      let merged: Order = { ...prev, ...patch, timeline: tl };
+      // Assegna numero scontrino al passaggio a vendita conclusa (se non già presente).
+      const linkedDelivery = merged.deliveryId ? store.deliveries.find(d => d.id === merged.deliveryId) : undefined;
+      if (isOrderConcluded(merged.status) && !merged.receiptNumber) {
+        const key = receiptDayKey(merged.pickupDate);
+        const n = linkedDelivery?.receiptNumber && linkedDelivery?.receiptDate === key
+          ? linkedDelivery.receiptNumber
+          : nextReceiptNumber(store, key, new Set([prev.id]));
+        merged = { ...merged, receiptNumber: n, receiptDate: key };
+      }
       let nextDeliveries = store.deliveries;
       // Sync verso Delivery collegata
       if (merged.deliveryId) {
@@ -747,6 +756,11 @@ export function useStore() {
           if (patch.payment !== undefined && merged.payment) dPatch.payment = merged.payment;
           if (patch.pickupDate) dPatch.date = merged.pickupDate;
           if (patch.notes !== undefined) dPatch.notes = merged.notes;
+          // Propaga numero scontrino sull'eventuale delivery collegata.
+          if (merged.receiptNumber && !d.receiptNumber) {
+            dPatch.receiptNumber = merged.receiptNumber;
+            dPatch.receiptDate = merged.receiptDate;
+          }
           return { ...d, ...dPatch };
         });
       }
@@ -754,6 +768,7 @@ export function useStore() {
       if (willBecomeRitirato) next = applyOrderRitirato(next, merged);
       setStore(next);
     },
+
     duplicateOrder: (id: string) => {
       const o = store.orders.find((x) => x.id === id);
       if (!o) return null;
