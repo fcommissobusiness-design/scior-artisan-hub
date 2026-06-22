@@ -700,16 +700,26 @@ export function useStore() {
         };
         nextDeliveries = [del, ...store.deliveries];
       }
-      const order: Order = {
+      let order: Order = {
         ...o, id: orderId, createdAt: nowIso(), deliveryId,
         timeline: [{ date: nowIso(), type: "creato" }],
         source: o.source ?? "negozio",
       };
+      // Assegna numero scontrino se ordine creato già concluso.
+      if (isOrderConcluded(order.status) && !order.receiptNumber) {
+        const key = receiptDayKey(order.pickupDate);
+        const n = nextReceiptNumber(store, key);
+        order = { ...order, receiptNumber: n, receiptDate: key };
+        // Propaga sulla delivery appena creata, se presente.
+        nextDeliveries = nextDeliveries.map(d => d.id === deliveryId
+          ? { ...d, receiptNumber: n, receiptDate: key } : d);
+      }
       let next: Store = { ...store, clients: resolved.clients, orders: [order, ...store.orders], deliveries: nextDeliveries };
       if (order.status === "ritirato") next = applyOrderRitirato(next, order);
       setStore(next);
       return order;
     },
+
     updateOrder: (id: string, patch: Partial<Order>) => {
       const prev = store.orders.find((o) => o.id === id);
       if (!prev) return;
