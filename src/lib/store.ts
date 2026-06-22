@@ -848,10 +848,13 @@ export function useStore() {
 
     // CASUAL SALES
     addCasualSale: (s: Omit<CasualSale, "id">) => {
-      const sale: CasualSale = { ...s, id: uid("s_") };
+      const key = receiptDayKey(s.date);
+      const n = s.receiptNumber ?? nextReceiptNumber(store, key);
+      const sale: CasualSale = { ...s, id: uid("s_"), receiptNumber: n, receiptDate: s.receiptDate ?? key };
       setStore({ ...store, casualSales: [sale, ...store.casualSales] });
       return sale;
     },
+
     updateCasualSale: (id: string, patch: Partial<CasualSale>) =>
       setStore({ ...store, casualSales: store.casualSales.map((s) => s.id === id ? { ...s, ...patch } : s) }),
     deleteCasualSale: (id: string) => {
