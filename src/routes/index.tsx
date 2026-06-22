@@ -240,20 +240,26 @@ function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {salesInFrame.slice(0, 12).map((s) => {
               const c = s.clientId ? clientById(s.clientId) : null;
+              const displayName = c?.name ?? s.clientNameInput?.trim();
+              const receiptLabel = s.receiptNumber ? formatReceiptNumber(s.receiptNumber) : null;
+              const primary = displayName || receiptLabel || "Scontrino";
+              const showSub = !!(displayName && receiptLabel);
               return (
                 <button key={s.id} type="button" onClick={() => openSaleEditor(s.id)}
                   onPointerUp={(e) => { if (e.pointerType === "touch") openSaleEditor(s.id); }}
                   className="bg-card rounded-xl p-3 text-sm text-left active:opacity-80 touch-manipulation">
                   <div className="flex justify-between">
-                    <span className="font-semibold">{c?.name ?? s.clientNameInput ?? "Anonimo"}</span>
+                    <span className="font-semibold">{primary}</span>
                     <span className="text-brand-green font-bold">{formatEuro(s.total)}</span>
                   </div>
+                  {showSub && <p className="text-[11px] text-muted-foreground">{receiptLabel}</p>}
                   <p className="text-xs text-muted-foreground">{formatTime(s.date)} · {new Date(s.date).toLocaleDateString("it-IT")}</p>
                   <p className="text-xs text-foreground/70 mt-1">{s.items.map(i => itemDisplayName(i, products, bundles)).join(", ")}</p>
                   {s.notes && <p className="text-xs italic text-muted-foreground mt-1 line-clamp-1">Note: {s.notes}</p>}
                 </button>
               );
             })}
+
 
           </div>
         </section>
