@@ -1,6 +1,6 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, formatReceiptNumber } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, formatTime, Sheet, Field, Fab } from "@/components/AppShell";
 import type { Order, OrderItem, OrderStatus, OrderSource, DeliveryMode, DeliveryPayment, PaymentMethod, PaymentAttachment } from "@/lib/data";
 import { InvoiceField } from "@/components/InvoiceField";
