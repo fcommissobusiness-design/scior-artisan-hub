@@ -157,6 +157,8 @@ export interface Order {
   deliveryId?: string;
   hasInvoice?: boolean;
   invoice?: PaymentAttachment;
+  receiptNumber?: number;       // numero scontrino progressivo della giornata (assegnato a vendita conclusa)
+  receiptDate?: string;         // YYYY-MM-DD della giornata di numerazione
 }
 
 
