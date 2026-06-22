@@ -891,14 +891,30 @@ export function useStore() {
         // collega l'ordine esistente
         nextOrders = store.orders.map(o => o.id === orderId ? { ...o, deliveryId: delId } : o);
       }
-      const del: Delivery = { ...d, id: delId, orderId, createdAt: nowIso() };
+      let del: Delivery = { ...d, id: delId, orderId, createdAt: nowIso() };
+      // Assegna numero scontrino se la consegna nasce già consegnata.
+      if (isDeliveryConcluded(del.status) && !del.receiptNumber) {
+        const key = receiptDayKey(del.date);
+        const n = nextReceiptNumber(store, key);
+        del = { ...del, receiptNumber: n, receiptDate: key };
+        nextOrders = nextOrders.map(o => o.id === orderId
+          ? { ...o, receiptNumber: n, receiptDate: key } : o);
+      }
       setStore({ ...store, deliveries: [del, ...store.deliveries], orders: nextOrders });
       return del;
     },
     updateDelivery: (id: string, patch: Partial<Delivery>) => {
       const prev = store.deliveries.find(d => d.id === id);
       if (!prev) return;
-      const merged: Delivery = { ...prev, ...patch };
+      let merged: Delivery = { ...prev, ...patch };
+      const linkedOrder = merged.orderId ? store.orders.find(o => o.id === merged.orderId) : undefined;
+      if (isDeliveryConcluded(merged.status) && !merged.receiptNumber) {
+        const key = receiptDayKey(merged.date);
+        const n = linkedOrder?.receiptNumber && linkedOrder?.receiptDate === key
+          ? linkedOrder.receiptNumber
+          : nextReceiptNumber(store, key, new Set([prev.id]));
+        merged = { ...merged, receiptNumber: n, receiptDate: key };
+      }
       let nextOrders = store.orders;
       if (merged.orderId) {
         nextOrders = nextOrders.map(o => {
@@ -912,11 +928,16 @@ export function useStore() {
           if (patch.address !== undefined) oPatch.address = merged.address;
           if (patch.payment !== undefined) oPatch.payment = merged.payment;
           if (patch.date) oPatch.pickupDate = merged.date;
+          if (merged.receiptNumber && !o.receiptNumber) {
+            oPatch.receiptNumber = merged.receiptNumber;
+            oPatch.receiptDate = merged.receiptDate;
+          }
           return { ...o, ...oPatch };
         });
       }
       setStore({ ...store, deliveries: store.deliveries.map(d => d.id === id ? merged : d), orders: nextOrders });
     },
+
     deleteDelivery: (id: string) => {
       const d = store.deliveries.find(x => x.id === id);
       if (!d) return;
