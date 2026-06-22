@@ -211,6 +211,8 @@ export interface Delivery {
   orderId?: string;
   notes?: string;
   createdAt: string;
+  receiptNumber?: number;
+  receiptDate?: string;
 }
 
 
