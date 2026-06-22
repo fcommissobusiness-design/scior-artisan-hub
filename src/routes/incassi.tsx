@@ -78,19 +78,6 @@ function CassaPage() {
     }
 
 
-    // Entrate da scontrini
-    for (const s of casualSales) {
-      if (!inFrame(s.date, tf)) continue;
-      out.push({
-        id: `sale_${s.id}`,
-        date: s.date,
-        type: "entrata",
-        amount: s.total,
-        label: "Scontrino",
-        meta: s.paymentMethod ?? "—",
-        margin: orderMargin({ items: s.items } as any, products, bundles),
-      });
-    }
 
     // Uscite da pagamenti fornitori (esclusi da_pagare)
     for (const p of supplierPayments) {
