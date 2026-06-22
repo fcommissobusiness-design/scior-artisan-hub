@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, formatReceiptNumber } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, Fab } from "@/components/AppShell";
 import type { DeliveryStatus, DeliveryPayment } from "@/lib/data";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
