@@ -50,18 +50,33 @@ function CassaPage() {
 
     // Entrate da ordini ritirati
     for (const o of orders) {
-      if (o.status !== "ritirato") continue;
+      if (o.status !== "ritirato" && o.status !== "consegnato") continue;
       if (!inFrame(o.pickupDate, tf)) continue;
       out.push({
         id: `ord_${o.id}`,
         date: o.pickupDate,
         type: "entrata",
         amount: o.total,
-        label: "Ordine",
+        label: o.receiptNumber ? formatReceiptNumber(o.receiptNumber) : "Ordine",
         meta: o.paymentMethod ?? "—",
         margin: orderMargin(o, products, bundles),
       });
     }
+
+    // Entrate da scontrini
+    for (const s of casualSales) {
+      if (!inFrame(s.date, tf)) continue;
+      out.push({
+        id: `sale_${s.id}`,
+        date: s.date,
+        type: "entrata",
+        amount: s.total,
+        label: s.receiptNumber ? formatReceiptNumber(s.receiptNumber) : "Scontrino",
+        meta: s.paymentMethod ?? "—",
+        margin: orderMargin({ items: s.items } as any, products, bundles),
+      });
+    }
+
 
     // Entrate da scontrini
     for (const s of casualSales) {
