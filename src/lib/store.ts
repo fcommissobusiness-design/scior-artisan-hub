@@ -350,6 +350,10 @@ function migrate(parsed: any): Store {
   }
   const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9, !receiptIntegrityV9);
   Object.assign(out, fixed);
+  // V11: numerazione scontrini giornaliera — backfill su record già conclusi.
+  if (parsed.__receiptNumbersV11 !== true) {
+    backfillReceiptNumbers(out);
+  }
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
@@ -359,8 +363,69 @@ function migrate(parsed: any): Store {
   (out as any).__splitWaterV8 = true;
   (out as any).__receiptIntegrityV9 = true;
   (out as any).__phantomReceiptsV10 = true;
+  (out as any).__receiptNumbersV11 = true;
   return out;
 }
+
+// Backfill cronologico dei numeri scontrino per record già conclusi privi di numero.
+function backfillReceiptNumbers(out: Store): void {
+  type Rec = { kind: "order" | "sale" | "delivery"; id: string; dateIso: string; existing?: number };
+  const recs: Rec[] = [];
+  for (const o of out.orders) {
+    if (!isOrderConcluded(o.status)) continue;
+    recs.push({ kind: "order", id: o.id, dateIso: o.pickupDate, existing: o.receiptNumber });
+  }
+  for (const s of out.casualSales) {
+    recs.push({ kind: "sale", id: s.id, dateIso: s.date, existing: s.receiptNumber });
+  }
+  for (const d of out.deliveries) {
+    if (!isDeliveryConcluded(d.status)) continue;
+    // Se la consegna è collegata a un ordine, salta: condividerà il numero dell'ordine sotto.
+    if (d.orderId && out.orders.some(o => o.id === d.orderId && isOrderConcluded(o.status))) continue;
+    recs.push({ kind: "delivery", id: d.id, dateIso: d.date, existing: d.receiptNumber });
+  }
+  // ordina cronologicamente per stabilità
+  recs.sort((a, b) => +new Date(a.dateIso) - +new Date(b.dateIso));
+  const usedByDay = new Map<string, Set<number>>();
+  const getUsed = (k: string) => {
+    let u = usedByDay.get(k);
+    if (!u) { u = new Set(); usedByDay.set(k, u); }
+    return u;
+  };
+  // Prima: registra i numeri già esistenti
+  for (const r of recs) {
+    if (r.existing) getUsed(receiptDayKey(r.dateIso)).add(r.existing);
+  }
+  // Poi: assegna ai privi di numero
+  const assignments = new Map<string, { n: number; key: string }>();
+  for (const r of recs) {
+    if (r.existing) { assignments.set(r.id, { n: r.existing, key: receiptDayKey(r.dateIso) }); continue; }
+    const key = receiptDayKey(r.dateIso);
+    const used = getUsed(key);
+    let n = 1; while (used.has(n)) n++;
+    used.add(n);
+    assignments.set(r.id, { n, key });
+  }
+  out.orders = out.orders.map(o => {
+    const a = assignments.get(o.id);
+    return a ? { ...o, receiptNumber: a.n, receiptDate: a.key } : o;
+  });
+  out.casualSales = out.casualSales.map(s => {
+    const a = assignments.get(s.id);
+    return a ? { ...s, receiptNumber: a.n, receiptDate: a.key } : s;
+  });
+  // Propaga ai delivery collegati a un order numerato
+  out.deliveries = out.deliveries.map(d => {
+    const a = assignments.get(d.id);
+    if (a) return { ...d, receiptNumber: a.n, receiptDate: a.key };
+    if (d.orderId) {
+      const lo = out.orders.find(o => o.id === d.orderId);
+      if (lo?.receiptNumber) return { ...d, receiptNumber: lo.receiptNumber, receiptDate: lo.receiptDate };
+    }
+    return d;
+  });
+}
+
 
 
 function load(): Store {
