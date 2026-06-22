@@ -157,6 +157,8 @@ export interface Order {
   deliveryId?: string;
   hasInvoice?: boolean;
   invoice?: PaymentAttachment;
+  receiptNumber?: number;       // numero scontrino progressivo della giornata (assegnato a vendita conclusa)
+  receiptDate?: string;         // YYYY-MM-DD della giornata di numerazione
 }
 
 
@@ -190,6 +192,8 @@ export interface CasualSale {
   paymentMethod?: PaymentMethod;
   hasInvoice?: boolean;
   invoice?: PaymentAttachment;
+  receiptNumber?: number;
+  receiptDate?: string;
 }
 
 export type DeliveryStatus = "da_preparare" | "in_consegna" | "consegnata" | "annullata";
@@ -207,6 +211,8 @@ export interface Delivery {
   orderId?: string;
   notes?: string;
   createdAt: string;
+  receiptNumber?: number;
+  receiptDate?: string;
 }
 
 

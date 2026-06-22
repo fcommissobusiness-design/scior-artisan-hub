@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, formatReceiptNumber } from "@/lib/store";
 import { TopBar, Sheet, Fab, formatEuro, formatDate } from "@/components/AppShell";
 import { TIME_FRAME_OPTIONS, makeTimeFrame, inFrame, type TimeFrameId } from "@/lib/timeframe";
 import { orderMargin } from "@/lib/metrics";
@@ -50,14 +50,14 @@ function CassaPage() {
 
     // Entrate da ordini ritirati
     for (const o of orders) {
-      if (o.status !== "ritirato") continue;
+      if (o.status !== "ritirato" && o.status !== "consegnato") continue;
       if (!inFrame(o.pickupDate, tf)) continue;
       out.push({
         id: `ord_${o.id}`,
         date: o.pickupDate,
         type: "entrata",
         amount: o.total,
-        label: "Ordine",
+        label: o.receiptNumber ? formatReceiptNumber(o.receiptNumber) : "Ordine",
         meta: o.paymentMethod ?? "—",
         margin: orderMargin(o, products, bundles),
       });
@@ -71,11 +71,13 @@ function CassaPage() {
         date: s.date,
         type: "entrata",
         amount: s.total,
-        label: "Scontrino",
+        label: s.receiptNumber ? formatReceiptNumber(s.receiptNumber) : "Scontrino",
         meta: s.paymentMethod ?? "—",
         margin: orderMargin({ items: s.items } as any, products, bundles),
       });
     }
+
+
 
     // Uscite da pagamenti fornitori (esclusi da_pagare)
     for (const p of supplierPayments) {

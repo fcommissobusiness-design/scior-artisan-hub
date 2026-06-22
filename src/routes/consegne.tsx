@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, formatReceiptNumber } from "@/lib/store";
 import { TopBar, formatEuro, formatDate, Fab } from "@/components/AppShell";
 import type { DeliveryStatus, DeliveryPayment } from "@/lib/data";
 import { WhatsAppDialog } from "@/components/WhatsAppDialog";
@@ -135,9 +135,11 @@ function ConsegnePage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-display text-lg text-brand-green leading-tight truncate">{c?.name ?? d.clientNameInput ?? "—"}</p>
                     <p className="text-xs text-muted-foreground truncate">{c?.phone ?? "—"}</p>
+                    {d.receiptNumber && <p className="text-[11px] text-brand-gold font-semibold">{formatReceiptNumber(d.receiptNumber)}</p>}
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase whitespace-nowrap ${STATUS_STYLE[d.status]}`}>{STATUS_LABEL[d.status]}</span>
                 </div>
+
                 <p className="text-sm text-foreground/85 mt-1">{d.address}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {formatDate(d.date)} · {d.timeSlot} · {PAY_LABEL[d.payment]}

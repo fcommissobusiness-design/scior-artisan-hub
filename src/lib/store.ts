@@ -350,6 +350,10 @@ function migrate(parsed: any): Store {
   }
   const fixed = reconcileReceiptIntegrity(out, !receiptIntegrityV9, !receiptIntegrityV9);
   Object.assign(out, fixed);
+  // V11: numerazione scontrini giornaliera — backfill su record già conclusi.
+  if (parsed.__receiptNumbersV11 !== true) {
+    backfillReceiptNumbers(out);
+  }
   (out as any).__clientsSeedV2 = true;
   (out as any).__cleanSeedV3 = true;
   (out as any).__catalogV4 = true;
@@ -359,8 +363,69 @@ function migrate(parsed: any): Store {
   (out as any).__splitWaterV8 = true;
   (out as any).__receiptIntegrityV9 = true;
   (out as any).__phantomReceiptsV10 = true;
+  (out as any).__receiptNumbersV11 = true;
   return out;
 }
+
+// Backfill cronologico dei numeri scontrino per record già conclusi privi di numero.
+function backfillReceiptNumbers(out: Store): void {
+  type Rec = { kind: "order" | "sale" | "delivery"; id: string; dateIso: string; existing?: number };
+  const recs: Rec[] = [];
+  for (const o of out.orders) {
+    if (!isOrderConcluded(o.status)) continue;
+    recs.push({ kind: "order", id: o.id, dateIso: o.pickupDate, existing: o.receiptNumber });
+  }
+  for (const s of out.casualSales) {
+    recs.push({ kind: "sale", id: s.id, dateIso: s.date, existing: s.receiptNumber });
+  }
+  for (const d of out.deliveries) {
+    if (!isDeliveryConcluded(d.status)) continue;
+    // Se la consegna è collegata a un ordine, salta: condividerà il numero dell'ordine sotto.
+    if (d.orderId && out.orders.some(o => o.id === d.orderId && isOrderConcluded(o.status))) continue;
+    recs.push({ kind: "delivery", id: d.id, dateIso: d.date, existing: d.receiptNumber });
+  }
+  // ordina cronologicamente per stabilità
+  recs.sort((a, b) => +new Date(a.dateIso) - +new Date(b.dateIso));
+  const usedByDay = new Map<string, Set<number>>();
+  const getUsed = (k: string) => {
+    let u = usedByDay.get(k);
+    if (!u) { u = new Set(); usedByDay.set(k, u); }
+    return u;
+  };
+  // Prima: registra i numeri già esistenti
+  for (const r of recs) {
+    if (r.existing) getUsed(receiptDayKey(r.dateIso)).add(r.existing);
+  }
+  // Poi: assegna ai privi di numero
+  const assignments = new Map<string, { n: number; key: string }>();
+  for (const r of recs) {
+    if (r.existing) { assignments.set(r.id, { n: r.existing, key: receiptDayKey(r.dateIso) }); continue; }
+    const key = receiptDayKey(r.dateIso);
+    const used = getUsed(key);
+    let n = 1; while (used.has(n)) n++;
+    used.add(n);
+    assignments.set(r.id, { n, key });
+  }
+  out.orders = out.orders.map(o => {
+    const a = assignments.get(o.id);
+    return a ? { ...o, receiptNumber: a.n, receiptDate: a.key } : o;
+  });
+  out.casualSales = out.casualSales.map(s => {
+    const a = assignments.get(s.id);
+    return a ? { ...s, receiptNumber: a.n, receiptDate: a.key } : s;
+  });
+  // Propaga ai delivery collegati a un order numerato
+  out.deliveries = out.deliveries.map(d => {
+    const a = assignments.get(d.id);
+    if (a) return { ...d, receiptNumber: a.n, receiptDate: a.key };
+    if (d.orderId) {
+      const lo = out.orders.find(o => o.id === d.orderId);
+      if (lo?.receiptNumber) return { ...d, receiptNumber: lo.receiptNumber, receiptDate: lo.receiptDate };
+    }
+    return d;
+  });
+}
+
 
 
 function load(): Store {
@@ -419,6 +484,35 @@ export function resetStoreToSeed() { setStore(SEED); }
 
 const uid = (prefix: string) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const nowIso = () => new Date().toISOString();
+
+// ============= RECEIPT NUMBERS (numerazione scontrini giornaliera) =============
+// Ogni vendita realmente conseguita riceve un numero progressivo della giornata, formato #001.
+// Conta: scontrini diretti, ordini ritirati/consegnati, consegne consegnate.
+// Non conta: ordini in attesa/pronti/da_consegnare, consegne ancora aperte.
+// Una volta assegnato, il numero non cambia.
+
+export function receiptDayKey(iso: string): string { return (iso ?? "").slice(0, 10); }
+export function formatReceiptNumber(n: number): string { return "Scontrino #" + String(n).padStart(3, "0"); }
+
+function isOrderConcluded(status: string): boolean {
+  return status === "ritirato" || status === "consegnato";
+}
+function isDeliveryConcluded(status: string): boolean {
+  return status === "consegnata";
+}
+
+function nextReceiptNumber(s: Store, key: string, excludeIds: Set<string> = new Set()): number {
+  const used = new Set<number>();
+  const check = (n: number | undefined, d: string | undefined, id: string) => {
+    if (excludeIds.has(id)) return;
+    if (n && d && receiptDayKey(d) === key) used.add(n);
+  };
+  for (const o of s.orders) check(o.receiptNumber, o.receiptDate, o.id);
+  for (const c of s.casualSales) check(c.receiptNumber, c.receiptDate, c.id);
+  for (const dv of s.deliveries) check(dv.receiptNumber, dv.receiptDate, dv.id);
+  let n = 1; while (used.has(n)) n++; return n;
+}
+
 
 let crmAutoRan = false;
 let clientsImportAutoRan = false;
@@ -671,16 +765,26 @@ export function useStore() {
         };
         nextDeliveries = [del, ...store.deliveries];
       }
-      const order: Order = {
+      let order: Order = {
         ...o, id: orderId, createdAt: nowIso(), deliveryId,
         timeline: [{ date: nowIso(), type: "creato" }],
         source: o.source ?? "negozio",
       };
+      // Assegna numero scontrino se ordine creato già concluso.
+      if (isOrderConcluded(order.status) && !order.receiptNumber) {
+        const key = receiptDayKey(order.pickupDate);
+        const n = nextReceiptNumber(store, key);
+        order = { ...order, receiptNumber: n, receiptDate: key };
+        // Propaga sulla delivery appena creata, se presente.
+        nextDeliveries = nextDeliveries.map(d => d.id === deliveryId
+          ? { ...d, receiptNumber: n, receiptDate: key } : d);
+      }
       let next: Store = { ...store, clients: resolved.clients, orders: [order, ...store.orders], deliveries: nextDeliveries };
       if (order.status === "ritirato") next = applyOrderRitirato(next, order);
       setStore(next);
       return order;
     },
+
     updateOrder: (id: string, patch: Partial<Order>) => {
       const prev = store.orders.find((o) => o.id === id);
       if (!prev) return;
@@ -691,7 +795,16 @@ export function useStore() {
       } else {
         tl.push({ date: nowIso(), type: "modificato" });
       }
-      const merged: Order = { ...prev, ...patch, timeline: tl };
+      let merged: Order = { ...prev, ...patch, timeline: tl };
+      // Assegna numero scontrino al passaggio a vendita conclusa (se non già presente).
+      const linkedDelivery = merged.deliveryId ? store.deliveries.find(d => d.id === merged.deliveryId) : undefined;
+      if (isOrderConcluded(merged.status) && !merged.receiptNumber) {
+        const key = receiptDayKey(merged.pickupDate);
+        const n = linkedDelivery?.receiptNumber && linkedDelivery?.receiptDate === key
+          ? linkedDelivery.receiptNumber
+          : nextReceiptNumber(store, key, new Set([prev.id]));
+        merged = { ...merged, receiptNumber: n, receiptDate: key };
+      }
       let nextDeliveries = store.deliveries;
       // Sync verso Delivery collegata
       if (merged.deliveryId) {
@@ -708,6 +821,11 @@ export function useStore() {
           if (patch.payment !== undefined && merged.payment) dPatch.payment = merged.payment;
           if (patch.pickupDate) dPatch.date = merged.pickupDate;
           if (patch.notes !== undefined) dPatch.notes = merged.notes;
+          // Propaga numero scontrino sull'eventuale delivery collegata.
+          if (merged.receiptNumber && !d.receiptNumber) {
+            dPatch.receiptNumber = merged.receiptNumber;
+            dPatch.receiptDate = merged.receiptDate;
+          }
           return { ...d, ...dPatch };
         });
       }
@@ -715,6 +833,7 @@ export function useStore() {
       if (willBecomeRitirato) next = applyOrderRitirato(next, merged);
       setStore(next);
     },
+
     duplicateOrder: (id: string) => {
       const o = store.orders.find((x) => x.id === id);
       if (!o) return null;
@@ -794,10 +913,13 @@ export function useStore() {
 
     // CASUAL SALES
     addCasualSale: (s: Omit<CasualSale, "id">) => {
-      const sale: CasualSale = { ...s, id: uid("s_") };
+      const key = receiptDayKey(s.date);
+      const n = s.receiptNumber ?? nextReceiptNumber(store, key);
+      const sale: CasualSale = { ...s, id: uid("s_"), receiptNumber: n, receiptDate: s.receiptDate ?? key };
       setStore({ ...store, casualSales: [sale, ...store.casualSales] });
       return sale;
     },
+
     updateCasualSale: (id: string, patch: Partial<CasualSale>) =>
       setStore({ ...store, casualSales: store.casualSales.map((s) => s.id === id ? { ...s, ...patch } : s) }),
     deleteCasualSale: (id: string) => {
@@ -834,14 +956,30 @@ export function useStore() {
         // collega l'ordine esistente
         nextOrders = store.orders.map(o => o.id === orderId ? { ...o, deliveryId: delId } : o);
       }
-      const del: Delivery = { ...d, id: delId, orderId, createdAt: nowIso() };
+      let del: Delivery = { ...d, id: delId, orderId, createdAt: nowIso() };
+      // Assegna numero scontrino se la consegna nasce già consegnata.
+      if (isDeliveryConcluded(del.status) && !del.receiptNumber) {
+        const key = receiptDayKey(del.date);
+        const n = nextReceiptNumber(store, key);
+        del = { ...del, receiptNumber: n, receiptDate: key };
+        nextOrders = nextOrders.map(o => o.id === orderId
+          ? { ...o, receiptNumber: n, receiptDate: key } : o);
+      }
       setStore({ ...store, deliveries: [del, ...store.deliveries], orders: nextOrders });
       return del;
     },
     updateDelivery: (id: string, patch: Partial<Delivery>) => {
       const prev = store.deliveries.find(d => d.id === id);
       if (!prev) return;
-      const merged: Delivery = { ...prev, ...patch };
+      let merged: Delivery = { ...prev, ...patch };
+      const linkedOrder = merged.orderId ? store.orders.find(o => o.id === merged.orderId) : undefined;
+      if (isDeliveryConcluded(merged.status) && !merged.receiptNumber) {
+        const key = receiptDayKey(merged.date);
+        const n = linkedOrder?.receiptNumber && linkedOrder?.receiptDate === key
+          ? linkedOrder.receiptNumber
+          : nextReceiptNumber(store, key, new Set([prev.id]));
+        merged = { ...merged, receiptNumber: n, receiptDate: key };
+      }
       let nextOrders = store.orders;
       if (merged.orderId) {
         nextOrders = nextOrders.map(o => {
@@ -855,11 +993,16 @@ export function useStore() {
           if (patch.address !== undefined) oPatch.address = merged.address;
           if (patch.payment !== undefined) oPatch.payment = merged.payment;
           if (patch.date) oPatch.pickupDate = merged.date;
+          if (merged.receiptNumber && !o.receiptNumber) {
+            oPatch.receiptNumber = merged.receiptNumber;
+            oPatch.receiptDate = merged.receiptDate;
+          }
           return { ...o, ...oPatch };
         });
       }
       setStore({ ...store, deliveries: store.deliveries.map(d => d.id === id ? merged : d), orders: nextOrders });
     },
+
     deleteDelivery: (id: string) => {
       const d = store.deliveries.find(x => x.id === id);
       if (!d) return;
