@@ -26,6 +26,7 @@ import { Route as FinanzaRouteImport } from './routes/finanza'
 import { Route as FattureRouteImport } from './routes/fatture'
 import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
+import { Route as CookieRouteImport } from './routes/cookie'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as CestinoRouteImport } from './routes/cestino'
@@ -118,6 +119,11 @@ const EcommerceRoute = EcommerceRouteImport.update({
   path: '/ecommerce',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookieRoute = CookieRouteImport.update({
+  id: '/cookie',
+  path: '/cookie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConsegneRoute = ConsegneRouteImport.update({
   id: '/consegne',
   path: '/consegne',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -207,6 +215,7 @@ export interface FileRoutesById {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -310,6 +322,7 @@ export interface RootRouteChildren {
   CestinoRoute: typeof CestinoRoute
   ClientiRoute: typeof ClientiRoute
   ConsegneRoute: typeof ConsegneRoute
+  CookieRoute: typeof CookieRoute
   EcommerceRoute: typeof EcommerceRoute
   EntrateMerciRoute: typeof EntrateMerciRoute
   FattureRoute: typeof FattureRoute
@@ -450,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EcommerceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookie': {
+      id: '/cookie'
+      path: '/cookie'
+      fullPath: '/cookie'
+      preLoaderRoute: typeof CookieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/consegne': {
       id: '/consegne'
       path: '/consegne'
@@ -502,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   CestinoRoute: CestinoRoute,
   ClientiRoute: ClientiRoute,
   ConsegneRoute: ConsegneRoute,
+  CookieRoute: CookieRoute,
   EcommerceRoute: EcommerceRoute,
   EntrateMerciRoute: EntrateMerciRoute,
   FattureRoute: FattureRoute,
