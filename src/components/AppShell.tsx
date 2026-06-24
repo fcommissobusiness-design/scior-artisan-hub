@@ -95,6 +95,11 @@ function AuthScreen() {
       <p className="mt-6 text-[11px] opacity-60 max-w-xs text-center">
         Le registrazioni sono chiuse. Usa le credenziali esistenti — lo stesso account sincronizza i dati su iPhone, PC e tablet.
       </p>
+      <p className="mt-4 text-[11px] opacity-60 max-w-xs text-center">
+        <Link to="/privacy" className="underline hover:text-brand-gold">Privacy</Link>
+        <span className="mx-2 opacity-50">·</span>
+        <Link to="/cookie" className="underline hover:text-brand-gold">Cookie</Link>
+      </p>
     </div>
   );
 }

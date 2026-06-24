@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as ProduzioneRouteImport } from './routes/produzione'
 import { Route as ProdottiRouteImport } from './routes/prodotti'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PrevisioniRouteImport } from './routes/previsioni'
 import { Route as PagamentiRouteImport } from './routes/pagamenti'
 import { Route as OrdiniRouteImport } from './routes/ordini'
@@ -25,6 +26,7 @@ import { Route as FinanzaRouteImport } from './routes/finanza'
 import { Route as FattureRouteImport } from './routes/fatture'
 import { Route as EntrateMerciRouteImport } from './routes/entrate-merci'
 import { Route as EcommerceRouteImport } from './routes/ecommerce'
+import { Route as CookieRouteImport } from './routes/cookie'
 import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as CestinoRouteImport } from './routes/cestino'
@@ -45,6 +47,11 @@ const ProduzioneRoute = ProduzioneRouteImport.update({
 const ProdottiRoute = ProdottiRouteImport.update({
   id: '/prodotti',
   path: '/prodotti',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrevisioniRoute = PrevisioniRouteImport.update({
@@ -112,6 +119,11 @@ const EcommerceRoute = EcommerceRouteImport.update({
   path: '/ecommerce',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookieRoute = CookieRouteImport.update({
+  id: '/cookie',
+  path: '/cookie',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConsegneRoute = ConsegneRouteImport.update({
   id: '/consegne',
   path: '/consegne',
@@ -150,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -163,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
   '/previsioni': typeof PrevisioniRoute
+  '/privacy': typeof PrivacyRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -174,6 +188,7 @@ export interface FileRoutesByTo {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -187,6 +202,7 @@ export interface FileRoutesByTo {
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
   '/previsioni': typeof PrevisioniRoute
+  '/privacy': typeof PrivacyRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -199,6 +215,7 @@ export interface FileRoutesById {
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
   '/consegne': typeof ConsegneRoute
+  '/cookie': typeof CookieRoute
   '/ecommerce': typeof EcommerceRoute
   '/entrate-merci': typeof EntrateMerciRoute
   '/fatture': typeof FattureRoute
@@ -212,6 +229,7 @@ export interface FileRoutesById {
   '/ordini': typeof OrdiniRoute
   '/pagamenti': typeof PagamentiRoute
   '/previsioni': typeof PrevisioniRoute
+  '/privacy': typeof PrivacyRoute
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
@@ -225,6 +243,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -238,6 +257,7 @@ export interface FileRouteTypes {
     | '/ordini'
     | '/pagamenti'
     | '/previsioni'
+    | '/privacy'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -249,6 +269,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -262,6 +283,7 @@ export interface FileRouteTypes {
     | '/ordini'
     | '/pagamenti'
     | '/previsioni'
+    | '/privacy'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -273,6 +295,7 @@ export interface FileRouteTypes {
     | '/cestino'
     | '/clienti'
     | '/consegne'
+    | '/cookie'
     | '/ecommerce'
     | '/entrate-merci'
     | '/fatture'
@@ -286,6 +309,7 @@ export interface FileRouteTypes {
     | '/ordini'
     | '/pagamenti'
     | '/previsioni'
+    | '/privacy'
     | '/prodotti'
     | '/produzione'
     | '/report'
@@ -298,6 +322,7 @@ export interface RootRouteChildren {
   CestinoRoute: typeof CestinoRoute
   ClientiRoute: typeof ClientiRoute
   ConsegneRoute: typeof ConsegneRoute
+  CookieRoute: typeof CookieRoute
   EcommerceRoute: typeof EcommerceRoute
   EntrateMerciRoute: typeof EntrateMerciRoute
   FattureRoute: typeof FattureRoute
@@ -311,6 +336,7 @@ export interface RootRouteChildren {
   OrdiniRoute: typeof OrdiniRoute
   PagamentiRoute: typeof PagamentiRoute
   PrevisioniRoute: typeof PrevisioniRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProdottiRoute: typeof ProdottiRoute
   ProduzioneRoute: typeof ProduzioneRoute
   ReportRoute: typeof ReportRoute
@@ -337,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/prodotti'
       fullPath: '/prodotti'
       preLoaderRoute: typeof ProdottiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/previsioni': {
@@ -430,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EcommerceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookie': {
+      id: '/cookie'
+      path: '/cookie'
+      fullPath: '/cookie'
+      preLoaderRoute: typeof CookieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/consegne': {
       id: '/consegne'
       path: '/consegne'
@@ -482,6 +522,7 @@ const rootRouteChildren: RootRouteChildren = {
   CestinoRoute: CestinoRoute,
   ClientiRoute: ClientiRoute,
   ConsegneRoute: ConsegneRoute,
+  CookieRoute: CookieRoute,
   EcommerceRoute: EcommerceRoute,
   EntrateMerciRoute: EntrateMerciRoute,
   FattureRoute: FattureRoute,
@@ -495,6 +536,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdiniRoute: OrdiniRoute,
   PagamentiRoute: PagamentiRoute,
   PrevisioniRoute: PrevisioniRoute,
+  PrivacyRoute: PrivacyRoute,
   ProdottiRoute: ProdottiRoute,
   ProduzioneRoute: ProduzioneRoute,
   ReportRoute: ReportRoute,
@@ -502,13 +544,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
