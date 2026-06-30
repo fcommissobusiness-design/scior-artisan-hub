@@ -9,6 +9,9 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import logoAsset from "@/assets/sciorio-logo.png.asset.json";
+
+const LOGO_URL = `https://scioriogastronomia.lovable.app${logoAsset.url}`;
 
 function NotFoundComponent() {
   return (
