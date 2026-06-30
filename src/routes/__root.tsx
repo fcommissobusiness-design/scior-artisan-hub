@@ -9,6 +9,9 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import logoAsset from "@/assets/sciorio-logo.png.asset.json";
+
+const LOGO_URL = `https://scioriogastronomia.lovable.app${logoAsset.url}`;
 
 function NotFoundComponent() {
   return (
@@ -81,14 +84,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "SciorHQ" },
       { name: "twitter:description", content: "Gestionale" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3774eb5d-8643-4503-9c42-8736d4b601f7/id-preview-a9678285--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778771061452.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3774eb5d-8643-4503-9c42-8736d4b601f7/id-preview-a9678285--b76104ce-dee2-47cd-a464-4f21c324803b.lovable.app-1778771061452.png" },
+      { property: "og:image", content: LOGO_URL },
+      { name: "twitter:image", content: LOGO_URL },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: logoAsset.url },
+      { rel: "shortcut icon", type: "image/png", href: logoAsset.url },
+      { rel: "apple-touch-icon", href: logoAsset.url },
     ],
   }),
   shellComponent: RootShell,
