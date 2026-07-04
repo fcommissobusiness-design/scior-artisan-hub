@@ -405,12 +405,14 @@ function PrevisioniPage() {
         return (
           <ForecastCellSheet
             date={editCell.date}
+            today={today}
             product={p}
             initialOrdered={f?.ordered}
             initialSold={f?.sold}
             initialLeftoverPrev={f?.leftoverPrev}
             initialNotes={f?.notes}
             suggestion={sugg}
+            history={dailyForecasts ?? []}
             onClose={() => setEditCell(null)}
             onSave={(patch) => {
               upsertDailyForecast(editCell.date, editCell.productId, patch);
