@@ -650,7 +650,7 @@ function ForecastCellSheet({ date, today, product, initialOrdered, initialSold, 
     </Sheet>
   );
 }
-}
+
 
 /* ============================================================
    Sheet: setup prodotti giornalieri
