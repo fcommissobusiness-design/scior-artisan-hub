@@ -94,28 +94,78 @@ interface SuggestionInput {
   history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[];
 }
 
-function computeSuggestion({ date, productId, history }: SuggestionInput): { value: number | null; basedOn: number; note: string } {
+export type Reliability = "alta" | "media" | "bassa" | "nessuna";
+
+export interface SuggestionResult {
+  value: number | null;
+  basedOn: number;
+  note: string;
+  dayTypeLabel: string;
+  avgSold: number;
+  avgLeftover: number;
+  trendPct: number | null; // % variazione tra prime e seconde metà
+  soldOuts: number;
+  reliability: Reliability;
+  samples: { date: string; sold: number; leftoverPrev: number }[];
+  totalHistoryCount: number; // tutte le occorrenze registrate per il prodotto (per reliability)
+}
+
+function computeSuggestion({ date, productId, history }: SuggestionInput): SuggestionResult {
   const targetType = dayType(date);
   const target = new Date(date + "T00:00:00").getTime();
-  // ultime occorrenze stesso day-type, prima della data target, con vendita registrata
-  const candidates = history
+  const dayTypeLabel = DAY_TYPE_LABEL[targetType];
+
+  const allForProduct = history
     .filter(h => h.productId === productId)
     .filter(h => new Date(h.date + "T00:00:00").getTime() < target)
+    .filter(h => typeof h.sold === "number" && h.sold >= 0);
+
+  const totalHistoryCount = allForProduct.length;
+
+  // affidabilità basata sul numero di rilevazioni disponibili
+  let reliability: Reliability = "nessuna";
+  if (totalHistoryCount >= 4) reliability = "alta";
+  else if (totalHistoryCount >= 2) reliability = "media";
+  else if (totalHistoryCount >= 1) reliability = "bassa";
+
+  const candidates = allForProduct
     .filter(h => dayType(h.date) === targetType)
-    .filter(h => typeof h.sold === "number" && h.sold >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 4);
 
+  const samples = candidates.map(c => ({
+    date: c.date,
+    sold: c.sold ?? 0,
+    leftoverPrev: c.leftoverPrev ?? 0,
+  }));
+
   if (candidates.length === 0) {
-    return { value: null, basedOn: 0, note: `Nessuno storico per ${DAY_TYPE_LABEL[targetType].toLowerCase()}` };
+    return {
+      value: null, basedOn: 0,
+      note: `Nessuno storico per ${dayTypeLabel.toLowerCase()}`,
+      dayTypeLabel, avgSold: 0, avgLeftover: 0, trendPct: null, soldOuts: 0,
+      reliability, samples, totalHistoryCount,
+    };
   }
 
   const weights = [0.4, 0.3, 0.2, 0.1].slice(0, candidates.length);
   const wsum = weights.reduce((s, w) => s + w, 0);
   const weighted = candidates.reduce((s, c, i) => s + (c.sold ?? 0) * weights[i], 0) / wsum;
 
-  // Disponibile = ordinato + residuo dal giorno precedente
   const available = (c: typeof candidates[number]) => c.ordered + (c.leftoverPrev ?? 0);
+  const avgSold = candidates.reduce((s, c) => s + (c.sold ?? 0), 0) / candidates.length;
+  const avgLeftover = candidates.reduce((s, c) => s + Math.max(0, available(c) - (c.sold ?? 0)), 0) / candidates.length;
+
+  // trend: confronta media metà più recente vs metà più vecchia (candidati già ordinati dal più recente)
+  let trendPct: number | null = null;
+  if (candidates.length >= 2) {
+    const half = Math.floor(candidates.length / 2) || 1;
+    const recent = candidates.slice(0, half);
+    const older = candidates.slice(-half);
+    const rAvg = recent.reduce((s, c) => s + (c.sold ?? 0), 0) / recent.length;
+    const oAvg = older.reduce((s, c) => s + (c.sold ?? 0), 0) / older.length;
+    if (oAvg > 0) trendPct = ((rAvg - oAvg) / oAvg) * 100;
+  }
 
   let adjusted = weighted;
   const soldOuts = candidates.filter(c => (c.sold ?? 0) >= available(c) && available(c) > 0).length;
@@ -124,11 +174,44 @@ function computeSuggestion({ date, productId, history }: SuggestionInput): { val
     .map(c => Math.max(0, available(c) - (c.sold ?? 0)) / available(c));
   const avgLeftoverPct = leftovers.length > 0 ? leftovers.reduce((s, v) => s + v, 0) / leftovers.length : 0;
 
-  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
+  let note = `Media ultime ${candidates.length} ${dayTypeLabel.toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
   if (candidates.length >= 3 && soldOuts >= 3) { adjusted *= 1.1; note += " · +10% (esauriti)"; }
   else if (avgLeftoverPct > 0.15) { adjusted *= 0.95; note += " · −5% (avanzo)"; }
 
-  return { value: Math.round(adjusted * 10) / 10, basedOn: candidates.length, note };
+  return {
+    value: Math.round(adjusted * 10) / 10,
+    basedOn: candidates.length,
+    note, dayTypeLabel,
+    avgSold: Math.round(avgSold * 10) / 10,
+    avgLeftover: Math.round(avgLeftover * 10) / 10,
+    trendPct: trendPct === null ? null : Math.round(trendPct),
+    soldOuts, reliability, samples, totalHistoryCount,
+  };
+}
+
+// aggregato ultimi N giorni per prodotto (per box "Spreco stimato")
+function aggregateLastDays(
+  history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[],
+  productId: string,
+  today: string,
+  days: number,
+): { ordered: number; sold: number; leftover: number; count: number } {
+  const end = new Date(today + "T00:00:00").getTime();
+  const start = end - (days - 1) * 86400000;
+  const rows = history.filter(h =>
+    h.productId === productId &&
+    typeof h.sold === "number" &&
+    (() => { const t = new Date(h.date + "T00:00:00").getTime(); return t >= start && t <= end; })()
+  );
+  const ordered = rows.reduce((s, r) => s + (r.ordered ?? 0), 0);
+  const sold = rows.reduce((s, r) => s + (r.sold ?? 0), 0);
+  const leftover = rows.reduce((s, r) => s + Math.max(0, (r.ordered + (r.leftoverPrev ?? 0)) - (r.sold ?? 0)), 0);
+  return {
+    ordered: Math.round(ordered * 10) / 10,
+    sold: Math.round(sold * 10) / 10,
+    leftover: Math.round(leftover * 10) / 10,
+    count: rows.length,
+  };
 }
 
 /* ============================================================
@@ -322,12 +405,14 @@ function PrevisioniPage() {
         return (
           <ForecastCellSheet
             date={editCell.date}
+            today={today}
             product={p}
             initialOrdered={f?.ordered}
             initialSold={f?.sold}
             initialLeftoverPrev={f?.leftoverPrev}
             initialNotes={f?.notes}
             suggestion={sugg}
+            history={dailyForecasts ?? []}
             onClose={() => setEditCell(null)}
             onSave={(patch) => {
               upsertDailyForecast(editCell.date, editCell.productId, patch);
@@ -349,14 +434,34 @@ function PrevisioniPage() {
    Sheet: modifica cella (ordinato / venduto / note)
    ============================================================ */
 
-function ForecastCellSheet({ date, product, initialOrdered, initialSold, initialLeftoverPrev, initialNotes, suggestion, onClose, onSave }: {
+function ReliabilityBadge({ level, samples }: { level: Reliability; samples: number }) {
+  const map: Record<Reliability, { label: string; cls: string; dot: string }> = {
+    alta: { label: "Alta affidabilità", cls: "bg-success/10 text-success border-success/30", dot: "bg-success" },
+    media: { label: "Media affidabilità", cls: "bg-brand-gold/10 text-brand-gold border-brand-gold/30", dot: "bg-brand-gold" },
+    bassa: { label: "Bassa affidabilità", cls: "bg-danger/10 text-danger border-danger/30", dot: "bg-danger" },
+    nessuna: { label: "Dati insufficienti", cls: "bg-muted text-muted-foreground border-border", dot: "bg-muted-foreground" },
+  };
+  const it = map[level];
+  return (
+    <span title="Più dati storici vengono registrati, maggiore sarà la precisione della previsione."
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${it.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${it.dot}`} />
+      {it.label}
+      <span className="opacity-70 font-normal">· {samples} rilev.</span>
+    </span>
+  );
+}
+
+function ForecastCellSheet({ date, today, product, initialOrdered, initialSold, initialLeftoverPrev, initialNotes, suggestion, history, onClose, onSave }: {
   date: string;
+  today: string;
   product: { id: string; name: string; unit: "kg" | "pz" };
   initialOrdered?: number;
   initialSold?: number;
   initialLeftoverPrev?: number;
   initialNotes?: string;
-  suggestion: { value: number | null; basedOn: number; note: string };
+  suggestion: SuggestionResult;
+  history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[];
   onClose: () => void;
   onSave: (patch: { ordered?: number; sold?: number; leftoverPrev?: number; notes?: string }) => void;
 }) {
@@ -370,6 +475,22 @@ function ForecastCellSheet({ date, product, initialOrdered, initialSold, initial
   const parsedLeftover = leftoverPrev === "" ? 0 : Number(leftoverPrev.replace(",", "."));
   const totalAvailable = (isNaN(parsedOrdered) ? 0 : parsedOrdered) + (isNaN(parsedLeftover) ? 0 : parsedLeftover);
 
+  // aggregato ultimi 7 giorni sul prodotto (giorni con vendita registrata)
+  const last7 = useMemo(() => aggregateLastDays(history, product.id, today, 7), [history, product.id, today]);
+
+  // sellouts nelle ultime 14 rilevazioni (qualsiasi tipo di giornata)
+  const recentSellouts = useMemo(() => {
+    const end = new Date(today + "T00:00:00").getTime();
+    const start = end - 13 * 86400000;
+    return history.filter(h =>
+      h.productId === product.id &&
+      typeof h.sold === "number" &&
+      (() => { const ts = new Date(h.date + "T00:00:00").getTime(); return ts >= start && ts <= end; })() &&
+      (h.ordered + (h.leftoverPrev ?? 0)) > 0 &&
+      (h.sold ?? 0) >= (h.ordered + (h.leftoverPrev ?? 0))
+    ).length;
+  }, [history, product.id, today]);
+
   const save = () => {
     onSave({
       ordered: parsedOrdered,
@@ -379,32 +500,86 @@ function ForecastCellSheet({ date, product, initialOrdered, initialSold, initial
     });
   };
 
+  const trendLabel = suggestion.trendPct === null
+    ? null
+    : suggestion.trendPct > 3 ? `+${suggestion.trendPct}% (in crescita)`
+    : suggestion.trendPct < -3 ? `${suggestion.trendPct}% (in calo)`
+    : "stabile";
+
   return (
     <Sheet open={true} onClose={onClose} title={`${product.name} · ${formatDateLong(date)}`}
       footer={<button onClick={save} className="w-full bg-brand-green text-brand-cream rounded-xl py-3 font-semibold">Salva</button>}>
-      <div className={`rounded-lg px-3 py-2 text-xs ${DAY_TYPE_COLOR[t]}`}>
-        Tipo giornata: <strong>{DAY_TYPE_LABEL[t]}</strong>
+
+      {/* Tipo giornata + affidabilità */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className={`rounded-lg px-3 py-1.5 text-xs ${DAY_TYPE_COLOR[t]}`}>
+          <strong>{DAY_TYPE_LABEL[t]}</strong>
+        </div>
+        <ReliabilityBadge level={suggestion.reliability} samples={suggestion.totalHistoryCount} />
       </div>
 
-      {suggestion.value !== null && (
-        <div className="bg-brand-green/5 border border-brand-green/20 rounded-lg p-3">
-          <p className="text-[10px] uppercase tracking-wider text-brand-green font-semibold">Suggerito dal sistema</p>
-          <p className="font-display text-2xl text-brand-green mt-1">
-            {suggestion.value} <span className="text-sm">{product.unit}</span>
+      {/* Quantità consigliata (hero) */}
+      {suggestion.value !== null ? (
+        <div className="bg-gradient-to-br from-brand-green/10 to-brand-green/5 border border-brand-green/25 rounded-xl p-4">
+          <p className="text-[10px] uppercase tracking-widest text-brand-green/80 font-semibold">Quantità consigliata</p>
+          <p className="font-display text-4xl text-brand-green mt-1 leading-none">
+            {suggestion.value}
+            <span className="text-lg ml-1 font-normal">{product.unit}</span>
           </p>
-          <p className="text-[11px] text-muted-foreground mt-1">{suggestion.note}</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Calcolato utilizzando vendite e residui precedenti
+          </p>
           <button type="button" onClick={() => setOrdered(String(suggestion.value))}
-            className="mt-2 text-xs bg-brand-green text-brand-cream rounded px-3 py-1.5 font-semibold">
+            className="mt-3 text-xs bg-brand-green text-brand-cream rounded-lg px-3 py-1.5 font-semibold">
             Usa come ordinato
           </button>
         </div>
-      )}
-      {suggestion.value === null && (
-        <p className="text-[11px] text-muted-foreground italic">
-          {suggestion.note}. Servono almeno 1-2 settimane di dati per i primi suggerimenti.
-        </p>
+      ) : (
+        <div className="bg-muted/40 border border-dashed border-border rounded-xl p-4 text-center">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Quantità consigliata</p>
+          <p className="font-display text-2xl text-muted-foreground mt-1">—</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {suggestion.note}. Servono almeno 1-2 settimane di dati per i primi suggerimenti.
+          </p>
+        </div>
       )}
 
+      {/* Motivazione */}
+      {suggestion.value !== null && (
+        <div className="bg-card border border-border rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-brand-green font-semibold mb-2">
+            Perché questa quantità?
+          </p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+            <span className="text-muted-foreground">Ultime {suggestion.basedOn} {suggestion.dayTypeLabel.toLowerCase()}</span>
+            <span className="text-right font-display text-foreground">media {suggestion.avgSold} {product.unit}</span>
+
+            <span className="text-muted-foreground">Residuo medio</span>
+            <span className="text-right font-display text-foreground">{suggestion.avgLeftover} {product.unit}</span>
+
+            {trendLabel && (
+              <>
+                <span className="text-muted-foreground">Trend</span>
+                <span className={`text-right font-display ${suggestion.trendPct && suggestion.trendPct > 3 ? "text-success" : suggestion.trendPct && suggestion.trendPct < -3 ? "text-danger" : "text-foreground"}`}>
+                  {trendLabel}
+                </span>
+              </>
+            )}
+
+            <span className="text-muted-foreground pt-1 border-t border-border/50 mt-1">Suggerimento finale</span>
+            <span className="text-right font-display font-semibold text-brand-green pt-1 border-t border-border/50 mt-1">
+              {suggestion.value} {product.unit}
+            </span>
+          </div>
+          {suggestion.samples.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/80 mt-2 italic">
+              rilevazioni: {suggestion.samples.map(s => `${s.sold}`).join(" · ")} {product.unit}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Inputs */}
       <div className="grid grid-cols-3 gap-2">
         <Field label={`Ordinato (${product.unit})`}>
           <input type="number" step="0.1" inputMode="decimal" value={ordered}
@@ -428,14 +603,54 @@ function ForecastCellSheet({ date, product, initialOrdered, initialSold, initial
         Totale disponibile per oggi: <strong>{+totalAvailable.toFixed(2)} {product.unit}</strong>
         <span className="text-muted-foreground"> (ordinato + residuo)</span>
       </div>
-      <Field label="Note (opzionale)">
+
+      {/* Spreco stimato ultimi 7 giorni */}
+      {last7.count > 0 && (
+        <div className="bg-card border border-border rounded-xl p-3">
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+              Ultimi 7 giorni
+            </p>
+            <p className="text-[10px] text-muted-foreground">{last7.count} rilev.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Ordinato</p>
+              <p className="font-display text-lg text-brand-green">{last7.ordered}</p>
+              <p className="text-[9px] text-muted-foreground">{product.unit}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Venduto</p>
+              <p className="font-display text-lg text-brand-gold">{last7.sold}</p>
+              <p className="text-[9px] text-muted-foreground">{product.unit}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Residuo</p>
+              <p className={`font-display text-lg ${last7.leftover > 0 ? "text-danger" : "text-success"}`}>{last7.leftover}</p>
+              <p className="text-[9px] text-muted-foreground">{product.unit}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insight esaurimento */}
+      {recentSellouts >= 2 && (
+        <div className="bg-brand-gold/10 border border-brand-gold/30 rounded-lg px-3 py-2 text-xs text-brand-gold">
+          <strong>Attenzione:</strong> hai terminato questo prodotto {recentSellouts} volte nelle ultime 2 settimane.
+          Potresti aumentare leggermente il quantitativo.
+        </div>
+      )}
+
+      {/* Evento / nota */}
+      <Field label="Evento speciale / Nota previsione (opzionale)">
         <textarea value={notes} onChange={e => setNotes(e.target.value)}
-          rows={2} placeholder="es. evento, maltempo, sagra…"
+          rows={2} placeholder="es. Ferragosto, sagra, pioggia prevista, degustazione…"
           className="w-full bg-card border border-border rounded-lg p-3 text-sm" />
       </Field>
     </Sheet>
   );
 }
+
 
 /* ============================================================
    Sheet: setup prodotti giornalieri
