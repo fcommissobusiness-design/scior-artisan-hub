@@ -94,28 +94,78 @@ interface SuggestionInput {
   history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[];
 }
 
-function computeSuggestion({ date, productId, history }: SuggestionInput): { value: number | null; basedOn: number; note: string } {
+export type Reliability = "alta" | "media" | "bassa" | "nessuna";
+
+export interface SuggestionResult {
+  value: number | null;
+  basedOn: number;
+  note: string;
+  dayTypeLabel: string;
+  avgSold: number;
+  avgLeftover: number;
+  trendPct: number | null; // % variazione tra prime e seconde metà
+  soldOuts: number;
+  reliability: Reliability;
+  samples: { date: string; sold: number; leftoverPrev: number }[];
+  totalHistoryCount: number; // tutte le occorrenze registrate per il prodotto (per reliability)
+}
+
+function computeSuggestion({ date, productId, history }: SuggestionInput): SuggestionResult {
   const targetType = dayType(date);
   const target = new Date(date + "T00:00:00").getTime();
-  // ultime occorrenze stesso day-type, prima della data target, con vendita registrata
-  const candidates = history
+  const dayTypeLabel = DAY_TYPE_LABEL[targetType];
+
+  const allForProduct = history
     .filter(h => h.productId === productId)
     .filter(h => new Date(h.date + "T00:00:00").getTime() < target)
+    .filter(h => typeof h.sold === "number" && h.sold >= 0);
+
+  const totalHistoryCount = allForProduct.length;
+
+  // affidabilità basata sul numero di rilevazioni disponibili
+  let reliability: Reliability = "nessuna";
+  if (totalHistoryCount >= 4) reliability = "alta";
+  else if (totalHistoryCount >= 2) reliability = "media";
+  else if (totalHistoryCount >= 1) reliability = "bassa";
+
+  const candidates = allForProduct
     .filter(h => dayType(h.date) === targetType)
-    .filter(h => typeof h.sold === "number" && h.sold >= 0)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 4);
 
+  const samples = candidates.map(c => ({
+    date: c.date,
+    sold: c.sold ?? 0,
+    leftoverPrev: c.leftoverPrev ?? 0,
+  }));
+
   if (candidates.length === 0) {
-    return { value: null, basedOn: 0, note: `Nessuno storico per ${DAY_TYPE_LABEL[targetType].toLowerCase()}` };
+    return {
+      value: null, basedOn: 0,
+      note: `Nessuno storico per ${dayTypeLabel.toLowerCase()}`,
+      dayTypeLabel, avgSold: 0, avgLeftover: 0, trendPct: null, soldOuts: 0,
+      reliability, samples, totalHistoryCount,
+    };
   }
 
   const weights = [0.4, 0.3, 0.2, 0.1].slice(0, candidates.length);
   const wsum = weights.reduce((s, w) => s + w, 0);
   const weighted = candidates.reduce((s, c, i) => s + (c.sold ?? 0) * weights[i], 0) / wsum;
 
-  // Disponibile = ordinato + residuo dal giorno precedente
   const available = (c: typeof candidates[number]) => c.ordered + (c.leftoverPrev ?? 0);
+  const avgSold = candidates.reduce((s, c) => s + (c.sold ?? 0), 0) / candidates.length;
+  const avgLeftover = candidates.reduce((s, c) => s + Math.max(0, available(c) - (c.sold ?? 0)), 0) / candidates.length;
+
+  // trend: confronta media metà più recente vs metà più vecchia (candidati già ordinati dal più recente)
+  let trendPct: number | null = null;
+  if (candidates.length >= 2) {
+    const half = Math.floor(candidates.length / 2) || 1;
+    const recent = candidates.slice(0, half);
+    const older = candidates.slice(-half);
+    const rAvg = recent.reduce((s, c) => s + (c.sold ?? 0), 0) / recent.length;
+    const oAvg = older.reduce((s, c) => s + (c.sold ?? 0), 0) / older.length;
+    if (oAvg > 0) trendPct = ((rAvg - oAvg) / oAvg) * 100;
+  }
 
   let adjusted = weighted;
   const soldOuts = candidates.filter(c => (c.sold ?? 0) >= available(c) && available(c) > 0).length;
@@ -124,11 +174,44 @@ function computeSuggestion({ date, productId, history }: SuggestionInput): { val
     .map(c => Math.max(0, available(c) - (c.sold ?? 0)) / available(c));
   const avgLeftoverPct = leftovers.length > 0 ? leftovers.reduce((s, v) => s + v, 0) / leftovers.length : 0;
 
-  let note = `Media ultime ${candidates.length} ${DAY_TYPE_LABEL[targetType].toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
+  let note = `Media ultime ${candidates.length} ${dayTypeLabel.toLowerCase()} (su tot. disponibile = ordinato + residuo)`;
   if (candidates.length >= 3 && soldOuts >= 3) { adjusted *= 1.1; note += " · +10% (esauriti)"; }
   else if (avgLeftoverPct > 0.15) { adjusted *= 0.95; note += " · −5% (avanzo)"; }
 
-  return { value: Math.round(adjusted * 10) / 10, basedOn: candidates.length, note };
+  return {
+    value: Math.round(adjusted * 10) / 10,
+    basedOn: candidates.length,
+    note, dayTypeLabel,
+    avgSold: Math.round(avgSold * 10) / 10,
+    avgLeftover: Math.round(avgLeftover * 10) / 10,
+    trendPct: trendPct === null ? null : Math.round(trendPct),
+    soldOuts, reliability, samples, totalHistoryCount,
+  };
+}
+
+// aggregato ultimi N giorni per prodotto (per box "Spreco stimato")
+function aggregateLastDays(
+  history: { date: string; productId: string; ordered: number; sold?: number; leftoverPrev?: number }[],
+  productId: string,
+  today: string,
+  days: number,
+): { ordered: number; sold: number; leftover: number; count: number } {
+  const end = new Date(today + "T00:00:00").getTime();
+  const start = end - (days - 1) * 86400000;
+  const rows = history.filter(h =>
+    h.productId === productId &&
+    typeof h.sold === "number" &&
+    (() => { const t = new Date(h.date + "T00:00:00").getTime(); return t >= start && t <= end; })()
+  );
+  const ordered = rows.reduce((s, r) => s + (r.ordered ?? 0), 0);
+  const sold = rows.reduce((s, r) => s + (r.sold ?? 0), 0);
+  const leftover = rows.reduce((s, r) => s + Math.max(0, (r.ordered + (r.leftoverPrev ?? 0)) - (r.sold ?? 0)), 0);
+  return {
+    ordered: Math.round(ordered * 10) / 10,
+    sold: Math.round(sold * 10) / 10,
+    leftover: Math.round(leftover * 10) / 10,
+    count: rows.length,
+  };
 }
 
 /* ============================================================
