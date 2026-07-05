@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
 import { TopBar, Sheet, Field } from "@/components/AppShell";
+import { useAccountMembership } from "@/lib/account";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
@@ -31,11 +34,19 @@ function AdminPage() {
   const [autoTick, setAutoTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [uid, setUid] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUid(data.session?.user?.id ?? null));
+  }, []);
+  const { membership } = useAccountMembership(uid);
+  const isAdmin = membership?.role === "admin";
+
   useEffect(() => { maybeAutoBackup(); }, []);
   const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
   const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
   const info = storageInfo();
+
 
   const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
 
@@ -82,6 +93,21 @@ function AdminPage() {
 
       <div className="p-4 md:p-6 space-y-6">
         {msg && <div className="bg-success/15 text-success rounded-lg p-3 text-sm">{msg}</div>}
+
+        {isAdmin && (
+          <section>
+            <h2 className="font-display text-lg text-brand-green mb-3">Team</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Link to="/admin/collaboratori"
+                className="bg-card rounded-xl p-4 flex flex-col hover:bg-accent transition-colors">
+                <h3 className="font-display text-base text-brand-green">Invita persone</h3>
+                <p className="text-xs text-muted-foreground mt-1 flex-1">Aggiungi collaboratori o amministratori. Gestisci ruoli, inviti e accessi.</p>
+                <span className="mt-3 rounded-lg py-2 text-sm font-semibold bg-brand-gold text-brand-green text-center">Apri gestione team</span>
+              </Link>
+            </div>
+          </section>
+        )}
+
 
         <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Manutenzione</h2>
