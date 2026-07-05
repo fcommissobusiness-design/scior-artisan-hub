@@ -94,6 +94,21 @@ function AdminPage() {
       <div className="p-4 md:p-6 space-y-6">
         {msg && <div className="bg-success/15 text-success rounded-lg p-3 text-sm">{msg}</div>}
 
+        {isAdmin && (
+          <section>
+            <h2 className="font-display text-lg text-brand-green mb-3">Team</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Link to="/admin/collaboratori"
+                className="bg-card rounded-xl p-4 flex flex-col hover:bg-accent transition-colors">
+                <h3 className="font-display text-base text-brand-green">Invita persone</h3>
+                <p className="text-xs text-muted-foreground mt-1 flex-1">Aggiungi collaboratori o amministratori. Gestisci ruoli, inviti e accessi.</p>
+                <span className="mt-3 rounded-lg py-2 text-sm font-semibold bg-brand-gold text-brand-green text-center">Apri gestione team</span>
+              </Link>
+            </div>
+          </section>
+        )}
+
+
         <section>
           <h2 className="font-display text-lg text-brand-green mb-3">Manutenzione</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
