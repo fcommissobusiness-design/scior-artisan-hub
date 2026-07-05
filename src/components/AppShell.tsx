@@ -2,9 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCloudSync, useSyncStatus } from "@/lib/cloudSync";
+import { useAccountMembership, collaboratorCanAccess, type AccountRole } from "@/lib/account";
+import { AccessDeniedBanner } from "@/components/AccessDeniedBanner";
 
-type NavItem = { to: string; label: string; short: string; wip?: boolean };
+type NavItem = { to: string; label: string; short: string; wip?: boolean; adminOnly?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
+
 
 export const WIP_ROUTES = new Set<string>(["/produzione", "/food-safety", "/b2b", "/ecommerce"]);
 
@@ -38,6 +41,8 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/report", label: "Report", short: "Report" },
     { to: "/cestino", label: "Cestino", short: "Cestino" },
     { to: "/admin", label: "Amministrazione", short: "Amministrazione" },
+    { to: "/admin/collaboratori", label: "Collaboratori", short: "Collaboratori", adminOnly: true },
+
   ]},
 ];
 
@@ -121,10 +126,23 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const syncStatus = useCloudSync(userId);
+  // Route pubbliche (accessibili senza login): pagina di accettazione invito.
+  const isPublicRoute = path.startsWith("/invito/");
 
+  const { membership, loading: memLoading } = useAccountMembership(userId);
+  const role: AccountRole | null = membership?.role ?? null;
+  const ownerId = membership?.ownerId ?? null;
+
+  const syncStatus = useCloudSync(userId, ownerId);
+
+  if (isPublicRoute) return <>{children}</>;
   if (!authReady) return <div className="min-h-screen bg-brand-green" />;
   if (!userId) return <AuthScreen />;
+  if (memLoading || !membership) return (
+    <div className="min-h-screen bg-brand-green text-brand-cream flex items-center justify-center text-sm opacity-80">
+      Caricamento profilo…
+    </div>
+  );
   if (syncStatus === "loading") return (
     <div className="min-h-screen bg-brand-green text-brand-cream flex items-center justify-center text-sm opacity-80">
       Sincronizzazione dati…
@@ -132,8 +150,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   const isActive = (to: string) => to === "/" ? path === "/" : path.startsWith(to);
-
   const isWip = WIP_ROUTES.has(path);
+  const isCollaborator = role === "collaborator";
+  const isBlockedForRole = isCollaborator && !collaboratorCanAccess(path);
+
 
   return (
     <div className="min-h-screen bg-brand-cream md:flex">
@@ -148,16 +168,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div key={g.label}>
               <p className="text-[10px] uppercase tracking-wider text-brand-cream/50 px-3 mb-1">{g.label}</p>
               <div className="flex flex-col gap-0.5">
-                {g.items.map((n) => {
+                {g.items.filter((n) => !n.adminOnly || role === "admin").map((n) => {
                   const active = isActive(n.to);
+                  const locked = isCollaborator && !collaboratorCanAccess(n.to);
                   return (
                     <Link key={`${g.label}-${n.to}`} to={n.to}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"} ${n.wip ? "opacity-60" : ""}`}>
+                      className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-gold/20 text-brand-gold" : "text-brand-cream/80 hover:bg-brand-cream/5"} ${n.wip ? "opacity-60" : ""} ${locked ? "opacity-70" : ""}`}>
                       <span>{n.label}</span>
                       {n.wip && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-brand-cream/10 text-brand-cream/70">WIP</span>}
+                      {locked && !n.wip && <span className="text-[10px]">🔒</span>}
                     </Link>
                   );
                 })}
+
               </div>
             </div>
           ))}
@@ -166,11 +189,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Contenuto */}
       <main className="flex-1 pb-24 md:pb-8 md:max-w-6xl md:mx-auto w-full relative">
-        <div className={isWip ? "pointer-events-none select-none opacity-40 blur-[1px]" : ""} aria-hidden={isWip}>
+        <div className={(isWip || isBlockedForRole) ? "pointer-events-none select-none opacity-40 blur-[1px]" : ""} aria-hidden={isWip || isBlockedForRole}>
           {children}
         </div>
         {isWip && <WipBlocker />}
+        {!isWip && isBlockedForRole && <AccessDeniedBanner />}
       </main>
+
 
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50 pb-[env(safe-area-inset-bottom)]">
@@ -200,16 +225,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div key={g.label}>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{g.label}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {g.items.map(n => {
+                    {g.items.filter((n) => !n.adminOnly || role === "admin").map(n => {
                       const active = isActive(n.to);
+                      const locked = isCollaborator && !collaboratorCanAccess(n.to);
                       return (
                         <Link key={`${g.label}-${n.to}`} to={n.to} onClick={() => setMoreOpen(false)}
-                          className={`px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"} ${n.wip ? "opacity-60" : ""}`}>
+                          className={`px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"} ${n.wip ? "opacity-60" : ""} ${locked ? "opacity-70" : ""}`}>
                           <span>{n.label}</span>
                           {n.wip && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">WIP</span>}
+                          {locked && !n.wip && <span className="text-[10px]">🔒</span>}
                         </Link>
                       );
                     })}
+
                   </div>
                 </div>
               ))}
