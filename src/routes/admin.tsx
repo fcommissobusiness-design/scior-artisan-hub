@@ -34,11 +34,19 @@ function AdminPage() {
   const [autoTick, setAutoTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [uid, setUid] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUid(data.session?.user?.id ?? null));
+  }, []);
+  const { membership } = useAccountMembership(uid);
+  const isAdmin = membership?.role === "admin";
+
   useEffect(() => { maybeAutoBackup(); }, []);
   const autoInfo = useMemo(() => getAutoBackupInfo(), [autoTick]);
   const storageStats = useMemo(() => getStorageStats(), [autoTick, orders, clients, products]);
 
   const info = storageInfo();
+
 
   const flash = (text: string, ms = 2000) => { setMsg(text); setTimeout(() => setMsg(null), ms); };
 
