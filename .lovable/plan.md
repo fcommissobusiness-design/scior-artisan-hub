@@ -1,105 +1,117 @@
-## Stato attuale (verifica P0)
+## Multiutente Base — Sciorio HQ
 
-Analizzato il codice — la maggior parte dei fix P0 è già in piedi:
+Implementazione ruoli **Amministratore / Collaboratore** riusando al massimo Auth, Sync Cloud, `user_state` e infrastruttura esistente. Nessun Resend attivo (predisposto ma inattivo). Nessun refactor massivo.
 
-- `consegne.tsx` riga 146–150: `DeliverySheet` ha già la firma `Omit<Delivery,"id"|"createdAt"> | Partial<Delivery>`. Nessun errore TS residuo riconducibile a riga 137 (riga 137 è ora il componente `Kpi`).
-- `AppShell.tsx`: `/consegne` è già in `NAV` (sidebar desktop) e in `MOBILE_NAV` (bottom nav mobile, escluso solo `/admin` e `/report`).
-- `store.ts`: `deliveries`, `addDelivery`, `updateDelivery`, `deleteDelivery` esposti correttamente, con migrazione e seed.
-- `data.ts`: `Delivery`, `DeliveryStatus`, `DeliveryPayment`, `SEED_DELIVERIES` definiti.
+---
 
-Resta da fare:
-1. Verifica build TS (un giro tipi a fine intervento).
-2. Aggiungere `/report` al `MOBILE_NAV` (è solo desktop ora) — lo chiede esplicitamente più sotto come parte del gestionale completo.
+### 1. Modello dati (una sola migration)
 
-## Approccio generale P1 + P2
+Il nodo architetturale: oggi ogni utente ha la sua riga `user_state` (dati privati). Per il multiutente serve che **tutti i collaboratori di un'attività leggano/scrivano la stessa riga** — quella dell'**owner** (il primo utente).
 
-Tutto resta locale, basato su `localStorage` (`sciorio-hq-v4` con migrazione da v3), nessun backend, nessuna nuova dipendenza pesante. Pattern coerente con l'esistente: tipi in `data.ts`, CRUD in `store.ts`, una route per sezione, `Sheet`/`Field`/`Fab`/`TopBar` riutilizzati, `WhatsAppDialog` riusato dove serve.
+Nuove tabelle in `public`:
 
-Per non gonfiare la bottom nav mobile (già 6 voci), aggiungo una voce **"Più"** che apre un menu con le sezioni secondarie. Sidebar desktop le elenca tutte.
+- **`account_members`** — mappa utente → account (owner) + ruolo
+  - `user_id uuid PK` (→ `auth.users`)
+  - `owner_id uuid NOT NULL` (l'admin fondatore = "account id")
+  - `role text CHECK IN ('admin','collaborator')`
+  - `created_at`, `last_seen_at`
+  - Il primo signup di un utente crea `owner_id = user_id, role='admin'` via trigger.
 
-## Phase 1 — Foundation: data + store + utility
+- **`account_invitations`**
+  - `id uuid PK`, `owner_id`, `email citext`, `role`, `token uuid UNIQUE`
+  - `status text ('invited','accepted','revoked')`
+  - `invited_by`, `invited_at`, `accepted_at`, `accepted_user_id`
 
-**`src/lib/data.ts`** — nuovi tipi e seed:
+RLS + GRANT completi. `has_role(uid, owner_id, role)` come security-definer per evitare ricorsione.
 
-- `Production { id, date, productId, qtyPlanned, qtyActual?, orderIds[], status: "da_preparare"|"preparato"|"completato", notes? }`
-- Estensione `Product`: `stock?, stockMin?, unitStock?, supplierId?, lastRestock?`
-- `Supplier { id, name, category, phone, contactName?, productIds[], notes?, lastOrderDate? }`
-- `CashEntry { id, date, type:"entrata"|"uscita", category, amount, method:"contanti"|"pos"|"bonifico"|"carta"|"altro", notes?, refType?:"order"|"delivery"|"casual"|"payment", refId? }`
-- `B2BClient { id, name, contactName?, phone, zone?, priceListId?, deliveryDays:string[], status:"prospect"|"attivo"|"sospeso", notes?, history:{date,total,note?}[] }`
-- `SupplierPayment { id, date, beneficiary, beneficiaryType:"fornitore"|"consulente"|"servizio"|"altro", category, amount, method, status:"da_pagare"|"pagato"|"scaduto", dueDate?, recurrence:"una_tantum"|"settimanale"|"mensile"|"annuale", notes?, document?:"fattura"|"ricevuta"|"preventivo"|"nessuno", supplierId? }`
-- `OrderSource` esteso con `"sito"|"b2b"`.
-- Seed minimi realistici per ciascuno (3–5 record) + alcuni `cost` mancanti su prodotti esistenti per consentire calcolo margine giornaliero.
+**Modifica chiave a `user_state`:** aggiungere policy che consente `SELECT/UPDATE` anche ai membri dell'account (via `account_members.owner_id = user_state.user_id`). Nessuna copia dei dati: si continua a scrivere sulla riga dell'owner.
 
-**`src/lib/store.ts`** — estensione `Store`, migrazione `sciorio-hq-v3 → v4` (fallback con default vuoti per i nuovi campi), CRUD per ognuno (`addProduction/updateProduction/deleteProduction`, `addSupplier/...`, `addCashEntry/...`, `addB2BClient/...`, `addSupplierPayment/...`). Quando un `Order` o `CasualSale` viene chiuso, helper opzionale `recordIncome()` che crea `CashEntry` collegata (chiamata esplicita dalle UI di chiusura, non automatica per non rompere il flusso esistente).
+### 2. Cloud Sync (modifica minima)
 
-**`src/lib/metrics.ts`** — selettori derivati nuovi:
+`useCloudSync(userId)` diventa `useCloudSync(userId, ownerId)`. Idrata e pusha su `user_state.user_id = ownerId`. Il realtime channel ascolta `user_id=eq.${ownerId}`. Zero cambi al resto della logica (`store.ts`, snapshot, debounce, flush).
 
-- `productionToday(date)`, `mozzarellaKgToday()`
-- `lowStockProducts()`, `outOfStockProducts()`
-- `cashFlowDay(date)`, `cashFlowMonth(date)`, `monthlyBalance()`
-- `supplierPaymentsDue()`, `supplierPaymentsOverdue()`, `recurringMonthly()`
-- `topSuppliersByCost()`, `topB2BByRevenue()`
-- `grossMarginEstimated(period)`, `netBalanceEstimated(period)` (lordo – uscite registrate)
-- `pendingDeliveryRevenue()`, `averageReceipt()`
+`AppShell` carica prima la membership dell'utente (`account_members`), poi passa l'`ownerId` a `useCloudSync`. Se manca la riga (utente storico pre-migrazione), la crea al volo come `owner_id = self, role='admin'`.
 
-## Phase 2 — Nuove sezioni (8 route)
+### 3. Ruoli e route gating
 
-Una route per voce (nuovo file in `src/routes/`), tutte con `TopBar`, lista filtrabile, `Sheet` con `Field` per CRUD, `Fab` per nuovo. Stile e densità identici alle sezioni esistenti.
+Nuovo hook `useCurrentRole()` esposto da `AppShell` via context. Set delle route consentite ai collaboratori:
 
-1. `produzione.tsx` — lista per giorno, badge stato, KPI in alto (kg mozzarella oggi, da preparare, completati, delta previsto/effettivo). "Genera da ordini di oggi" come quick action.
-2. `magazzino.tsx` — lista prodotti con `stock`, `stockMin`, alert sotto soglia/esauriti, link a fornitore, modifica rapida giacenza.
-3. `fornitori.tsx` — anagrafica fornitori, azioni WhatsApp/Chiama, "Nuovo ordine fornitore" che apre Sheet con nota libera + data + (futuro link a `SupplierPayment`).
-4. `incassi.tsx` — prima nota entrata/uscita con KPI giorno/mese e saldo, filtro categoria/metodo.
-5. `fiscale.tsx` — sola lettura riassuntiva (fatturato stimato, incassi registrati, scontrini, ordini ritirati, consegne incassate, promemoria libero) con disclaimer fisso "Dati gestionali interni, non sostituiscono commercialista o registratore fiscale".
-6. `b2b.tsx` — lista clienti business con stato/zona, azioni WhatsApp/Chiama, "Nuovo ordine B2B" (riusa `Order` con `source:"b2b"` e `clientId` punta al `B2BClient` via prefisso).
-7. `finanza.tsx` — dashboard finanziaria read-only: fatturato generato, fatturato stimato, margine lordo stimato, uscite (merce/consulenti/altro), saldo netto stimato, scontrino medio, top prodotti per margine, top clienti, top B2B, consegne da incassare.
-8. `pagamenti.tsx` — pagamenti fornitori/consulenti con stato (da pagare / pagato / scaduto, calcolato da `dueDate` vs oggi), ricorrenze, alert in cima, KPI mese, beneficiari più costosi.
-
-**Navigazione**: sidebar desktop elenca tutte le voci raggruppate (Operativo / Anagrafiche / Finanza / Sistema). Bottom nav mobile mantiene 6 slot: `Home`, `Ordini`, `Consegne`, `Clienti`, `Prodotti`, `Più`. `Più` è un Sheet con tutte le altre sezioni.
-
-## Phase 3 — Miglioramenti sezioni esistenti
-
-Modifiche puntuali, senza riscritture:
-
-- `ordini.tsx`: stato `pronto` già presente in tipi → assicurare presenza nei filtri/transizioni; selettore `source` con tutte le origini incl. `b2b`/`sito`; bottone "Duplica" già nello store, esporre nell'azione rapida; al passaggio a `ritirato` chiamare `recordIncome()` opzionale (toggle "registra incasso").
-- `clienti.tsx`: badge "caldo / inattivo / top spender / premio pronto" calcolati da `metrics`, riga "Prodotti preferiti" derivata dagli ordini, LTV già calcolato → esporre in card.
-- `prodotti.tsx`: nuovi campi `stock`, `stockMin`, `supplierId` (select da `suppliers`), toggle `magnet`/`seasonal` già nei tipi → esporre nel form.
-- `offerte.tsx`: campi `targetSegment`, `channel`, `startDate`, `endDate` già in `Bundle` → esporre nel form; bottone "Genera messaggio WhatsApp promo" che apre `WhatsAppDialog` con template `promo_bundle`.
-- `admin.tsx`: cambio PIN reale (usa `setPin`), export/import JSON, reset doppia conferma, riepilogo `storageInfo()`, versione hardcoded `v0.4.0`.
-
-## Out of scope
-
-Nessun backend, Supabase, autenticazione multi-utente, push, AI, ecommerce, grafici complessi, PDF, esportazioni avanzate, calcoli IVA reali, integrazione registratore fiscale.
-
-## Note di esecuzione
-
-- Migrazione store: leggere v4, fallback v3 (con riempimento campi nuovi a `[]`/`undefined`), poi v2 legacy. Mai distruggere dati esistenti.
-- I nuovi `CashEntry` collegati a ordini sono opzionali e non duplicano il `total` dell'ordine: la finanza somma incassi registrati, non totali ordini, per evitare doppio conteggio. `fiscale.tsx` mostra entrambi separatamente.
-- Tutto in italiano, branding/typografia invariati.
-- Verifica TS finale con un giro di lettura sui file toccati; nessun `any` introdotto se non nei punti già esistenti.
-
-## Diagramma navigazione
-
-```text
-Sidebar desktop                    Bottom nav mobile
-─ OPERATIVO                        [Home][Ordini][Consegne]
-  Dashboard                        [Clienti][Prodotti][Più]
-  Ordini                                            │
-  Consegne                                          ▼
-  Produzione                       Sheet "Più":
-─ ANAGRAFICHE                       Offerte · Produzione
-  Clienti                           Magazzino · Fornitori
-  B2B / Lidi                        B2B · Incassi · Pagamenti
-  Prodotti                          Fiscale · Finanza · Report
-  Magazzino                         Admin
-  Fornitori
-  Offerte
-─ FINANZA
-  Incassi
-  Pagamenti
-  Finanza
-  Fiscale
-  Report
-─ SISTEMA
-  Amministrazione
 ```
+/  /ordini  /consegne  /clienti  /offerte
+/magazzino  /prodotti  /previsioni  /entrate-merci  /fornitori
++ /admin/collaboratori (solo lettura del proprio profilo? no: bloccata)
+```
+
+Tutte le altre voci restano **visibili** nella sidebar (marker "🔒"). Se un collaboratore ci clicca, `AppShell` intercetta e mostra un **banner** al posto del contenuto:
+
+> Non disponi dei permessi necessari per accedere a questa sezione.
+> [Contatta un amministratore] (chiude il banner)
+
+Stessa protezione via URL diretto (controllo su `path` in `AppShell`, come già fatto per `WIP_ROUTES`).
+
+### 4. Schermata Gestione Team
+
+Nuova voce nella sidebar sotto **Amministrazione** (visibile solo agli admin): `/admin/collaboratori`.
+
+Contenuti:
+- Pulsante **Invita persona** → modal (Email + Ruolo select) → **Invia invito**
+- Tabella membri: Email · Ruolo · Data invito · Status (Invitato/Registrato/Attivo) · Ultimo accesso
+- Azioni per riga (menu): Promuovi admin · Declassa · Revoca · Rimuovi · Reinvia invito
+- Guardrail:
+  - Primo admin (l'`owner_id` stesso) non rimovibile/declassabile
+  - Blocco se l'azione lascerebbe zero admin
+
+### 5. Inviti (email predisposta, inattiva)
+
+Server functions in `src/lib/invitations.functions.ts`:
+- `createInvitation({email, role})` — admin only, inserisce riga, genera token
+- `getInvitationByToken(token)` — public, per pagina di accettazione
+- `acceptInvitation({token, password})` — crea utente Supabase (signUp), inserisce `account_members` con `owner_id` dell'invito, marca `accepted`
+- `listMembers()`, `updateMemberRole()`, `removeMember()`, `revokeInvitation()`, `resendInvitation()`
+
+**Email**: helper `sendInvitationEmail(email, link)` in `src/lib/email/invitations.ts`. Corpo predisposto (subject "Sei stato invitato su ScalaShop", testo + link). Attualmente **no-op** con `console.log` + flag `EMAIL_PROVIDER_ENABLED=false`. Quando Resend verrà collegato basterà popolare la funzione.
+
+Il link generato viene comunque mostrato all'admin nella UI dopo la creazione ("copia link invito") — così il flow è testabile senza email reale.
+
+### 6. Pagina di accettazione
+
+Nuova route pubblica `/invito/$token`:
+- Legge invito via server fn pubblica
+- Mostra email precompilata (readonly) + campo password
+- Su submit → `acceptInvitation` → login automatico → redirect a `/`
+- Nessun onboarding, nessuna creazione dati: entra dritto nell'attività esistente
+
+### 7. Persistenza & multi-device
+
+Nessuna modifica: Supabase auth già persiste la sessione. Login normale funziona già. Il realtime già gestisce la sync tra device — ora tra utenti diversi dello stesso account.
+
+### 8. Aspetti tecnici principali
+
+- **Migrazione utenti esistenti**: trigger `on auth.users insert` + backfill una tantum che crea `account_members(user_id=self, owner_id=self, role='admin')` per ogni utente già registrato.
+- **RLS `user_state`**: policy aggiuntiva `USING (user_id IN (SELECT owner_id FROM account_members WHERE user_id = auth.uid()))` per SELECT/UPDATE.
+- **Signup libero disabilitato**: solo via invito. `supabase--configure_auth disable_signup=true`. L'accept-invito usa `signUp` che il server valida contro il token (server fn con `supabaseAdmin.auth.admin.createUser`).
+- **Realtime**: il channel filtra sull'`ownerId`, così tutti i collaboratori ricevono le stesse UPDATE.
+
+### 9. File toccati (stimati)
+
+Nuovi:
+- `supabase/migrations/<ts>_multiuser.sql`
+- `src/lib/account.ts` (hook membership + role context)
+- `src/lib/invitations.functions.ts` (+ tipo)
+- `src/lib/email/invitations.ts` (placeholder)
+- `src/routes/admin.collaboratori.tsx`
+- `src/routes/invito.$token.tsx`
+- `src/components/AccessDeniedBanner.tsx`
+
+Modificati (minimi):
+- `src/lib/cloudSync.ts` — accetta `ownerId`
+- `src/components/AppShell.tsx` — carica membership, passa ownerId, gate route, voce sidebar admin, banner blocco
+- `src/routes/admin.tsx` — link a Collaboratori
+
+### 10. Verifiche finali
+
+Al termine testerò con Playwright/psql: creazione invito, link copiabile, accept-invito → login, sync condivisa tra due sessioni, blocco route del collaboratore, azioni admin (promuovi/declassa/revoca/rimuovi), guardrail ultimo admin, persistenza login.
+
+---
+
+Confermi? Segnalami eventuali aggiustamenti (es. path della voce sidebar, testo esatto del banner, se vuoi che l'invito mostri anche il link copiabile in UI durante questa fase senza email).

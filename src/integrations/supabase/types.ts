@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          email: string
+          id: string
+          invited_at: string
+          invited_by: string | null
+          owner_id: string
+          role: string
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          email: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          owner_id: string
+          role: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          email?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string | null
+          owner_id?: string
+          role?: string
+          status?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      account_members: {
+        Row: {
+          created_at: string
+          last_seen_at: string | null
+          owner_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen_at?: string | null
+          owner_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen_at?: string | null
+          owner_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_state: {
         Row: {
           data: Json
@@ -40,7 +103,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_account_owner: { Args: { _user_id: string }; Returns: string }
+      is_account_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_member_of: {
+        Args: { _owner: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

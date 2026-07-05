@@ -31,7 +31,7 @@ export function useSyncStatus(): CloudSyncStatus {
  * in `user_state`. Hydrates on login, pushes local changes debounced, and
  * subscribes to realtime updates so other devices receive changes live.
  */
-export function useCloudSync(userId: string | null) {
+export function useCloudSync(userId: string | null, ownerId?: string | null) {
   const [status, setStatus] = useState<CloudSyncStatus>("idle");
   const versionRef = useRef<number>(0);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,16 +41,22 @@ export function useCloudSync(userId: string | null) {
   // helper combinato per stato locale + condiviso
   const updateStatus = (s: CloudSyncStatus) => { setStatus(s); setSharedStatus(s); };
 
+  // targetId = riga user_state su cui leggiamo/scriviamo:
+  // - se l'utente è collaboratore di un altro account => ownerId
+  // - se è admin del proprio account => coincide con userId
+  const targetId = ownerId ?? userId;
+
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !targetId) {
       updateStatus("idle");
       return;
     }
     let cancelled = false;
     updateStatus("loading");
 
+
     const pushNow = async () => {
-      if (!userId) return;
+      if (!targetId) return;
       if (!pendingRef.current) return;
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -66,10 +72,11 @@ export function useCloudSync(userId: string | null) {
             version: nextVersion,
             updated_at: new Date().toISOString(),
           })
-          .eq("user_id", userId);
+          .eq("user_id", targetId);
         if (error) throw error;
         versionRef.current = nextVersion;
         updateStatus("ready");
+
       } catch (e) {
         console.error("[cloudSync] push failed", e);
         pendingRef.current = true; // retry on next change/flush
@@ -89,11 +96,15 @@ export function useCloudSync(userId: string | null) {
         const { data, error } = await supabase
           .from("user_state")
           .select("data, version, updated_at")
-          .eq("user_id", userId)
+          .eq("user_id", targetId)
           .maybeSingle();
         if (error) throw error;
 
         if (!data) {
+          // Solo l'owner può creare la propria riga (RLS).
+          if (targetId !== userId) {
+            throw new Error("Nessuno stato cloud trovato per questo account");
+          }
           const local = getStoreSnapshot();
           const { data: ins, error: insErr } = await supabase
             .from("user_state")
@@ -102,6 +113,7 @@ export function useCloudSync(userId: string | null) {
             .single();
           if (insErr) throw insErr;
           versionRef.current = ins?.version ?? 1;
+
         } else {
           versionRef.current = Number(data.version ?? 1);
           if (data.data && typeof data.data === "object") {
@@ -141,16 +153,16 @@ export function useCloudSync(userId: string | null) {
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", onVis);
 
-    // Realtime: ricezione modifiche da altri device.
+    // Realtime: ricezione modifiche da altri device / collaboratori dello stesso account.
     const channel = supabase
-      .channel(`user_state:${userId}`)
+      .channel(`user_state:${targetId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "user_state",
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=eq.${targetId}`,
         },
         (payload) => {
           const row = payload.new as { data: any; version: number };
@@ -164,6 +176,7 @@ export function useCloudSync(userId: string | null) {
       )
       .subscribe();
 
+
     return () => {
       cancelled = true;
       flush();
@@ -174,7 +187,7 @@ export function useCloudSync(userId: string | null) {
       document.removeEventListener("visibilitychange", onVis);
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, targetId]);
 
   return status;
 }

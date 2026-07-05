@@ -33,6 +33,8 @@ import { Route as CestinoRouteImport } from './routes/cestino'
 import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InvitoTokenRouteImport } from './routes/invito.$token'
+import { Route as AdminCollaboratoriRouteImport } from './routes/admin.collaboratori'
 
 const ReportRoute = ReportRouteImport.update({
   id: '/report',
@@ -154,10 +156,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvitoTokenRoute = InvitoTokenRouteImport.update({
+  id: '/invito/$token',
+  path: '/invito/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCollaboratoriRoute = AdminCollaboratoriRouteImport.update({
+  id: '/collaboratori',
+  path: '/collaboratori',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -180,10 +192,12 @@ export interface FileRoutesByFullPath {
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
+  '/admin/collaboratori': typeof AdminCollaboratoriRoute
+  '/invito/$token': typeof InvitoTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -206,11 +220,13 @@ export interface FileRoutesByTo {
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
+  '/admin/collaboratori': typeof AdminCollaboratoriRoute
+  '/invito/$token': typeof InvitoTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -233,6 +249,8 @@ export interface FileRoutesById {
   '/prodotti': typeof ProdottiRoute
   '/produzione': typeof ProduzioneRoute
   '/report': typeof ReportRoute
+  '/admin/collaboratori': typeof AdminCollaboratoriRoute
+  '/invito/$token': typeof InvitoTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -261,6 +279,8 @@ export interface FileRouteTypes {
     | '/prodotti'
     | '/produzione'
     | '/report'
+    | '/admin/collaboratori'
+    | '/invito/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -287,6 +307,8 @@ export interface FileRouteTypes {
     | '/prodotti'
     | '/produzione'
     | '/report'
+    | '/admin/collaboratori'
+    | '/invito/$token'
   id:
     | '__root__'
     | '/'
@@ -313,11 +335,13 @@ export interface FileRouteTypes {
     | '/prodotti'
     | '/produzione'
     | '/report'
+    | '/admin/collaboratori'
+    | '/invito/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   B2bRoute: typeof B2bRoute
   CestinoRoute: typeof CestinoRoute
   ClientiRoute: typeof ClientiRoute
@@ -340,6 +364,7 @@ export interface RootRouteChildren {
   ProdottiRoute: typeof ProdottiRoute
   ProduzioneRoute: typeof ProduzioneRoute
   ReportRoute: typeof ReportRoute
+  InvitoTokenRoute: typeof InvitoTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -512,12 +537,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invito/$token': {
+      id: '/invito/$token'
+      path: '/invito/$token'
+      fullPath: '/invito/$token'
+      preLoaderRoute: typeof InvitoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/collaboratori': {
+      id: '/admin/collaboratori'
+      path: '/collaboratori'
+      fullPath: '/admin/collaboratori'
+      preLoaderRoute: typeof AdminCollaboratoriRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminCollaboratoriRoute: typeof AdminCollaboratoriRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminCollaboratoriRoute: AdminCollaboratoriRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   B2bRoute: B2bRoute,
   CestinoRoute: CestinoRoute,
   ClientiRoute: ClientiRoute,
@@ -540,17 +589,8 @@ const rootRouteChildren: RootRouteChildren = {
   ProdottiRoute: ProdottiRoute,
   ProduzioneRoute: ProduzioneRoute,
   ReportRoute: ReportRoute,
+  InvitoTokenRoute: InvitoTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
