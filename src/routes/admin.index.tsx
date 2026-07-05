@@ -17,7 +17,7 @@ import { CRM_DEFAULTS, loadCrmSettings, saveCrmSettings, resetCrmSettings, type 
 
 const APP_VERSION = "0.4.0";
 
-export const Route = createFileRoute("/admin")({ component: AdminPage });
+export const Route = createFileRoute("/admin/")({ component: AdminPage });
 
 function AdminPage() {
   const store = useStore();

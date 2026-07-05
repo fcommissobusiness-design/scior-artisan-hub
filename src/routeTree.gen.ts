@@ -31,8 +31,8 @@ import { Route as ConsegneRouteImport } from './routes/consegne'
 import { Route as ClientiRouteImport } from './routes/clienti'
 import { Route as CestinoRouteImport } from './routes/cestino'
 import { Route as B2bRouteImport } from './routes/b2b'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as InvitoTokenRouteImport } from './routes/invito.$token'
 import { Route as AdminCollaboratoriRouteImport } from './routes/admin.collaboratori'
 
@@ -146,14 +146,14 @@ const B2bRoute = B2bRouteImport.update({
   path: '/b2b',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvitoTokenRoute = InvitoTokenRouteImport.update({
@@ -162,14 +162,13 @@ const InvitoTokenRoute = InvitoTokenRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminCollaboratoriRoute = AdminCollaboratoriRouteImport.update({
-  id: '/collaboratori',
-  path: '/collaboratori',
-  getParentRoute: () => AdminRoute,
+  id: '/admin/collaboratori',
+  path: '/admin/collaboratori',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -194,10 +193,10 @@ export interface FileRoutesByFullPath {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -222,11 +221,11 @@ export interface FileRoutesByTo {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -251,12 +250,12 @@ export interface FileRoutesById {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -281,10 +280,10 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -309,10 +308,10 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin'
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -337,11 +336,11 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
   B2bRoute: typeof B2bRoute
   CestinoRoute: typeof CestinoRoute
   ClientiRoute: typeof ClientiRoute
@@ -364,7 +363,9 @@ export interface RootRouteChildren {
   ProdottiRoute: typeof ProdottiRoute
   ProduzioneRoute: typeof ProduzioneRoute
   ReportRoute: typeof ReportRoute
+  AdminCollaboratoriRoute: typeof AdminCollaboratoriRoute
   InvitoTokenRoute: typeof InvitoTokenRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -523,18 +524,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof B2bRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invito/$token': {
@@ -546,27 +547,16 @@ declare module '@tanstack/react-router' {
     }
     '/admin/collaboratori': {
       id: '/admin/collaboratori'
-      path: '/collaboratori'
+      path: '/admin/collaboratori'
       fullPath: '/admin/collaboratori'
       preLoaderRoute: typeof AdminCollaboratoriRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface AdminRouteChildren {
-  AdminCollaboratoriRoute: typeof AdminCollaboratoriRoute
-}
-
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminCollaboratoriRoute: AdminCollaboratoriRoute,
-}
-
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
   B2bRoute: B2bRoute,
   CestinoRoute: CestinoRoute,
   ClientiRoute: ClientiRoute,
@@ -589,7 +579,9 @@ const rootRouteChildren: RootRouteChildren = {
   ProdottiRoute: ProdottiRoute,
   ProduzioneRoute: ProduzioneRoute,
   ReportRoute: ReportRoute,
+  AdminCollaboratoriRoute: AdminCollaboratoriRoute,
   InvitoTokenRoute: InvitoTokenRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
