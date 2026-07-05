@@ -41,7 +41,8 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/report", label: "Report", short: "Report" },
     { to: "/cestino", label: "Cestino", short: "Cestino" },
     { to: "/admin", label: "Amministrazione", short: "Amministrazione" },
-    { to: "/admin/collaboratori", label: "Collaboratori", short: "Collaboratori", adminOnly: true },
+
+
 
   ]},
 ];

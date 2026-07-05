@@ -1,7 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
 import { TopBar, Sheet, Field } from "@/components/AppShell";
+import { useAccountMembership } from "@/lib/account";
+import { supabase } from "@/integrations/supabase/client";
+
 import {
   exportClients, exportOrders, exportProducts, exportDeliveries,
   exportSuppliers, exportCashEntries, exportProductions, exportStock, exportPayments,
