@@ -189,11 +189,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Contenuto */}
       <main className="flex-1 pb-24 md:pb-8 md:max-w-6xl md:mx-auto w-full relative">
-        <div className={isWip ? "pointer-events-none select-none opacity-40 blur-[1px]" : ""} aria-hidden={isWip}>
+        <div className={(isWip || isBlockedForRole) ? "pointer-events-none select-none opacity-40 blur-[1px]" : ""} aria-hidden={isWip || isBlockedForRole}>
           {children}
         </div>
         {isWip && <WipBlocker />}
+        {!isWip && isBlockedForRole && <AccessDeniedBanner />}
       </main>
+
 
       {/* Bottom nav mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-green border-t border-brand-green-dark grid grid-cols-6 z-50 pb-[env(safe-area-inset-bottom)]">
