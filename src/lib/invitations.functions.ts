@@ -40,16 +40,18 @@ export const acceptInvitationFn = createServerFn({ method: "POST" })
       email_confirm: true,
     });
     if (createErr) {
-      // Se già esiste, prova a recuperarlo
+      // Se un utente con questa email esiste già, NON permettiamo di resettargli
+      // la password tramite invito: sarebbe un vettore di account takeover.
       const { data: list } = await supabaseAdmin.auth.admin.listUsers();
       const existing = list?.users?.find((u) => u.email?.toLowerCase() === email);
-      if (!existing) throw new Error(createErr.message);
-      userId = existing.id;
-      // aggiorna password
-      await supabaseAdmin.auth.admin.updateUserById(existing.id, { password: data.password });
-    } else {
-      userId = created.user?.id ?? null;
+      if (existing) {
+        throw new Error(
+          "Questo indirizzo email è già registrato. Chiedi all'utente di effettuare il login con la propria password esistente, oppure contatta un amministratore.",
+        );
+      }
+      throw new Error(createErr.message);
     }
+    userId = created.user?.id ?? null;
     if (!userId) throw new Error("Impossibile creare l'utente");
 
     // 3) Rimuove eventuale membership self-admin creata dal trigger,

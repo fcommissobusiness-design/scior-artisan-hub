@@ -17,16 +17,14 @@ function InvitePage() {
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
-        .from("account_invitations")
-        .select("email, role, status")
-        .eq("token", token)
-        .maybeSingle();
-      if (error || !data || data.status !== "invited") {
+        .rpc("get_invitation_by_token", { _token: token });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (error || !row || row.status !== "invited") {
         setStatus("invalid");
         return;
       }
-      setEmail(data.email as string);
-      setRole(data.role as string);
+      setEmail(row.email as string);
+      setRole(row.role as string);
       setStatus("ready");
     })();
   }, [token]);
