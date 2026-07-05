@@ -103,11 +103,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_account_owner: { Args: { _user_id: string }; Returns: string }
-      is_account_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_member_of: {
-        Args: { _owner: string; _user_id: string }
-        Returns: boolean
+      get_invitation_by_token: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          role: string
+          status: string
+        }[]
       }
     }
     Enums: {
