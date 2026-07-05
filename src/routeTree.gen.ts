@@ -33,6 +33,7 @@ import { Route as CestinoRouteImport } from './routes/cestino'
 import { Route as B2bRouteImport } from './routes/b2b'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as InvitoTokenRouteImport } from './routes/invito.$token'
 import { Route as AdminCollaboratoriRouteImport } from './routes/admin.collaboratori'
 
@@ -156,6 +157,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const InvitoTokenRoute = InvitoTokenRouteImport.update({
   id: '/invito/$token',
   path: '/invito/$token',
@@ -194,10 +200,10 @@ export interface FileRoutesByFullPath {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/b2b': typeof B2bRoute
   '/cestino': typeof CestinoRoute
   '/clienti': typeof ClientiRoute
@@ -222,6 +228,7 @@ export interface FileRoutesByTo {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -251,6 +258,7 @@ export interface FileRoutesById {
   '/report': typeof ReportRoute
   '/admin/collaboratori': typeof AdminCollaboratoriRoute
   '/invito/$token': typeof InvitoTokenRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -281,10 +289,10 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/b2b'
     | '/cestino'
     | '/clienti'
@@ -309,6 +317,7 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin'
   id:
     | '__root__'
     | '/'
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/report'
     | '/admin/collaboratori'
     | '/invito/$token'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -537,6 +547,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/invito/$token': {
       id: '/invito/$token'
       path: '/invito/$token'
@@ -556,10 +573,12 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminCollaboratoriRoute: typeof AdminCollaboratoriRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCollaboratoriRoute: AdminCollaboratoriRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
