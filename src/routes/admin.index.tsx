@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useStore, getPin, setPin } from "@/lib/store";
 import { TopBar, Sheet, Field } from "@/components/AppShell";
+import { TeamManagement } from "@/components/TeamManagement";
 import { useAccountMembership } from "@/lib/account";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +31,7 @@ function AdminPage() {
   const [openPin, setOpenPin] = useState(false);
   const [openImport, setOpenImport] = useState(false);
   const [openReset, setOpenReset] = useState(false);
+  const [showTeam, setShowTeam] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [autoTick, setAutoTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -98,13 +100,20 @@ function AdminPage() {
           <section>
             <h2 className="font-display text-lg text-brand-green mb-3">Team</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Link to="/admin/collaboratori"
-                className="bg-card rounded-xl p-4 flex flex-col hover:bg-accent transition-colors">
+              <button type="button" onClick={() => setShowTeam((v) => !v)}
+                className="bg-card rounded-xl p-4 flex flex-col hover:bg-accent transition-colors text-left">
                 <h3 className="font-display text-base text-brand-green">Invita persone</h3>
                 <p className="text-xs text-muted-foreground mt-1 flex-1">Aggiungi collaboratori o amministratori. Gestisci ruoli, inviti e accessi.</p>
-                <span className="mt-3 rounded-lg py-2 text-sm font-semibold bg-brand-gold text-brand-green text-center">Apri gestione team</span>
-              </Link>
+                <span className="mt-3 rounded-lg py-2 text-sm font-semibold bg-brand-gold text-brand-green text-center">
+                  {showTeam ? "Chiudi gestione team" : "Apri gestione team"}
+                </span>
+              </button>
             </div>
+            {showTeam && (
+              <div className="mt-4 bg-card rounded-xl p-4">
+                <TeamManagement embedded />
+              </div>
+            )}
           </section>
         )}
 
