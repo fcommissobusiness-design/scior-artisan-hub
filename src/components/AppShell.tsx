@@ -225,16 +225,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div key={g.label}>
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">{g.label}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {g.items.map(n => {
+                    {g.items.filter((n) => !n.adminOnly || role === "admin").map(n => {
                       const active = isActive(n.to);
+                      const locked = isCollaborator && !collaboratorCanAccess(n.to);
                       return (
                         <Link key={`${g.label}-${n.to}`} to={n.to} onClick={() => setMoreOpen(false)}
-                          className={`px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"} ${n.wip ? "opacity-60" : ""}`}>
+                          className={`px-3 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${active ? "bg-brand-green text-brand-cream" : "bg-card text-foreground/80"} ${n.wip ? "opacity-60" : ""} ${locked ? "opacity-70" : ""}`}>
                           <span>{n.label}</span>
                           {n.wip && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">WIP</span>}
+                          {locked && !n.wip && <span className="text-[10px]">🔒</span>}
                         </Link>
                       );
                     })}
+
                   </div>
                 </div>
               ))}
